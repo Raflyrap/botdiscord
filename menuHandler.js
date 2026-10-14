@@ -30,6 +30,7 @@ function getMainDashboard(guild, member) {
       `• /resume - Melanjutkan lagu yang dihentikan sementara\n` +
       `• /skip - Melewati lagu saat ini dan memutar lagu berikutnya\n` +
       `• /stop - Menghentikan musik dan mengeluarkan bot dari voice\n` +
+      `• /patroli - Menjaga voice channel 24 jam nonstop (looping)\n` +
       `• /queue - Melihat urutan antrean lagu\n` +
       `• /volume - Mengatur volume suara musik bot\n\n` +
       `**Perintah Anggota & AI:**\n` +
@@ -73,6 +74,11 @@ function getMainDashboard(guild, member) {
       label: '/stop',
       description: 'Menghentikan musik dan keluar dari voice',
       value: 'cmd_stop'
+    },
+    {
+      label: '/patroli',
+      description: 'Menjaga voice channel 24 jam nonstop (looping lagu)',
+      value: 'cmd_patroli'
     },
     {
       label: '/queue',

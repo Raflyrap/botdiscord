@@ -56,6 +56,7 @@ const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
+const { isPatroliActive, getPatroliConfig, DEFAULT_PATROLI_SONG } = require('./patroliHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -162,12 +163,35 @@ client.distube
       channel.send(`❌ Terjadi kendala saat memutar lagu **${song?.name || ''}**: ${error?.message || 'Sumber audio tidak tersedia'}`).catch(() => {});
     }
   })
-  // Saat voice channel kosong
+  // Saat voice channel kosong (tetap tinggal jika mode patroli aktif)
   .on('empty', (queue) => {
+    if (isPatroliActive(queue.id)) {
+      console.log(`[PATROLI 24/7] Voice channel sepi, tetapi mode patroli aktif. Bot tetap berjaga di voice.`);
+      return;
+    }
     queue.textChannel?.send('👋 Voice channel kosong, bot meninggalkan voice channel.').catch(console.error);
   })
-  // Saat seluruh antrean lagu telah selesai diputar
-  .on('finish', (queue) => {
+  // Saat seluruh antrean lagu telah selesai diputar (jika mode patroli, putar ulang terus menerus)
+  .on('finish', async (queue) => {
+    if (isPatroliActive(queue.id)) {
+      const cfg = getPatroliConfig(queue.id);
+      const songUrl = cfg?.songUrl || DEFAULT_PATROLI_SONG;
+      console.log(`[PATROLI 24/7] Memutar ulang lagu patroli secara looping...`);
+      try {
+        const guild = queue.textChannel?.guild || client.guilds.cache.get(queue.id);
+        const voiceChannel = guild?.channels.cache.get(cfg?.voiceChannelId) || guild?.members.me?.voice?.channel;
+        if (voiceChannel) {
+          await client.distube.play(voiceChannel, songUrl, {
+            textChannel: queue.textChannel,
+          });
+          const newQueue = client.distube.getQueue(queue.id);
+          if (newQueue) newQueue.setRepeatMode(1);
+          return;
+        }
+      } catch (err) {
+        console.error('Error saat restart loop lagu patroli:', err);
+      }
+    }
     queue.textChannel?.send('✅ Semua antrean musik telah selesai diputar.').catch(console.error);
   });
 

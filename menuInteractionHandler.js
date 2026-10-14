@@ -72,10 +72,15 @@ async function handleMenuInteraction(interaction) {
     }
 
     if (val === 'cmd_stop') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
-      await queue.stop();
-      return interaction.reply({ content: 'Musik dihentikan dan antrean dibersihkan.', flags: MessageFlags.Ephemeral });
+      const stopCmd = interaction.client.commands.get('stop');
+      if (stopCmd) return stopCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah stop dijalankan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_patroli') {
+      const patroliCmd = interaction.client.commands.get('patroli');
+      if (patroliCmd) return patroliCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah patroli tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_queue') {
