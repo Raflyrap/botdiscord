@@ -38,10 +38,6 @@ function getMainDashboard(guild, member) {
       `• /ping - Memeriksa waktu respons dan sinyal bot\n\n` +
       (isAdmin
         ? `**Perintah Pengelola Server (Admin):**\n` +
-          `• /setupserver - Menata seluruh saluran dan kategori server\n` +
-          `• /setuptempvoice - Membuat saluran suara otomatis (Join-to-Create)\n` +
-          `• /setupstats - Menampilkan statistik jumlah anggota secara langsung\n` +
-          `• /setupaichat - Membuat saluran khusus obrolan AI\n` +
           `• /setwelcome - Mengatur saluran pesan sambutan anggota baru\n` +
           `• /autorole - Memberikan peran otomatis untuk anggota baru\n` +
           `• /antitoxic - Mengelola kata yang dilarang di server\n` +
@@ -104,26 +100,6 @@ function getMainDashboard(guild, member) {
       value: 'cmd_ping'
     },
     // Fitur Khusus Admin (Bisa dilihat tapi diverifikasi permission)
-    {
-      label: '/setupserver (Admin)',
-      description: 'Membuat tata ruang kategori server otomatis',
-      value: 'cmd_setupserver'
-    },
-    {
-      label: '/setuptempvoice (Admin)',
-      description: 'Membuat saluran voice otomatis',
-      value: 'cmd_setuptempvoice'
-    },
-    {
-      label: '/setupstats (Admin)',
-      description: 'Membuat saluran counter statistik anggota',
-      value: 'cmd_setupstats'
-    },
-    {
-      label: '/setupaichat (Admin)',
-      description: 'Membuat saluran khusus obrolan AI',
-      value: 'cmd_setupaichat'
-    },
     {
       label: '/autorole (Admin)',
       description: 'Mengatur peran otomatis untuk anggota baru',

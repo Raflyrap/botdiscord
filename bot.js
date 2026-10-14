@@ -56,17 +56,6 @@ const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
-const {
-  createSetupWizardPanel,
-  executeDesignServer,
-  executeSetupVerification,
-  executeSetupRolePanel,
-  executeSetupWelcome,
-  executeSetupModLog,
-  executeFullSetupFast,
-  createFinishingEmbed,
-  sendModLog,
-} = require('./setupWizardHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -286,92 +275,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    // Tombol-tombol Setup Wizard (Khusus Administrator)
-    const isSetupButton = [
-      'setup_btn_1click',
-      'setup_btn_design',
-      'setup_btn_verify',
-      'setup_btn_roles',
-      'setup_btn_welcome',
-      'setup_btn_modlog',
-    ].includes(interaction.customId);
-
-    if (isSetupButton) {
-      // Wajib langsung defer reply agar Discord tidak timeout ("didn't respond in time")
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
-      }
-
-      const isAdmin = interaction.member && (
-        interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
-        interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)
-      );
-
-      if (!isAdmin) {
-        return interaction.editReply({
-          content: 'Hanya Administrator server yang dapat menjalankan pengaturan ini.',
-        });
-      }
-
-      try {
-        if (interaction.customId === 'setup_btn_1click') {
-          await interaction.editReply({ content: 'Sedang membuat seluruh kategori dan channel dalam hitungan detik...' }).catch(() => {});
-          const result = await executeFullSetupFast(interaction.guild);
-          const finishEmbed = createFinishingEmbed(result, interaction.guild);
-          return interaction.editReply({
-            content: 'Setup Lengkap 1-Klik telah selesai!',
-            embeds: [finishEmbed],
-          });
-        }
-
-        if (interaction.customId === 'setup_btn_design') {
-          await interaction.editReply({ content: 'Sedang membuat susunan kategori dan channel...' });
-          await executeDesignServer(interaction.guild);
-          return interaction.editReply({
-            content: 'Desain server berhasil dibuat! Kategori Get Started, Official, Community, Motion Forum Showdown, Cinematography, dan Entertainment telah siap.',
-          });
-        }
-
-        if (interaction.customId === 'setup_btn_verify') {
-          await interaction.editReply({ content: 'Sedang memasang sistem proteksi verifikasi...' });
-          const chStart = interaction.guild.channels.cache.find((c) => c.name === 'start-here' || c.name === 'rules');
-          const result = await executeSetupVerification(interaction.guild, chStart);
-          return interaction.editReply({
-            content: `Sistem verifikasi berhasil dipasang di channel <#${result.chVerify.id}> dengan role @${result.memberRole.name}.`,
-          });
-        }
-
-        if (interaction.customId === 'setup_btn_roles') {
-          await interaction.editReply({ content: 'Sedang menyiapkan panel role mandiri...' });
-          const chSelect = interaction.guild.channels.cache.find((c) => c.name === 'select-roles');
-          const result = await executeSetupRolePanel(interaction.guild, chSelect);
-          return interaction.editReply({
-            content: `Panel pemilihan role berhasil dikirim ke channel <#${result.targetChannel.id}>.`,
-          });
-        }
-
-        if (interaction.customId === 'setup_btn_welcome') {
-          await interaction.editReply({ content: 'Menghubungkan channel sambutan...' });
-          const chWelcome = await executeSetupWelcome(interaction.guild, interaction.channel);
-          return interaction.editReply({
-            content: `Channel sambutan berhasil dihubungkan ke <#${chWelcome.id}>.`,
-          });
-        }
-
-        if (interaction.customId === 'setup_btn_modlog') {
-          await interaction.editReply({ content: 'Menyiapkan channel log moderasi privat...' });
-          const modLogCh = await executeSetupModLog(interaction.guild);
-          return interaction.editReply({
-            content: `Channel log moderasi berhasil diaktifkan di <#${modLogCh.id}>.`,
-          });
-        }
-      } catch (err) {
-        console.error('Error saat eksekusi tombol setup:', err);
-        return interaction.editReply({
-          content: `Terjadi kendala saat menjalankan setup: ${err.message}`,
-        });
-      }
-    }
   }
 
   // Handler untuk pengiriman form modal (Custom Embed)
@@ -545,32 +448,6 @@ client.on(Events.MessageCreate, async (message) => {
     return;
   }
 
-  // === PERINTAH TEXT SETUP CEPAT (!setuplengkap / !setup auto) ===
-  const textCmd = message.content.toLowerCase().trim();
-  if (textCmd === '!setuplengkap' || textCmd === '!setup auto') {
-    const isAdmin = message.member && (
-      message.member.permissions.has(PermissionFlagsBits.Administrator) ||
-      message.member.permissions.has(PermissionFlagsBits.ManageGuild)
-    );
-
-    if (!isAdmin) {
-      return message.reply('Perintah ini hanya dapat dijalankan oleh Administrator server.');
-    }
-
-    const waitMsg = await message.reply('Sedang mengeksekusi setup lengkap kilat, mohon tunggu sebentar...');
-    try {
-      const result = await executeFullSetupFast(message.guild);
-      const finishEmbed = createFinishingEmbed(result, message.guild);
-      return waitMsg.edit({
-        content: 'Setup Lengkap 1-Klik telah selesai!',
-        embeds: [finishEmbed],
-      });
-    } catch (err) {
-      console.error('Error saat !setuplengkap:', err);
-      return waitMsg.edit(`Gagal menjalankan setup lengkap: ${err.message}`);
-    }
-  }
-
   // === FITUR AUTOMOD: 1. ANTI-PHISHING & SCAM LINKS ===
   const phishCheck = checkPhishing(message.content);
   if (phishCheck.isPhishing) {
@@ -580,13 +457,6 @@ client.on(Events.MessageCreate, async (message) => {
         content: `⚠️ <@${message.author.id}>, pesan kamu dihapus otomatis karena mengandung tautan berbahaya / scam / phishing! Mohon jaga keamanan server.`
       });
       setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
-
-      // Catat ke channel #mod-log jika aktif
-      await sendModLog(
-        message.guild,
-        'Peringatan Keamanan: Tautan Berbahaya',
-        `Pesan dari <@${message.author.id}> (${message.author.tag}) di <#${message.channel.id}> dihapus karena terdeteksi tautan phishing/scam: \`${phishCheck.matched}\`.`
-      );
       return;
     } catch (err) {
       console.error('Error saat hapus link phishing:', err);
@@ -602,13 +472,6 @@ client.on(Events.MessageCreate, async (message) => {
         content: `jangan tocik brayy <@${message.author.id}> 🗿`
       });
       setTimeout(() => warnMsg.delete().catch(() => {}), 7000);
-
-      // Catat ke channel #mod-log jika aktif
-      await sendModLog(
-        message.guild,
-        'Peringatan Moderasi: Pesan Toxic Dihapus',
-        `Pesan dari <@${message.author.id}> (${message.author.tag}) di <#${message.channel.id}> dihapus karena mengandung kata terlarang: \`${toxicCheck.word}\`.`
-      );
       return;
     } catch (err) {
       console.error('Error saat menghapus pesan toxic:', err);

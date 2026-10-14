@@ -27,10 +27,6 @@ async function handleMenuInteraction(interaction) {
 
     // Proteksi Fitur Admin
     const adminCommands = [
-      'cmd_setupserver',
-      'cmd_setuptempvoice',
-      'cmd_setupstats',
-      'cmd_setupaichat',
       'cmd_autorole',
       'cmd_antitoxic'
     ];
@@ -123,29 +119,6 @@ async function handleMenuInteraction(interaction) {
     }
 
     // --- AKSI COMMAND ADMIN (SUDAH LOLOS CEK PERMISSION) ---
-    if (val === 'cmd_setupserver') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-      const cmd = interaction.client.commands.get('setupserver');
-      if (cmd) return cmd.execute(interaction);
-    }
-
-    if (val === 'cmd_setuptempvoice') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-      const cmd = interaction.client.commands.get('setuptempvoice');
-      if (cmd) return cmd.execute(interaction);
-    }
-
-    if (val === 'cmd_setupstats') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-      const cmd = interaction.client.commands.get('setupstats');
-      if (cmd) return cmd.execute(interaction);
-    }
-
-    if (val === 'cmd_setupaichat') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-      const cmd = interaction.client.commands.get('setupaichat');
-      if (cmd) return cmd.execute(interaction);
-    }
 
     if (val === 'cmd_autorole') {
       return interaction.reply({
