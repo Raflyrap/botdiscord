@@ -77,11 +77,19 @@ module.exports = {
       // Simpan konfigurasi patroli aktif
       setPatroliActive(interaction.guildId, targetVoice.id, interaction.channelId, DEFAULT_PATROLI_SONG);
 
-      // Mainkan lagu patroli dengan DisTube
-      await interaction.client.distube.play(targetVoice, DEFAULT_PATROLI_SONG, {
-        textChannel: interaction.channel,
-        member: interaction.member,
-      });
+      // Mainkan lagu patroli dengan DisTube (coba soundcloud langsung, jika gagal fallback ke query pencarian)
+      try {
+        await interaction.client.distube.play(targetVoice, DEFAULT_PATROLI_SONG, {
+          textChannel: interaction.channel,
+          member: interaction.member,
+        });
+      } catch (playErr) {
+        console.warn('Gagal memuat URL SoundCloud langsung, mencoba query pencarian fallback...', playErr.message);
+        await interaction.client.distube.play(targetVoice, 'Ariana Grande bye Altare Remix', {
+          textChannel: interaction.channel,
+          member: interaction.member,
+        });
+      }
 
       // Atur looping ke mode repeat single song (1 = Repeat Song)
       const queue = interaction.client.distube.getQueue(interaction.guildId);
