@@ -14,53 +14,64 @@ module.exports = {
     .addChannelOption((option) =>
       option
         .setName('channel')
-        .setDescription('Pilih voice channel yang ingin dijaga (opsional, default: voice channel tempat kamu berada)')
+        .setDescription('Pilih voice channel yang ingin dijaga (opsional, default: voice tempat kamu berada)')
         .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
         .setRequired(false)
     ),
 
   async execute(interaction) {
+    // 1. LANGSUNG DEFER DI MILIDETIK PERTAMA AGAR DISCORD TIDAK TIMEOUT
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply().catch(() => {});
+    }
+
     if (!interaction.guild) {
-      return interaction.reply({
+      return interaction.editReply({
         content: 'Perintah ini hanya dapat dijalankan di dalam server.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
-    let targetVoice = interaction.options.getChannel('channel');
+    let targetVoice = interaction.options?.getChannel ? interaction.options.getChannel('channel') : null;
 
-    // Jika channel tidak dipilih, gunakan voice channel tempat user berada saat ini
+    // Jika channel tidak dipilih dari opsi, cari voice tempat user berada
     if (!targetVoice) {
-      const member = interaction.member?.voice
-        ? interaction.member
-        : await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      let member = interaction.member;
+      if (!member?.voice) {
+        member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      }
 
       targetVoice = member?.voice?.channel;
+
+      if (!targetVoice && member?.voice?.channelId) {
+        targetVoice = await interaction.guild.channels.fetch(member.voice.channelId).catch(() => null);
+      }
+
+      if (!targetVoice) {
+        const vs = interaction.guild.voiceStates?.cache?.get(interaction.user.id);
+        if (vs?.channelId) {
+          targetVoice = vs.channel || (await interaction.guild.channels.fetch(vs.channelId).catch(() => null));
+        }
+      }
     }
 
     if (!targetVoice) {
-      return interaction.reply({
+      return interaction.editReply({
         content: 'Kamu harus masuk ke voice channel terlebih dahulu atau pilih channel di opsi perintah `/patroli`.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // Periksa izin bot
     const botPerms = targetVoice.permissionsFor(interaction.client.user);
     if (botPerms && !botPerms.has(PermissionsBitField.Flags.Connect)) {
-      return interaction.reply({
+      return interaction.editReply({
         content: `Bot tidak memiliki izin untuk bergabung ke voice channel **${targetVoice.name}**.`,
-        flags: MessageFlags.Ephemeral,
       });
     }
     if (botPerms && !botPerms.has(PermissionsBitField.Flags.Speak)) {
-      return interaction.reply({
+      return interaction.editReply({
         content: `Bot tidak memiliki izin bersuara di voice channel **${targetVoice.name}**.`,
-        flags: MessageFlags.Ephemeral,
       });
     }
-
-    await interaction.deferReply();
 
     try {
       // Simpan konfigurasi patroli aktif
