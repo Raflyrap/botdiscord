@@ -56,7 +56,7 @@ const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
-const { isPatroliActive, getPatroliConfig, DEFAULT_PATROLI_SONG } = require('./patroliHelper');
+const { isPatroliActive, getPatroliConfig, DEFAULT_PATROLI_SONG, getPatroliRuntime } = require('./patroliHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -124,6 +124,34 @@ client.distube = new DisTube(client, distubeOptions);
 client.distube
   // Saat lagu mulai diputar
   .on('playSong', (queue, song) => {
+    // Pastikan bot TIDAK deafen agar suara keluar lancar
+    if (queue.voice?.selfDeaf) {
+      try { queue.voice.setSelfDeaf(false); } catch (e) {}
+    }
+
+    // Jika sedang dalam mode patroli, kirim pengumuman hanya SEKALI (tidak spam setiap kali looping)
+    if (isPatroliActive(queue.id)) {
+      const rt = getPatroliRuntime(queue.id);
+      const now = Date.now();
+      rt.starts.push(now);
+      // Hapus timestamp lama (> 15 detik)
+      rt.starts = rt.starts.filter((t) => now - t < 15000);
+
+      // Jika lagu terputar lebih dari 5 kali dalam 15 detik (artinya ffmpeg crash/langsung tamat tanpa keluar suara)
+      if (rt.starts.length >= 5) {
+        console.error(`[PATROLI ERROR] Terdeteksi loop crash (lagu langsung tamat berulang kali). Menghentikan queue untuk mencegah spam.`);
+        queue.textChannel?.send('⚠️ Mode patroli mendeteksi stream audio mengalami kendala pemutaran. Bot tetap menjaga voice room.').catch(() => {});
+        queue.stop().catch(() => {});
+        return;
+      }
+
+      if (rt.announced) {
+        // Jangan kirim chat berulang kali saat lagu loop
+        return;
+      }
+      rt.announced = true;
+    }
+
     console.log(`[AUDIO PLAYING] Memutar: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
     const embed = new EmbedBuilder()
       .setColor(0x00FF7F)

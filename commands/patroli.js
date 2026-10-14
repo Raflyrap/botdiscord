@@ -87,6 +87,9 @@ module.exports = {
       const queue = interaction.client.distube.getQueue(interaction.guildId);
       if (queue) {
         queue.setRepeatMode(1);
+        if (queue.voice?.selfDeaf) {
+          try { queue.voice.setSelfDeaf(false); } catch (e) {}
+        }
       }
 
       const embed = new EmbedBuilder()

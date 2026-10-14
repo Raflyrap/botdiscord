@@ -38,6 +38,7 @@ function getPatroliConfig(guildId) {
 }
 
 function setPatroliActive(guildId, voiceChannelId, textChannelId, songUrl = DEFAULT_PATROLI_SONG) {
+  resetPatroliRuntime(guildId);
   patroliConfig[guildId] = {
     voiceChannelId,
     textChannelId,
@@ -49,6 +50,7 @@ function setPatroliActive(guildId, voiceChannelId, textChannelId, songUrl = DEFA
 }
 
 function removePatroliActive(guildId) {
+  resetPatroliRuntime(guildId);
   if (patroliConfig[guildId]) {
     delete patroliConfig[guildId];
     savePatroliConfig();
@@ -57,10 +59,26 @@ function removePatroliActive(guildId) {
   return false;
 }
 
+// State runtime (tidak disimpan ke file): anti-spam & deteksi stream yang langsung mati
+const patroliRuntime = new Map();
+
+function getPatroliRuntime(guildId) {
+  if (!patroliRuntime.has(guildId)) {
+    patroliRuntime.set(guildId, { announced: false, starts: [], debug: [] });
+  }
+  return patroliRuntime.get(guildId);
+}
+
+function resetPatroliRuntime(guildId) {
+  patroliRuntime.delete(guildId);
+}
+
 module.exports = {
   DEFAULT_PATROLI_SONG,
   isPatroliActive,
   getPatroliConfig,
   setPatroliActive,
   removePatroliActive,
+  getPatroliRuntime,
+  resetPatroliRuntime,
 };
