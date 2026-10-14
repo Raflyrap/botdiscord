@@ -17,6 +17,8 @@ const { handleMenuInteraction } = require('./menuInteractionHandler');
 const { processMessage } = require('./levelingHelper');
 const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
+const { getAfk, removeAfk } = require('./afkHelper');
+const { checkPhishing, checkToxic } = require('./autoModHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -314,8 +316,70 @@ client.on(Events.MessageCreate, async (message) => {
     return;
   }
 
+  // === FITUR AUTOMOD: 1. ANTI-PHISHING & SCAM LINKS ===
+  const phishCheck = checkPhishing(message.content);
+  if (phishCheck.isPhishing) {
+    try {
+      await message.delete().catch(() => {});
+      const warnMsg = await message.channel.send({
+        content: `⚠️ <@${message.author.id}>, pesan kamu dihapus otomatis karena mengandung tautan berbahaya / scam / phishing! Mohon jaga keamanan server.`
+      });
+      setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+      return;
+    } catch (err) {
+      console.error('Error saat hapus link phishing:', err);
+    }
+  }
+
+  // === FITUR AUTOMOD: 2. ANTI-TOXIC (DELETE + BALAS JANGAN TOCIK BRAYY) ===
+  const toxicCheck = checkToxic(message.guild.id, message.content);
+  if (toxicCheck.isToxic) {
+    try {
+      await message.delete().catch(() => {});
+      const warnMsg = await message.channel.send({
+        content: `jangan tocik brayy <@${message.author.id}> 🗿`
+      });
+      setTimeout(() => warnMsg.delete().catch(() => {}), 7000);
+      return;
+    } catch (err) {
+      console.error('Error saat menghapus pesan toxic:', err);
+    }
+  }
+
+  // === FITUR AFK: 1. HAPUS STATUS AFK SAAT USER MENGIRIM PESAN ===
+  const userAfk = removeAfk(message.guild.id, message.author.id);
+  if (userAfk) {
+    // Kembalikan nickname jika diawali [AFK]
+    if (message.member && message.guild.members.me.permissions.has('ManageNicknames')) {
+      const curNick = message.member.displayName;
+      if (curNick.startsWith('[AFK]')) {
+        await message.member.setNickname(curNick.replace('[AFK]', '').trim()).catch(() => {});
+      }
+    }
+    const welcomeBack = await message.channel.send({
+      content: `👋 Selamat datang kembali <@${message.author.id}>! Status AFK kamu telah dinonaktifkan.`
+    });
+    setTimeout(() => welcomeBack.delete().catch(() => {}), 6000);
+  }
+
+  // === FITUR AFK: 2. BERI TAHU JIKA MENTION USER YANG SEDANG AFK ===
+  if (message.mentions.users.size > 0) {
+    for (const [mentionedId, mentionedUser] of message.mentions.users) {
+      if (mentionedUser.bot) continue;
+      const targetAfk = getAfk(message.guild.id, mentionedId);
+      if (targetAfk) {
+        const timeAgo = Math.floor((Date.now() - targetAfk.timestamp) / 1000 / 60);
+        const afkWarn = await message.reply({
+          content: `💤 **${mentionedUser.username}** sedang AFK sejak ${timeAgo > 0 ? `${timeAgo} menit lalu` : 'baru saja'}.\n> Alasan: *${targetAfk.reason}*`
+        });
+        setTimeout(() => afkWarn.delete().catch(() => {}), 10000);
+      }
+    }
+  }
+
   try {
     const result = processMessage(message.guild.id, message.author.id);
+
 
     // Notifikasi level up
     if (result.leveledUp) {
