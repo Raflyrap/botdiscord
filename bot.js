@@ -63,7 +63,7 @@ const {
   executeSetupRolePanel,
   executeSetupWelcome,
   executeSetupModLog,
-  executeFullSetupWithProgress,
+  executeFullSetupFast,
   createFinishingEmbed,
   sendModLog,
 } = require('./setupWizardHelper');
@@ -315,9 +315,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       try {
         if (interaction.customId === 'setup_btn_1click') {
-          const result = await executeFullSetupWithProgress(interaction.guild, async (status) => {
-            await interaction.editReply({ content: status }).catch(() => {});
-          });
+          await interaction.editReply({ content: 'Sedang membuat seluruh kategori dan channel dalam hitungan detik...' }).catch(() => {});
+          const result = await executeFullSetupFast(interaction.guild);
           const finishEmbed = createFinishingEmbed(result, interaction.guild);
           return interaction.editReply({
             content: 'Setup Lengkap 1-Klik telah selesai!',
@@ -327,9 +326,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         if (interaction.customId === 'setup_btn_design') {
           await interaction.editReply({ content: 'Sedang membuat susunan kategori dan channel...' });
-          await executeDesignServer(interaction.guild, async (status) => {
-            await interaction.editReply({ content: status });
-          });
+          await executeDesignServer(interaction.guild);
           return interaction.editReply({
             content: 'Desain server berhasil dibuat! Kategori Get Started, Official, Community, Motion Forum Showdown, Cinematography, dan Entertainment telah siap.',
           });
@@ -560,11 +557,9 @@ client.on(Events.MessageCreate, async (message) => {
       return message.reply('Perintah ini hanya dapat dijalankan oleh Administrator server.');
     }
 
-    const waitMsg = await message.reply('Sedang mengeksekusi setup lengkap 1-klik, mohon tunggu sebentar...');
+    const waitMsg = await message.reply('Sedang mengeksekusi setup lengkap kilat, mohon tunggu sebentar...');
     try {
-      const result = await executeFullSetupWithProgress(message.guild, async (status) => {
-        await waitMsg.edit(status).catch(() => {});
-      });
+      const result = await executeFullSetupFast(message.guild);
       const finishEmbed = createFinishingEmbed(result, message.guild);
       return waitMsg.edit({
         content: 'Setup Lengkap 1-Klik telah selesai!',

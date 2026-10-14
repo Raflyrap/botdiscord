@@ -100,274 +100,104 @@ function createSetupWizardPanel(user) {
 }
 
 /**
- * 1. Desain Server: Sesuai struktur gambar referensi
- * (Get Started, Official, Community, Motion Forum Showdown, Cinematography, Entertainment)
+ * 1. Desain Server: Buat Kategori & Channel Secara Cepat (Parallel Batch)
+ * Menggunakan Promise.all pada setiap kategori agar proses selesai dalam < 10 detik!
  */
-async function executeDesignServer(guild, progressCallback = null) {
-  const created = {
-    categories: [],
-    channels: [],
-  };
+async function executeDesignServer(guild) {
+  // Buat semua 6 kategori sekaligus secara bersamaan (parallel)
+  const [
+    catGetStarted,
+    catOfficial,
+    catCommunity,
+    catMotion,
+    catCinema,
+    catEntertainment,
+  ] = await Promise.all([
+    guild.channels.create({ name: 'Get Started', type: ChannelType.GuildCategory }),
+    guild.channels.create({ name: 'Official', type: ChannelType.GuildCategory }),
+    guild.channels.create({ name: 'Community', type: ChannelType.GuildCategory }),
+    guild.channels.create({ name: 'Motion Forum Showdown', type: ChannelType.GuildCategory }),
+    guild.channels.create({ name: 'Cinematography', type: ChannelType.GuildCategory }),
+    guild.channels.create({ name: 'Entertainment', type: ChannelType.GuildCategory }),
+  ]);
 
-  const update = async (text) => {
-    if (typeof progressCallback === 'function') {
-      await progressCallback(text).catch(() => {});
-    }
-  };
+  // Buat seluruh channel di dalam semua kategori secara paralel (sangat cepat)
+  const [
+    chRules,
+    chStartHere,
+    chIdentify,
+    chSelectRoles,
+    chAnnouncement,
+    chOfficialEvent,
+    chSocialMedia,
+    chHelpCenter,
+    chNewcomer,
+    chNgobrol,
+    chNgobrol2,
+    chMedia,
+    chLevels,
+    chReport,
+    chFemaleVerify,
+    chMotionAnnounce,
+    chLobby,
+    chInfoScrim,
+    chFotografi,
+    chVideografi,
+    chMeme,
+    chFanart,
+    chAiFanart,
+    chAiGenerating,
+    chAiPrompt,
+    chShowcase,
+    chProdRoom,
+    chLiveRoom,
+  ] = await Promise.all([
+    // Category 1: Get Started
+    guild.channels.create({ name: 'rules', type: ChannelType.GuildText, parent: catGetStarted.id }),
+    guild.channels.create({ name: 'start-here', type: ChannelType.GuildText, parent: catGetStarted.id }),
+    guild.channels.create({ name: 'identify-yourself', type: ChannelType.GuildText, parent: catGetStarted.id }),
+    guild.channels.create({ name: 'select-roles', type: ChannelType.GuildText, parent: catGetStarted.id }),
 
-  // --- KATEGORI 1: Get Started ---
-  await update('Membuat kategori Get Started...');
-  const catGetStarted = await guild.channels.create({
-    name: 'Get Started',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catGetStarted);
+    // Category 2: Official
+    guild.channels.create({ name: 'announcement', type: ChannelType.GuildText, parent: catOfficial.id }),
+    guild.channels.create({ name: 'official-event', type: ChannelType.GuildText, parent: catOfficial.id }),
+    guild.channels.create({ name: 'social-media', type: ChannelType.GuildText, parent: catOfficial.id }),
+    guild.channels.create({ name: 'help-center', type: ChannelType.GuildText, parent: catOfficial.id }),
 
-  const chRules = await guild.channels.create({
-    name: 'rules',
-    type: ChannelType.GuildText,
-    parent: catGetStarted.id,
-  });
-  created.channels.push(chRules);
+    // Category 3: Community
+    guild.channels.create({ name: 'newcomer-chat', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'ngobrol', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'ngobrol-2', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'media', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'levels', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'report', type: ChannelType.GuildText, parent: catCommunity.id }),
+    guild.channels.create({ name: 'Female Verification', type: ChannelType.GuildVoice, parent: catCommunity.id }),
 
-  const chStartHere = await guild.channels.create({
-    name: 'start-here',
-    type: ChannelType.GuildText,
-    parent: catGetStarted.id,
-  });
-  created.channels.push(chStartHere);
+    // Category 4: Motion Forum Showdown
+    guild.channels.create({ name: 'announcement', type: ChannelType.GuildText, parent: catMotion.id }),
+    guild.channels.create({ name: 'lobby', type: ChannelType.GuildText, parent: catMotion.id }),
+    guild.channels.create({ name: 'info-scrim', type: ChannelType.GuildText, parent: catMotion.id }),
 
-  const chIdentify = await guild.channels.create({
-    name: 'identify-yourself',
-    type: ChannelType.GuildText,
-    parent: catGetStarted.id,
-  });
-  created.channels.push(chIdentify);
+    // Category 5: Cinematography
+    guild.channels.create({ name: 'fotografi', type: ChannelType.GuildText, parent: catCinema.id }),
+    guild.channels.create({ name: 'videografi', type: ChannelType.GuildText, parent: catCinema.id }),
 
-  const chSelectRoles = await guild.channels.create({
-    name: 'select-roles',
-    type: ChannelType.GuildText,
-    parent: catGetStarted.id,
-  });
-  created.channels.push(chSelectRoles);
+    // Category 6: Entertainment
+    guild.channels.create({ name: 'meme', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'fanart', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'ai-fanart', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'ai-generating', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'ai-prompt', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'showcase-gaming', type: ChannelType.GuildText, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'Production Room', type: ChannelType.GuildVoice, parent: catEntertainment.id }),
+    guild.channels.create({ name: 'Live Room', type: ChannelType.GuildVoice, parent: catEntertainment.id }),
+  ]);
 
-  // --- KATEGORI 2: Official ---
-  await update('Membuat kategori Official...');
-  const catOfficial = await guild.channels.create({
-    name: 'Official',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catOfficial);
-
-  const chAnnouncement = await guild.channels.create({
-    name: 'announcement',
-    type: ChannelType.GuildText,
-    parent: catOfficial.id,
-  });
-  created.channels.push(chAnnouncement);
-
-  const chOfficialEvent = await guild.channels.create({
-    name: 'official-event',
-    type: ChannelType.GuildText,
-    parent: catOfficial.id,
-  });
-  created.channels.push(chOfficialEvent);
-
-  const chSocialMedia = await guild.channels.create({
-    name: 'social-media',
-    type: ChannelType.GuildText,
-    parent: catOfficial.id,
-  });
-  created.channels.push(chSocialMedia);
-
-  const chHelpCenter = await guild.channels.create({
-    name: 'help-center',
-    type: ChannelType.GuildText,
-    parent: catOfficial.id,
-  });
-  created.channels.push(chHelpCenter);
-
-  // --- KATEGORI 3: Community ---
-  await update('Membuat kategori Community...');
-  const catCommunity = await guild.channels.create({
-    name: 'Community',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catCommunity);
-
-  const chNewcomer = await guild.channels.create({
-    name: 'newcomer-chat',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chNewcomer);
-
-  // Otomatis tautkan welcome ke newcomer-chat
+  // Daftarkan sistem pembantu (Welcome & Temp Voice)
   setGuildConfig(guild.id, { welcomeChannel: chNewcomer.id, leaveChannel: chNewcomer.id });
-
-  const chNgobrol = await guild.channels.create({
-    name: 'ngobrol',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chNgobrol);
-
-  const chNgobrol2 = await guild.channels.create({
-    name: 'ngobrol-2',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chNgobrol2);
-
-  const chMedia = await guild.channels.create({
-    name: 'media',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chMedia);
-
-  const chLevels = await guild.channels.create({
-    name: 'levels',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chLevels);
-
-  const chReport = await guild.channels.create({
-    name: 'report',
-    type: ChannelType.GuildText,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chReport);
-
-  const chFemaleVerify = await guild.channels.create({
-    name: 'Female Verification',
-    type: ChannelType.GuildVoice,
-    parent: catCommunity.id,
-  });
-  created.channels.push(chFemaleVerify);
-
-  // --- KATEGORI 4: Motion Forum Showdown ---
-  await update('Membuat kategori Motion Forum Showdown...');
-  const catMotion = await guild.channels.create({
-    name: 'Motion Forum Showdown',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catMotion);
-
-  const chMotionAnnounce = await guild.channels.create({
-    name: 'announcement',
-    type: ChannelType.GuildText,
-    parent: catMotion.id,
-  });
-  created.channels.push(chMotionAnnounce);
-
-  const chLobby = await guild.channels.create({
-    name: 'lobby',
-    type: ChannelType.GuildText,
-    parent: catMotion.id,
-  });
-  created.channels.push(chLobby);
-
-  const chInfoScrim = await guild.channels.create({
-    name: 'info-scrim',
-    type: ChannelType.GuildText,
-    parent: catMotion.id,
-  });
-  created.channels.push(chInfoScrim);
-
-  // --- KATEGORI 5: Cinematography ---
-  await update('Membuat kategori Cinematography...');
-  const catCinema = await guild.channels.create({
-    name: 'Cinematography',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catCinema);
-
-  const chFotografi = await guild.channels.create({
-    name: 'fotografi',
-    type: ChannelType.GuildText,
-    parent: catCinema.id,
-  });
-  created.channels.push(chFotografi);
-
-  const chVideografi = await guild.channels.create({
-    name: 'videografi',
-    type: ChannelType.GuildText,
-    parent: catCinema.id,
-  });
-  created.channels.push(chVideografi);
-
-  // --- KATEGORI 6: Entertainment & Voice ---
-  await update('Membuat kategori Entertainment...');
-  const catEntertainment = await guild.channels.create({
-    name: 'Entertainment',
-    type: ChannelType.GuildCategory,
-  });
-  created.categories.push(catEntertainment);
-
-  const chMeme = await guild.channels.create({
-    name: 'meme',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chMeme);
-
-  const chFanart = await guild.channels.create({
-    name: 'fanart',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chFanart);
-
-  const chAiFanart = await guild.channels.create({
-    name: 'ai-fanart',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chAiFanart);
-
-  const chAiGenerating = await guild.channels.create({
-    name: 'ai-generating',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chAiGenerating);
-
-  const chAiPrompt = await guild.channels.create({
-    name: 'ai-prompt',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chAiPrompt);
-
-  const chShowcase = await guild.channels.create({
-    name: 'showcase-gaming',
-    type: ChannelType.GuildText,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chShowcase);
-
-  // Voice Hub: Production Room (Join-to-Create)
-  const chProdRoom = await guild.channels.create({
-    name: 'Production Room',
-    type: ChannelType.GuildVoice,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chProdRoom);
-
-  // Hubungkan ke Temp Voice helper
   setTempVoiceConfig(guild.id, chProdRoom.id, catEntertainment.id);
 
-  const chLiveRoom = await guild.channels.create({
-    name: 'Live Room',
-    type: ChannelType.GuildVoice,
-    parent: catEntertainment.id,
-  });
-  created.channels.push(chLiveRoom);
-
   return {
-    created,
     catGetStarted,
     chRules,
     chStartHere,
@@ -380,7 +210,7 @@ async function executeDesignServer(guild, progressCallback = null) {
 }
 
 /**
- * 2. Pasang Verifikasi: Taruh panel verifikasi di channel start-here / rules
+ * 2. Pasang Verifikasi: Taruh panel verifikasi di channel start-here
  */
 async function executeSetupVerification(guild, targetChannel = null) {
   let memberRole = guild.roles.cache.find((r) => r.name.toLowerCase() === 'member');
@@ -396,9 +226,7 @@ async function executeSetupVerification(guild, targetChannel = null) {
 
   let ch = targetChannel;
   if (!ch) {
-    ch = guild.channels.cache.find(
-      (c) => c.name === 'start-here' || c.name === 'rules' || c.name === 'verifikasi'
-    );
+    ch = guild.channels.cache.find((c) => c.name === 'start-here' || c.name === 'rules');
   }
 
   if (!ch) {
@@ -454,9 +282,7 @@ async function executeSetupRolePanel(guild, channel = null) {
 
   let targetChannel = channel;
   if (!targetChannel) {
-    targetChannel = guild.channels.cache.find(
-      (c) => c.name === 'select-roles' || c.name.includes('role')
-    );
+    targetChannel = guild.channels.cache.find((c) => c.name === 'select-roles');
     if (!targetChannel) {
       targetChannel = await guild.channels.create({
         name: 'select-roles',
@@ -493,9 +319,7 @@ async function executeSetupRolePanel(guild, channel = null) {
 async function executeSetupWelcome(guild, designatedChannel = null) {
   let ch = designatedChannel;
   if (!ch) {
-    ch = guild.channels.cache.find(
-      (c) => c.name === 'newcomer-chat' || c.name.toLowerCase().includes('welcome')
-    );
+    ch = guild.channels.cache.find((c) => c.name === 'newcomer-chat');
     if (!ch) {
       ch = await guild.channels.create({
         name: 'newcomer-chat',
@@ -550,29 +374,21 @@ async function executeSetupModLog(guild) {
 }
 
 /**
- * Setup Lengkap 1-Klik dengan live progress loading dan finishing embed
+ * Eksekusi Kilat Full Setup (< 10 Detik):
+ * 1. Desain kategori & channel dibuat bersamaan dengan Promise.all
+ * 2. Sistem pembantu (verifikasi, role panel, welcome, modlog) dijalankan paralel
  */
-async function executeFullSetupWithProgress(guild, progressCallback = null) {
-  const update = async (text) => {
-    if (typeof progressCallback === 'function') {
-      await progressCallback(text).catch(() => {});
-    }
-  };
+async function executeFullSetupFast(guild) {
+  // Langkah 1: Buat semua channel & kategori dengan paralel batch
+  const design = await executeDesignServer(guild);
 
-  await update('Langkah 1/5: Sedang mendesain kategori dan channel server...');
-  const design = await executeDesignServer(guild, update);
-
-  await update('Langkah 2/5: Memasang sistem proteksi verifikasi di #start-here...');
-  const verify = await executeSetupVerification(guild, design.chStartHere);
-
-  await update('Langkah 3/5: Membuat tombol pembagian role di #select-roles...');
-  const rolePanel = await executeSetupRolePanel(guild, design.chSelectRoles);
-
-  await update('Langkah 4/5: Menghubungkan sistem penyambutan member baru di #newcomer-chat...');
-  const welcome = await executeSetupWelcome(guild, design.chNewcomer);
-
-  await update('Langkah 5/5: Mengaktifkan channel keamanan dan log moderasi #mod-log...');
-  const modLog = await executeSetupModLog(guild);
+  // Langkah 2: Pasang verifikasi, panel role, welcome, dan modlog secara bersamaan
+  const [verify, rolePanel, welcome, modLog] = await Promise.all([
+    executeSetupVerification(guild, design.chStartHere),
+    executeSetupRolePanel(guild, design.chSelectRoles),
+    executeSetupWelcome(guild, design.chNewcomer),
+    executeSetupModLog(guild),
+  ]);
 
   return {
     design,
@@ -609,7 +425,7 @@ function createFinishingEmbed(result, guild) {
       `**Keamanan & Moderasi:**\n` +
       `• <#${result.modLog.id}> (Channel rahasia log keamanan server)`
     )
-    .setFooter({ text: `${guild.name} • Setup Wizard Otomatis` })
+    .setFooter({ text: `${guild.name} • Setup Wizard Kilat` })
     .setTimestamp();
 }
 
@@ -642,7 +458,7 @@ module.exports = {
   executeSetupRolePanel,
   executeSetupWelcome,
   executeSetupModLog,
-  executeFullSetupWithProgress,
+  executeFullSetupFast,
   createFinishingEmbed,
   getModLogChannel,
   setModLogChannel,
