@@ -4,7 +4,8 @@ const path = require('path');
 const PATROLI_FILE = path.join(__dirname, 'patroliConfig.json');
 let patroliConfig = {};
 
-const DEFAULT_PATROLI_SONG = 'Ariana Grande - bye (Altare Remix)';
+const DEFAULT_PATROLI_SONG = 'https://soundcloud.com/nd7kuo66bxvt/ariana-grande-bye-altare-remix';
+const FALLBACK_PATROLI_SONG = 'Ariana Grande - bye (Altare Remix)';
 
 function loadPatroliConfig() {
   try {
@@ -73,10 +74,16 @@ function resetPatroliRuntime(guildId) {
   patroliRuntime.delete(guildId);
 }
 
+function getAllPatroliConfigs() {
+  return patroliConfig;
+}
+
 module.exports = {
   DEFAULT_PATROLI_SONG,
+  FALLBACK_PATROLI_SONG,
   isPatroliActive,
   getPatroliConfig,
+  getAllPatroliConfigs,
   setPatroliActive,
   removePatroliActive,
   getPatroliRuntime,

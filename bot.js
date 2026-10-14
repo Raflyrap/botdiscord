@@ -30,16 +30,31 @@ try {
     }
   }
 } catch (e) {}
-// Atur agar voice connection selalu join dengan selfDeaf: false sejak awal
-// Ini mencegah pemanggilan rejoin() di tengah pemutaran yang dapat memutus audio UDP
-const voice = require('@discordjs/voice');
-const originalJoinVoiceChannel = voice.joinVoiceChannel;
-voice.joinVoiceChannel = function(options) {
-  return originalJoinVoiceChannel({
-    selfDeaf: false,
-    selfMute: false,
-    ...options
-  });
+// Hook Module loader agar setiap panggilan ke @discordjs/voice selalu join dengan selfDeaf: false sejak awal.
+// Ini mencegah bot terkena status deafen dan mencegah pemanggilan rejoin() di tengah pemutaran yang merusak stream UDP audio.
+const Module = require('module');
+const originalRequire = Module.prototype.require;
+Module.prototype.require = function(id) {
+  const mod = originalRequire.apply(this, arguments);
+  if ((id === '@discordjs/voice' || (typeof id === 'string' && id.includes('@discordjs/voice'))) && mod && mod.joinVoiceChannel) {
+    if (mod.__isVoicePatched) return mod;
+    return new Proxy(mod, {
+      get(target, prop) {
+        if (prop === 'joinVoiceChannel') {
+          return function(options) {
+            return target.joinVoiceChannel({
+              selfDeaf: false,
+              selfMute: false,
+              ...options,
+            });
+          };
+        }
+        if (prop === '__isVoicePatched') return true;
+        return target[prop];
+      },
+    });
+  }
+  return mod;
 };
 
 // Load voice encryption & audio encoding
@@ -56,7 +71,7 @@ const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
-const { isPatroliActive, getPatroliConfig, DEFAULT_PATROLI_SONG, getPatroliRuntime } = require('./patroliHelper');
+const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, DEFAULT_PATROLI_SONG, FALLBACK_PATROLI_SONG, getPatroliRuntime } = require('./patroliHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -124,12 +139,7 @@ client.distube = new DisTube(client, distubeOptions);
 client.distube
   // Saat lagu mulai diputar
   .on('playSong', (queue, song) => {
-    // Pastikan bot TIDAK deafen agar suara keluar lancar
-    if (queue.voice?.selfDeaf) {
-      try { queue.voice.setSelfDeaf(false); } catch (e) {}
-    }
-
-    // Jika sedang dalam mode patroli, kirim pengumuman hanya SEKALI (tidak spam setiap kali looping)
+    // Jika sedang dalam mode patroli, jangan kirim spam embed setiap kali looping
     if (isPatroliActive(queue.id)) {
       const rt = getPatroliRuntime(queue.id);
       const now = Date.now();
@@ -145,11 +155,8 @@ client.distube
         return;
       }
 
-      if (rt.announced) {
-        // Jangan kirim chat berulang kali saat lagu loop
-        return;
-      }
-      rt.announced = true;
+      console.log(`[AUDIO PLAYING] Patroli loop: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
+      return;
     }
 
     console.log(`[AUDIO PLAYING] Memutar: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
@@ -169,6 +176,7 @@ client.distube
   })
   // Saat lagu ditambahkan ke antrean
   .on('addSong', (queue, song) => {
+    if (isPatroliActive(queue.id)) return;
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('➕ Ditambahkan ke Antrean')
@@ -179,6 +187,7 @@ client.distube
   })
   // Saat playlist ditambahkan
   .on('addList', (queue, playlist) => {
+    if (isPatroliActive(queue.id)) return;
     queue.textChannel?.send(
       `📋 Menambahkan playlist **${playlist.name}** (${playlist.songs.length} lagu) ke antrean.`
     ).catch(console.error);
@@ -186,6 +195,9 @@ client.distube
   // Error handling audio streaming (DisTube v5: error, queue, song)
   .on('error', (error, queue, song) => {
     console.error('[DISTUBE ERROR]:', error?.message || error);
+    if (queue && isPatroliActive(queue.id)) {
+      return; // Hindari spam jika ada glitch sesaat di mode patroli
+    }
     const channel = queue?.textChannel;
     if (channel && typeof channel.send === 'function') {
       channel.send(`❌ Terjadi kendala saat memutar lagu **${song?.name || ''}**: ${error?.message || 'Sumber audio tidak tersedia'}`).catch(() => {});
@@ -199,8 +211,22 @@ client.distube
     queue.textChannel?.send('👋 Voice channel kosong, bot meninggalkan voice channel.').catch(console.error);
   })
   // Saat seluruh antrean lagu telah selesai diputar
-  .on('finish', (queue) => {
+  .on('finish', async (queue) => {
     if (isPatroliActive(queue.id)) {
+      // Jika queue selesai saat patroli masih aktif, putar kembali lagu patroli
+      const cfg = getPatroliConfig(queue.id);
+      const voiceChannel = queue.voice?.channel || (cfg?.voiceChannelId ? queue.client.channels.cache.get(cfg.voiceChannelId) : null);
+      if (voiceChannel) {
+        try {
+          await queue.client.distube.play(voiceChannel, cfg?.songUrl || DEFAULT_PATROLI_SONG, {
+            textChannel: queue.textChannel,
+          });
+          const newQueue = queue.client.distube.getQueue(queue.id);
+          if (newQueue) newQueue.setRepeatMode(1);
+        } catch (e) {
+          console.error('[PATROLI] Gagal me-restart antrean patroli di event finish:', e.message);
+        }
+      }
       return;
     }
     queue.textChannel?.send('✅ Semua antrean musik telah selesai diputar.').catch(console.error);
@@ -219,6 +245,35 @@ client.once(Events.ClientReady, (readyClient) => {
       updateServerStats(guild).catch(console.error);
     }
   }, 10 * 60 * 1000);
+
+  // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
+  setTimeout(async () => {
+    try {
+      const allPatroli = getAllPatroliConfigs();
+      for (const guildId of Object.keys(allPatroli)) {
+        const cfg = allPatroli[guildId];
+        if (!cfg || !cfg.voiceChannelId) continue;
+        const guild = readyClient.guilds.cache.get(guildId);
+        if (!guild) continue;
+        const voiceChannel = guild.channels.cache.get(cfg.voiceChannelId);
+        if (!voiceChannel) continue;
+        const textChannel = cfg.textChannelId ? guild.channels.cache.get(cfg.textChannelId) : null;
+
+        console.log(`[PATROLI RESUME] Melanjutkan patroli di ${guild.name} -> voice: ${voiceChannel.name}`);
+        try {
+          await client.distube.play(voiceChannel, cfg.songUrl || DEFAULT_PATROLI_SONG, {
+            textChannel: textChannel || undefined,
+          });
+          const queue = client.distube.getQueue(guildId);
+          if (queue) queue.setRepeatMode(1);
+        } catch (err) {
+          console.error(`[PATROLI RESUME ERROR] Gagal melanjutkan patroli di ${guild.name}:`, err.message);
+        }
+      }
+    } catch (e) {
+      console.error('[PATROLI RESUME] Error:', e.message);
+    }
+  }, 5000);
 });
 
 // Event saat ada interaksi (Slash Command, Button, Modal)

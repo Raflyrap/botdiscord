@@ -5,7 +5,7 @@ const {
   MessageFlags,
   EmbedBuilder,
 } = require('discord.js');
-const { DEFAULT_PATROLI_SONG, setPatroliActive } = require('../patroliHelper');
+const { DEFAULT_PATROLI_SONG, FALLBACK_PATROLI_SONG, setPatroliActive } = require('../patroliHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -77,19 +77,24 @@ module.exports = {
       // Simpan konfigurasi patroli aktif
       setPatroliActive(interaction.guildId, targetVoice.id, interaction.channelId, DEFAULT_PATROLI_SONG);
 
-      // Mainkan lagu patroli dengan DisTube
-      await interaction.client.distube.play(targetVoice, DEFAULT_PATROLI_SONG, {
-        textChannel: interaction.channel,
-        member: interaction.member,
-      });
+      // Mainkan lagu patroli dengan DisTube (SoundCloud direct, fallback ke query pencarian jika ada kendala)
+      try {
+        await interaction.client.distube.play(targetVoice, DEFAULT_PATROLI_SONG, {
+          textChannel: interaction.channel,
+          member: interaction.member,
+        });
+      } catch (playErr) {
+        console.warn('[PATROLI] Gagal memuat URL langsung, mencoba query fallback...', playErr.message);
+        await interaction.client.distube.play(targetVoice, FALLBACK_PATROLI_SONG, {
+          textChannel: interaction.channel,
+          member: interaction.member,
+        });
+      }
 
       // Atur looping ke mode repeat single song (1 = Repeat Song)
       const queue = interaction.client.distube.getQueue(interaction.guildId);
       if (queue) {
         queue.setRepeatMode(1);
-        if (queue.voice?.selfDeaf) {
-          try { queue.voice.setSelfDeaf(false); } catch (e) {}
-        }
       }
 
       const embed = new EmbedBuilder()
@@ -99,7 +104,7 @@ module.exports = {
           `Bot telah masuk ke saluran <#${targetVoice.id}> untuk berjaga 24 jam nonstop.\n\n` +
           `• **Status:** Berjaga Nonstop (24/7)\n` +
           `• **Mode Pemutaran:** Loop 1 Lagu Berulang Kali\n` +
-          `• **Lagu:** [Klik di sini untuk melihat lagu](${DEFAULT_PATROLI_SONG})\n\n` +
+          `• **Lagu:** [Ariana Grande - bye (Altare Remix)](${DEFAULT_PATROLI_SONG})\n\n` +
           `*Gunakan perintah \`/stop\` jika ingin menghentikan patroli dan mengeluarkan bot dari voice.*`
         )
         .setFooter({ text: `${interaction.guild.name} • Sistem Keamanan Voice` })
