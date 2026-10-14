@@ -26,6 +26,10 @@ module.exports = {
     }
 
     const panel = createSetupWizardPanel(interaction.user);
-    await interaction.reply(panel);
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(panel);
+    } else {
+      await interaction.reply(panel);
+    }
   },
 };
