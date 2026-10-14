@@ -150,9 +150,9 @@ function createPlayModal() {
   const modal = new ModalBuilder().setCustomId('modal_music_play').setTitle('Putar Musik');
   const input = new TextInputBuilder()
     .setCustomId('music_query')
-    .setLabel('Judul Lagu atau Tautan (Spotify/YT/SoundCloud)')
+    .setLabel('Judul Lagu atau Link')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Contoh: Alan Walker Faded / link lagu')
+    .setPlaceholder('Contoh: Alan Walker Faded / link Spotify/YT')
     .setRequired(true);
   return modal.addComponents(new ActionRowBuilder().addComponents(input));
 }

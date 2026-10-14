@@ -175,7 +175,20 @@ async function handleMenuInteraction(interaction) {
     const id = interaction.customId;
 
     if (id === 'modal_music_play') {
-      const voiceChannel = interaction.member?.voice?.channel;
+      let member = interaction.member;
+      if (!member?.voice) {
+        member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      }
+      let voiceChannel = member?.voice?.channel;
+      if (!voiceChannel && member?.voice?.channelId) {
+        voiceChannel = await interaction.guild.channels.fetch(member.voice.channelId).catch(() => null);
+      }
+      if (!voiceChannel) {
+        const vs = interaction.guild.voiceStates?.cache?.get(interaction.user.id);
+        if (vs?.channelId) {
+          voiceChannel = vs.channel || await interaction.guild.channels.fetch(vs.channelId).catch(() => null);
+        }
+      }
       if (!voiceChannel) {
         return interaction.reply({ content: 'Kamu harus bergabung ke voice channel terlebih dahulu.', flags: MessageFlags.Ephemeral });
       }
@@ -184,7 +197,7 @@ async function handleMenuInteraction(interaction) {
       try {
         await interaction.client.distube.play(voiceChannel, query, {
           textChannel: interaction.channel,
-          member: interaction.member,
+          member: member || interaction.member,
         });
         return interaction.editReply(`Memproses lagu: **${query}**`);
       } catch (err) {

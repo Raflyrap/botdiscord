@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, Events, EmbedBuilder, MessageFlags } = require('discord.js');
 const { DisTube } = require('distube');
+const { YouTubePlugin } = require('@distube/youtube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
@@ -70,13 +71,17 @@ const distubeOptions = {
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   plugins: [
+    new YouTubePlugin(),
     new SpotifyPlugin(),
     new SoundCloudPlugin(),
-    new YtDlpPlugin(),
+    new YtDlpPlugin({ update: false }),
   ],
 };
 
 if (ffmpegPath && fs.existsSync(ffmpegPath)) {
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {}
   distubeOptions.ffmpeg = { path: ffmpegPath };
   console.log(`[FFMPEG] Menggunakan binary ffmpeg di: ${ffmpegPath}`);
 } else {
@@ -85,15 +90,29 @@ if (ffmpegPath && fs.existsSync(ffmpegPath)) {
 
 client.distube = new DisTube(client, distubeOptions);
 
-// PENTING: Un-deafen bot saat pertama kali join voice agar audio terdengar
+// PENTING: Un-deafen bot saat voice connection sudah ready agar bot tidak berstatus tuli di Discord
 client.distube.on('initQueue', (queue) => {
+  const undeafen = () => {
+    try {
+      if (queue.voice && typeof queue.voice.setSelfDeaf === 'function') {
+        queue.voice.setSelfDeaf(false);
+      }
+    } catch (e) {
+      console.warn('[VOICE] Gagal setSelfDeaf:', e.message);
+    }
+  };
+
   const connection = queue.voice?.connection;
   if (connection) {
-    connection.rejoin({
-      selfDeaf: false,
-      selfMute: false,
-      channelId: connection.joinConfig.channelId,
-    });
+    if (connection.state?.status === 'ready') {
+      undeafen();
+    } else {
+      connection.once('stateChange', (_, newState) => {
+        if (newState.status === 'ready') {
+          undeafen();
+        }
+      });
+    }
   }
 });
 
