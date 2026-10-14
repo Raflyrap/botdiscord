@@ -2,482 +2,201 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ChannelType,
+  PermissionFlagsBits
 } = require('discord.js');
-const { getAutoRole } = require('./autoRoleHelper');
-const {
-  getUserData,
-  getUserRank,
-  getLeaderboard,
-  xpForLevel,
-  currentLevelXp,
-  createProgressBar,
-  getRankTitle,
-  ACHIEVEMENTS,
-  getAchievementById,
-} = require('./levelingHelper');
-const { getUserHistoryCount } = require('./aiHelper');
 
-// 1. Tampilan Dashboard Menu Utama (Super Jelas, Rapi & Ramah Orang Awam)
-function getMainDashboard(guild) {
+/**
+ * Tampilan Menu Utama FlyBot
+ * Bersih, tanpa emoji berlebihan, jelas dan langsung menyajikan aksi
+ */
+function getMainDashboard(guild, member) {
+  const isAdmin = member && (
+    member.permissions.has(PermissionFlagsBits.Administrator) ||
+    member.permissions.has(PermissionFlagsBits.ManageGuild) ||
+    member.permissions.has(PermissionFlagsBits.ManageChannels)
+  );
+
   const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle('⚡ FLYBOT PUSAT BANTUAN & DAFTAR PERINTAH')
+    .setColor(0x2B2D31)
+    .setTitle(`Pusat Perintah FlyBot - ${guild.name}`)
     .setDescription(
-      `Halo! Bingung cara pakai bot? Di bawah ini panduan lengkap seluruh fitur FlyBot di **${guild.name}**.\nSemua perintah dibuat simpel, tinggal ketik atau pilih menu di bawah!\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `🎵 **MUSIK & LAGU** (Suara Jernih 24/7)\n` +
-      `• \`/play <judul/link>\` ➔ Putar lagu dari Spotify, YouTube, atau SoundCloud\n` +
-      `• \`/pause\` ➔ Jeda / hentikan sementara lagu yang diputar\n` +
-      `• \`/resume\` ➔ Lanjutkan memutar lagu yang tadi di-pause\n` +
-      `• \`/skip\` ➔ Lewati lagu sekarang dan lanjut ke lagu berikutnya\n` +
-      `• \`/stop\` ➔ Matikan musik dan bot keluar dari voice channel\n` +
-      `• \`/queue\` ➔ Lihat daftar antrean lagu yang bakal diputar\n` +
-      `• \`/volume <1-100>\` ➔ Atur volume suara musik bot\n\n` +
-      `🤖 **KECERDASAN BUATAN / AI**\n` +
-      `• \`/ai <pertanyaan>\` ➔ Tanya apa saja ke ChatGPT AI cerdas\n` +
-      `• \`/setupaichat\` ➔ Buat channel khusus ngobrol langsung sama AI tanpa command\n\n` +
-      `🛡️ **KEAMANAN & STATUS ANGGOTA**\n` +
-      `• \`/afk [alasan]\` ➔ Pasang status AFK (otomatis lepas saat kamu ngetik lagi)\n` +
-      `• \`/antitoxic\` ➔ Atur kata kasar/toxic yang otomatis dihapus bot\n` +
-      `• *Anti-Phishing* ➔ Otomatis hapus link palsu / scam nitro berbahaya!\n\n` +
-      `⚙️ **PENGATURAN SERVER & OTOMATISASI**\n` +
-      `• \`/autorole\` ➔ Otomatis kasih role ke member baru yang baru join\n` +
-      `• \`/setwelcome\` ➔ Pasang channel sambutan selamat datang\n` +
-      `• \`/setuptempvoice\` ➔ Bikin ruang voice otomatis (Join-to-Create)\n` +
-      `• \`/setupstats\` ➔ Bikin channel counter jumlah member real-time\n` +
-      `• \`/buatembed\` ➔ Bikin pengumuman / rules keren berkotak rapi\n` +
-      `• \`/ping\` ➔ Cek kecepatan sinyal dan respon bot\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💡 *Mau pakai fitur tanpa ngetik? Pilih menu dropdown di bawah untuk kontrol tombol interaktif!*`
+      `Pilih perintah di menu pilihan bawah untuk langsung menjalankannya.\n\n` +
+      `**Perintah Musik:**\n` +
+      `• /play - Memutar musik dari Spotify, YouTube, atau SoundCloud\n` +
+      `• /pause - Menghentikan sementara lagu yang sedang berputar\n` +
+      `• /resume - Melanjutkan lagu yang dihentikan sementara\n` +
+      `• /skip - Melewati lagu saat ini dan memutar lagu berikutnya\n` +
+      `• /stop - Menghentikan musik dan mengeluarkan bot dari voice\n` +
+      `• /queue - Melihat urutan antrean lagu\n` +
+      `• /volume - Mengatur volume suara musik bot\n\n` +
+      `**Perintah Anggota & AI:**\n` +
+      `• /ai - Bertanya dan berdiskusi dengan kecerdasan buatan\n` +
+      `• /afk - Mengaktifkan status sedang tidak di tempat (AFK)\n` +
+      `• /ping - Memeriksa waktu respons dan sinyal bot\n\n` +
+      (isAdmin
+        ? `**Perintah Pengelola Server (Admin):**\n` +
+          `• /setupserver - Menata seluruh saluran dan kategori server\n` +
+          `• /setuptempvoice - Membuat saluran suara otomatis (Join-to-Create)\n` +
+          `• /setupstats - Menampilkan statistik jumlah anggota secara langsung\n` +
+          `• /setupaichat - Membuat saluran khusus obrolan AI\n` +
+          `• /setwelcome - Mengatur saluran pesan sambutan anggota baru\n` +
+          `• /autorole - Memberikan peran otomatis untuk anggota baru\n` +
+          `• /antitoxic - Mengelola kata yang dilarang di server\n` +
+          `• /buatembed - Membuat pesan informasi berbingkai\n`
+        : `*Catatan: Perintah pengaturan server hanya dapat dijalankan oleh Admin.*`)
     )
-    .setThumbnail(guild.iconURL({ dynamic: true }) || null)
-    .setFooter({ text: 'FlyBot • Bantuan & Pusat Navigasi' })
+    .setFooter({ text: 'FlyBot System' })
     .setTimestamp();
 
+  // Opsi dropdown interaktif langsung ke perintahnya
+  const menuOptions = [
+    {
+      label: '/play',
+      description: 'Memutar musik dari judul atau link',
+      value: 'cmd_play'
+    },
+    {
+      label: '/pause',
+      description: 'Menjeda pemutaran musik sementara',
+      value: 'cmd_pause'
+    },
+    {
+      label: '/resume',
+      description: 'Melanjutkan kembali lagu yang dijeda',
+      value: 'cmd_resume'
+    },
+    {
+      label: '/skip',
+      description: 'Melewati lagu ke urutan berikutnya',
+      value: 'cmd_skip'
+    },
+    {
+      label: '/stop',
+      description: 'Menghentikan musik dan keluar dari voice',
+      value: 'cmd_stop'
+    },
+    {
+      label: '/queue',
+      description: 'Melihat daftar antrean lagu',
+      value: 'cmd_queue'
+    },
+    {
+      label: '/volume',
+      description: 'Mengatur tingkat volume musik',
+      value: 'cmd_volume'
+    },
+    {
+      label: '/ai',
+      description: 'Mengajukan pertanyaan ke kecerdasan buatan AI',
+      value: 'cmd_ai'
+    },
+    {
+      label: '/afk',
+      description: 'Mengatur status sedang tidak di tempat (AFK)',
+      value: 'cmd_afk'
+    },
+    {
+      label: '/ping',
+      description: 'Memeriksa kecepatan respons sinyal bot',
+      value: 'cmd_ping'
+    },
+    // Fitur Khusus Admin (Bisa dilihat tapi diverifikasi permission)
+    {
+      label: '/setupserver (Admin)',
+      description: 'Membuat tata ruang kategori server otomatis',
+      value: 'cmd_setupserver'
+    },
+    {
+      label: '/setuptempvoice (Admin)',
+      description: 'Membuat saluran voice otomatis',
+      value: 'cmd_setuptempvoice'
+    },
+    {
+      label: '/setupstats (Admin)',
+      description: 'Membuat saluran counter statistik anggota',
+      value: 'cmd_setupstats'
+    },
+    {
+      label: '/setupaichat (Admin)',
+      description: 'Membuat saluran khusus obrolan AI',
+      value: 'cmd_setupaichat'
+    },
+    {
+      label: '/autorole (Admin)',
+      description: 'Mengatur peran otomatis untuk anggota baru',
+      value: 'cmd_autorole'
+    },
+    {
+      label: '/antitoxic (Admin)',
+      description: 'Melihat daftar kata terlarang di server',
+      value: 'cmd_antitoxic'
+    }
+  ];
+
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('menu_category_select')
-    .setPlaceholder('👉 Klik di sini untuk buka panel tombol interaktif...')
-    .addOptions(
-      {
-        label: '🎵 Music Player Console',
-        description: 'Buka panel tombol Play, Pause, Skip & Volume musik',
-        value: 'cat_music',
-      },
-      {
-        label: '🤖 AI Chat Assistant',
-        description: 'Buka ruang obrolan cerdas OpenAI GPT',
-        value: 'cat_ai',
-      },
-      {
-        label: '🛡️ Keamanan & Server Builder',
-        description: 'Setup Temp Voice, Member Counter & Auto-Role',
-        value: 'cat_rooms',
-      },
-      {
-        label: '📜 Pembuat Embed & Pengumuman',
-        description: 'Bikin pesan rules dan bulletin server dengan tombol',
-        value: 'cat_embeds',
-      },
-      {
-        label: '🏆 Rank & Leveling XP',
-        description: 'Cek level chat kamu, leaderboard & ranking server',
-        value: 'cat_leveling',
-      },
-      {
-        label: '📡 Cek Sinyal & Info Bot',
-        description: 'Lihat status server hosting & kecepatan ping bot',
-        value: 'cat_info',
-      }
-    );
+    .setCustomId('menu_direct_action')
+    .setPlaceholder('Pilih perintah yang ingin langsung dijalankan...')
+    .addOptions(menuOptions);
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
   return { embeds: [embed], components: [row] };
 }
 
-
-// 2. Tampilan Sub-Menu Musik
-function getMusicMenu(guild) {
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('MUSIC LOUNGE')
-    .setDescription(
-      `### Kontrol Audio Player • **${guild.name}**\n\n` +
-      `╭─── KONTROL CEPAT ────────────────────────╮\n` +
-      `│  Putar    — Judul lagu atau link YT / Spotify\n` +
-      `│  Pause    — Jeda pemutaran musik sementara\n` +
-      `│  Resume   — Lanjut dengerin musik\n` +
-      `│  Skip     — Lewati ke lagu berikutnya\n` +
-      `│  Stop     — Hentikan musik & keluar voice\n` +
-      `│  Antrean  — Cek daftar lagu yang ngantre\n` +
-      `│  Volume   — Setel volume suara (1 - 100%)\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Gunakan tombol di bawah untuk mengontrol player:*`
-    )
-    .setFooter({ text: 'Fly Music Engine' });
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_music_play').setLabel('Putar Lagu').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_music_pause').setLabel('Pause').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_music_resume').setLabel('Resume').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_music_skip').setLabel('Skip').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_music_stop').setLabel('Stop').setStyle(ButtonStyle.Danger)
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_music_queue').setLabel('Antrean').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_music_volume').setLabel('Volume').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row1, row2] };
-}
-
-// 3. Tampilan Sub-Menu Ruangan & Server
-function getRoomsMenu(guild) {
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('SERVER ARCHITECT')
-    .setDescription(
-      `### Tata Ruang & Utilitas • **${guild.name}**\n\n` +
-      `╭─── MODUL SERVER ─────────────────────────╮\n` +
-      `│  Setup Lengkap   — Kategori info, chat & voice\n` +
-      `│  Temp Voice      — Join-to-Create room otomatis\n` +
-      `│  Pasang Stats    — Indikator counter member & channel\n` +
-      `│  Rapikan Urutan  — Susun rapi semua kategori\n` +
-      `│  Buat Kategori   — Buat kategori pembatas baru\n` +
-      `│  Buat Channel    — Bikin channel teks / suara\n` +
-      `│  Hapus Channel   — Hapus channel ini (Admin)\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Pilih aksi utilitas yang ingin dieksekusi di bawah:*`
-    )
-    .setFooter({ text: 'Fly Server Architect' });
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_room_setupserver').setLabel('Setup Lengkap').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_room_tempvoice').setLabel('Temp Voice').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_room_stats').setLabel('Pasang Stats').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_room_rapihkan').setLabel('Rapikan Urutan').setStyle(ButtonStyle.Secondary)
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_room_buatkategori').setLabel('Buat Kategori').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_room_buatchannel').setLabel('Buat Channel').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_room_hapuschannel').setLabel('Hapus Channel').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row1, row2] };
-}
-
-// 4. Tampilan Sub-Menu Embed & Rules
-function getEmbedsMenu(guild) {
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('EMBED STUDIO')
-    .setDescription(
-      `### Template Desain & Kartu • **${guild.name}**\n\n` +
-      `╭─── PRESET TERSEDIA ──────────────────────╮\n` +
-      `│  Rules Server    — Tata tertib komunitas resmi\n` +
-      `│  Info Server     — Direktori ruangan & deskripsi\n` +
-      `│  Pengumuman      — Banner berita penting\n` +
-      `│  Panduan Musik   — Panduan dengerin lagu\n` +
-      `│  Custom Embed    — Desain embed kreasi sendiri\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Klik salah satu tombol untuk mencetak kartu embed ke channel ini:*`
-    )
-    .setFooter({ text: 'Fly Embed Studio' });
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_embed_rules').setLabel('Cetak Rules').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_embed_info').setLabel('Info Server').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_embed_announce').setLabel('Pengumuman').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_embed_music').setLabel('Panduan Musik').setStyle(ButtonStyle.Secondary)
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_embed_custom').setLabel('Custom Embed').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row1, row2] };
-}
-
-// 5. Tampilan Sub-Menu Role & Member
-function getRolesMenu(guild) {
-  const autoRoleId = getAutoRole(guild.id);
-  const autoRoleText = autoRoleId ? `<@&${autoRoleId}>` : '`Nonaktif`';
-
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('ROLES & GREETINGS')
-    .setDescription(
-      `### Otomatisasi Member & Sambutan • **${guild.name}**\n\n` +
-      `╭─── STATUS SISTEM ────────────────────────╮\n` +
-      `│  Auto-Role: ${autoRoleText}\n` +
-      `│  Welcome Card: Simulasi member masuk\n` +
-      `│  Leave Card: Simulasi member keluar\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Gunakan tombol di bawah untuk mencoba simulasi:*`
-    )
-    .setFooter({ text: 'Fly Roles System' });
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_test_welcome').setLabel('Tes Sambutan Welcome').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_test_leave').setLabel('Tes Pesan Leave').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row] };
-}
-
-// 6. Tampilan Sub-Menu Info & Ping
-function getInfoMenu(guild, client) {
-  const wsPing = client.ws.ping;
-  const totalGuilds = client.guilds.cache.size;
-  const memoryUsed = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2);
-
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('SYSTEM MONITOR')
-    .setDescription(
-      `### Performa Engine FlyBot\n\n` +
-      `╭─── DIAGNOSTIK SISTEM ────────────────────╮\n` +
-      `│  API Latency: \`${wsPing}ms\`\n` +
-      `│  Server Count: \`${totalGuilds} guilds\`\n` +
-      `│  Memory Usage: \`${memoryUsed} MB\`\n` +
-      `│  Server Time: \`${new Date().toLocaleTimeString('id-ID')}\`\n` +
-      `│  Core Status: \`Online & Stabil\`\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Semua sistem berfungsi normal dan responsif.*`
-    )
-    .setFooter({ text: 'Fly System Monitor' })
-    .setTimestamp();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row] };
-}
-
-// 7. Tampilan Sub-Menu Leveling & Profil
-function getLevelingMenu(guild, user) {
-  const userData = getUserData(guild.id, user.id);
-  const rank = getUserRank(guild.id, user.id);
-  const nextLevelXp = xpForLevel(userData.level + 1);
-  const currentXp = currentLevelXp(userData.xp, userData.level);
-  const progressBar = createProgressBar(currentXp, nextLevelXp);
-  const progressPct = Math.round((currentXp / nextLevelXp) * 100);
-
-  const totalAch = ACHIEVEMENTS.length;
-  const unlockedAch = userData.achievements.length;
-
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('RANK & LEVELING')
-    .setDescription(
-      `### Statistik Keaktifan • **${guild.name}**\n\n` +
-      `╭─── KARTU PROFIL ─────────────────────────╮\n` +
-      `│\n` +
-      `│  Level: \`${userData.level}\`  ・  Rank: \`#${rank}\`\n` +
-      `│  Total XP: \`${userData.xp.toLocaleString()}\`\n` +
-      `│  Total Pesan: \`${userData.totalMessages.toLocaleString()}\`\n` +
-      `│\n` +
-      `│  Progres Level ${userData.level + 1}:\n` +
-      `│  \`${progressBar}\` \`${progressPct}%\`\n` +
-      `│  \`${currentXp.toLocaleString()} / ${nextLevelXp.toLocaleString()} XP\`\n` +
-      `│\n` +
-      `│  Achievement: \`${unlockedAch}/${totalAch} Terbuka\`\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Semakin sering chatting di server, semakin cepat naik level.*`
-    )
-    .setFooter({ text: 'XP diberikan otomatis per pesan (cooldown 60s)' })
-    .setTimestamp();
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_level_profile').setLabel('Profil Saya').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('btn_level_leaderboard').setLabel('Leaderboard Top 10').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_level_achievements').setLabel('Daftar Achievement').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('btn_back_to_main').setLabel('Menu Utama').setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row1] };
-}
-
-// 8. Tampilan Sub-Menu AI Chat (Fly Lounge)
-function getAIMenu(guild, user) {
-  const historyCount = getUserHistoryCount(user.id);
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('FLY CHAT LOUNGE')
-    .setDescription(
-      `### Ruang Ngobrol & Asisten Pribadi\n\n` +
-      `╭─── PILIHAN AKSES CHAT ───────────────────╮\n` +
-      `│\n` +
-      `│  1. Mode DM Pribadi (100% Rahasia)\n` +
-      `│  └ Langsung di DM bot. Admin & member tidak bisa melihat.\n` +
-      `│\n` +
-      `│  2. Mode Room Server\n` +
-      `│  └ Bikin channel teks privat khusus kamu di server.\n` +
-      `│\n` +
-      `│  3. Mode Form Modal\n` +
-      `│  └ Tanya langsung lewat popup rahasia di layar kamu.\n` +
-      `│\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Ketik langsung tanpa prefix / atau mention bot.*\n\n` +
-      `Sesi Kamu: ${historyCount > 0 ? `\`${historyCount} pesan tersimpan\` (aktif)` : '`Sesi baru siap dimulai`'} ・ Mode: \`100% Privat\``
-    )
-    .setFooter({ text: 'Fly AI Assistant' })
-    .setTimestamp();
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('btn_open_dm_ai')
-      .setLabel('Chat di DM Pribadi')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('btn_open_private_ai')
-      .setLabel('Room di Server')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('btn_ai_ask')
-      .setLabel('Form Modal')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('btn_ai_clear')
-      .setLabel('Reset Sesi')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('btn_setup_private_ai_hub')
-      .setLabel('Setup Hub AI')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('btn_back_to_main')
-      .setLabel('Menu Utama')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  return { embeds: [embed], components: [row1, row2] };
-}
-
-// ==========================================
-// FORM MODAL BUILDERS
-// ==========================================
+// Modal Form untuk /play
 function createPlayModal() {
-  const modal = new ModalBuilder()
-    .setCustomId('modal_menu_play')
-    .setTitle('Putar Lagu Baru');
-
+  const modal = new ModalBuilder().setCustomId('modal_music_play').setTitle('Putar Musik');
   const input = new TextInputBuilder()
-    .setCustomId('play_query')
-    .setLabel('Judul Lagu atau Link (YT / Spotify / Soundcloud)')
+    .setCustomId('music_query')
+    .setLabel('Judul Lagu atau Tautan (Spotify/YT/SoundCloud)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Contoh: lofi hip hop atau link Spotify')
+    .setPlaceholder('Contoh: Alan Walker Faded / link lagu')
     .setRequired(true);
-
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  return modal;
+  return modal.addComponents(new ActionRowBuilder().addComponents(input));
 }
 
+// Modal Form untuk /volume
 function createVolumeModal() {
-  const modal = new ModalBuilder()
-    .setCustomId('modal_menu_volume')
-    .setTitle('Atur Volume Suara');
-
+  const modal = new ModalBuilder().setCustomId('modal_music_volume').setTitle('Pengaturan Volume');
   const input = new TextInputBuilder()
-    .setCustomId('volume_val')
-    .setLabel('Persentase Volume (1 - 100)')
+    .setCustomId('volume_level')
+    .setLabel('Tingkat Volume (1 - 100)')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('Contoh: 80')
-    .setRequired(true)
-    .setMaxLength(3);
-
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  return modal;
-}
-
-function createCategoryModal() {
-  const modal = new ModalBuilder()
-    .setCustomId('modal_menu_buatkategori')
-    .setTitle('Buat Kategori Baru');
-
-  const input = new TextInputBuilder()
-    .setCustomId('cat_name')
-    .setLabel('Nama Kategori / Pembatas')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Contoh: Text Lounge atau Voice Rooms')
     .setRequired(true);
-
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  return modal;
+  return modal.addComponents(new ActionRowBuilder().addComponents(input));
 }
 
-function createChannelModal() {
-  const modal = new ModalBuilder()
-    .setCustomId('modal_menu_buatchannel')
-    .setTitle('Buat Channel Baru');
-
-  const inputName = new TextInputBuilder()
-    .setCustomId('ch_name')
-    .setLabel('Nama Channel')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Contoh: santai-mabar atau curhat')
-    .setRequired(true);
-
-  const inputType = new TextInputBuilder()
-    .setCustomId('ch_type')
-    .setLabel('Tipe Channel (Ketik: text atau voice)')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('text atau voice')
-    .setRequired(true)
-    .setMaxLength(5);
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(inputName),
-    new ActionRowBuilder().addComponents(inputType)
-  );
-  return modal;
-}
-
+// Modal Form untuk /ai
 function createAIModal() {
-  const modal = new ModalBuilder()
-    .setCustomId('modal_menu_ai_ask')
-    .setTitle('Tanya Fly (AI Chat)');
-
-  const promptInput = new TextInputBuilder()
-    .setCustomId('ai_prompt')
-    .setLabel('Apa yang mau kamu tanyakan atau curhatkan?')
+  const modal = new ModalBuilder().setCustomId('modal_ai_prompt').setTitle('Pertanyaan AI');
+  const input = new TextInputBuilder()
+    .setCustomId('ai_input')
+    .setLabel('Tulis pertanyaan atau instruksi kamu')
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder('Tulis pertanyaan, curhatan, atau topik pembahasan di sini...')
-    .setMinLength(2)
-    .setMaxLength(1000)
+    .setPlaceholder('Tulis pertanyaan apa saja di sini...')
     .setRequired(true);
+  return modal.addComponents(new ActionRowBuilder().addComponents(input));
+}
 
-  modal.addComponents(new ActionRowBuilder().addComponents(promptInput));
-  return modal;
+// Modal Form untuk /afk
+function createAfkModal() {
+  const modal = new ModalBuilder().setCustomId('modal_afk_reason').setTitle('Status AFK');
+  const input = new TextInputBuilder()
+    .setCustomId('afk_reason_input')
+    .setLabel('Alasan AFK (opsional)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Contoh: Makan siang / tidur / mandi')
+    .setRequired(false);
+  return modal.addComponents(new ActionRowBuilder().addComponents(input));
 }
 
 module.exports = {
   getMainDashboard,
-  getMusicMenu,
-  getRoomsMenu,
-  getEmbedsMenu,
-  getRolesMenu,
-  getLevelingMenu,
-  getInfoMenu,
-  getAIMenu,
   createPlayModal,
   createVolumeModal,
-  createCategoryModal,
-  createChannelModal,
   createAIModal,
+  createAfkModal
 };

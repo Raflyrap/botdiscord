@@ -7,7 +7,8 @@ module.exports = {
     .setDescription('Membuka pusat kontrol interaktif FlyBot (Semua fitur cukup diklik!)'),
 
   async execute(interaction) {
-    const dashboard = getMainDashboard(interaction.guild);
+    const dashboard = getMainDashboard(interaction.guild, interaction.member);
     await interaction.reply({ ...dashboard, flags: MessageFlags.Ephemeral });
   },
+
 };
