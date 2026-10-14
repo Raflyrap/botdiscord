@@ -297,24 +297,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
     ].includes(interaction.customId);
 
     if (isSetupButton) {
+      // Wajib langsung defer reply agar Discord tidak timeout ("didn't respond in time")
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
+
       const isAdmin = interaction.member && (
         interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
         interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)
       );
 
       if (!isAdmin) {
-        return interaction.reply({
+        return interaction.editReply({
           content: 'Hanya Administrator server yang dapat menjalankan pengaturan ini.',
-          flags: MessageFlags.Ephemeral,
         });
       }
-
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
         if (interaction.customId === 'setup_btn_1click') {
           const result = await executeFullSetupWithProgress(interaction.guild, async (status) => {
-            await interaction.editReply({ content: status });
+            await interaction.editReply({ content: status }).catch(() => {});
           });
           const finishEmbed = createFinishingEmbed(result, interaction.guild);
           return interaction.editReply({
