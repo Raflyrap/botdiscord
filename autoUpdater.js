@@ -44,16 +44,16 @@ async function checkForUpdates() {
     }
 
     console.log(`[AUTO-UPDATER] Ditemukan update baru! (${latestSha.substring(0, 7)}) Mengunduh...`);
-    const zipUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${BRANCH}.zip`;
-    const zipBuffer = await downloadFile(zipUrl);
-    const tempZipPath = path.join(__dirname, 'temp_update.zip');
-    fs.writeFileSync(tempZipPath, zipBuffer);
+    const tarUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${BRANCH}.tar.gz`;
+    const tarBuffer = await downloadFile(tarUrl);
+    const tempTarPath = path.join(__dirname, 'temp_update.tar.gz');
+    fs.writeFileSync(tempTarPath, tarBuffer);
 
-    // Ekstrak zip menggunakan tar bawaan container
+    // Ekstrak tar.gz menggunakan tar bawaan container Linux
     try {
-      execSync(`tar -xf temp_update.zip --strip-components=1 -C .`, { cwd: __dirname });
+      execSync(`tar -xzf temp_update.tar.gz --strip-components=1 -C .`, { cwd: __dirname });
       fs.writeFileSync(versionFile, latestSha, 'utf-8');
-      if (fs.existsSync(tempZipPath)) fs.unlinkSync(tempZipPath);
+      if (fs.existsSync(tempTarPath)) fs.unlinkSync(tempTarPath);
       console.log('[AUTO-UPDATER] ✅ Berhasil auto-update kode ke versi terbaru dari GitHub!');
     } catch (extractErr) {
       console.error('[AUTO-UPDATER] Gagal mengekstrak update:', extractErr);
