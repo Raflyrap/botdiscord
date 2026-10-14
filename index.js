@@ -8,7 +8,15 @@ const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
-const ffmpeg = require('ffmpeg-static');
+let ffmpegPath = require('ffmpeg-static');
+try {
+  const installer = require('@ffmpeg-installer/ffmpeg');
+  if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+    if (installer && installer.path && fs.existsSync(installer.path)) {
+      ffmpegPath = installer.path;
+    }
+  }
+} catch (e) {}
 const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
 const { handleVoiceStateUpdate } = require('./tempVoiceHelper');
 const { updateServerStats } = require('./serverStatsHelper');
@@ -53,10 +61,7 @@ for (const file of commandFiles) {
 }
 
 // Inisialisasi DisTube untuk audio streaming musik
-client.distube = new DisTube(client, {
-  ffmpeg: {
-    path: ffmpeg,
-  },
+const distubeOptions = {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
@@ -65,7 +70,17 @@ client.distube = new DisTube(client, {
     new SoundCloudPlugin(),
     new YtDlpPlugin(),
   ],
-});
+};
+
+if (ffmpegPath && fs.existsSync(ffmpegPath)) {
+  distubeOptions.ffmpeg = { path: ffmpegPath };
+  console.log(`[FFMPEG] Menggunakan binary ffmpeg di: ${ffmpegPath}`);
+} else {
+  console.log('[FFMPEG] Menggunakan ffmpeg bawaan sistem (PATH)');
+}
+
+client.distube = new DisTube(client, distubeOptions);
+
 
 // Event Listener DisTube untuk notifikasi otomatis di channel Discord
 client.distube
