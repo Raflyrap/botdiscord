@@ -69,11 +69,6 @@ const distubeOptions = {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
-  // PENTING: selfDeaf false agar bot bisa memutar audio
-  joinVoiceChannel: {
-    selfDeaf: false,
-    selfMute: false,
-  },
   plugins: [
     new SpotifyPlugin(),
     new SoundCloudPlugin(),
@@ -90,11 +85,23 @@ if (ffmpegPath && fs.existsSync(ffmpegPath)) {
 
 client.distube = new DisTube(client, distubeOptions);
 
+// PENTING: Un-deafen bot saat pertama kali join voice agar audio terdengar
+client.distube.on('initQueue', (queue) => {
+  const connection = queue.voice?.connection;
+  if (connection) {
+    connection.rejoin({
+      selfDeaf: false,
+      selfMute: false,
+      channelId: connection.joinConfig.channelId,
+    });
+  }
+});
 
 // Event Listener DisTube untuk notifikasi otomatis di channel Discord
 client.distube
   // Saat lagu mulai diputar
   .on('playSong', (queue, song) => {
+
     const embed = new EmbedBuilder()
       .setColor(0x00FF7F)
       .setTitle('🎵 Sedang Memutar Lagu')
