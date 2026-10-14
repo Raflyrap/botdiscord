@@ -71,7 +71,7 @@ const { askAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
-const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, DEFAULT_PATROLI_SONG, FALLBACK_PATROLI_SONG, getPatroliRuntime } = require('./patroliHelper');
+const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel } = require('./patroliHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -139,26 +139,6 @@ client.distube = new DisTube(client, distubeOptions);
 client.distube
   // Saat lagu mulai diputar
   .on('playSong', (queue, song) => {
-    // Jika sedang dalam mode patroli, jangan kirim spam embed setiap kali looping
-    if (isPatroliActive(queue.id)) {
-      const rt = getPatroliRuntime(queue.id);
-      const now = Date.now();
-      rt.starts.push(now);
-      // Hapus timestamp lama (> 15 detik)
-      rt.starts = rt.starts.filter((t) => now - t < 15000);
-
-      // Jika lagu terputar lebih dari 5 kali dalam 15 detik (artinya ffmpeg crash/langsung tamat tanpa keluar suara)
-      if (rt.starts.length >= 5) {
-        console.error(`[PATROLI ERROR] Terdeteksi loop crash (lagu langsung tamat berulang kali). Menghentikan queue untuk mencegah spam.`);
-        queue.textChannel?.send('⚠️ Mode patroli mendeteksi stream audio mengalami kendala pemutaran. Bot tetap menjaga voice room.').catch(() => {});
-        queue.stop().catch(() => {});
-        return;
-      }
-
-      console.log(`[AUDIO PLAYING] Patroli loop: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
-      return;
-    }
-
     console.log(`[AUDIO PLAYING] Memutar: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
     const embed = new EmbedBuilder()
       .setColor(0x00FF7F)
@@ -176,7 +156,6 @@ client.distube
   })
   // Saat lagu ditambahkan ke antrean
   .on('addSong', (queue, song) => {
-    if (isPatroliActive(queue.id)) return;
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('➕ Ditambahkan ke Antrean')
@@ -187,7 +166,6 @@ client.distube
   })
   // Saat playlist ditambahkan
   .on('addList', (queue, playlist) => {
-    if (isPatroliActive(queue.id)) return;
     queue.textChannel?.send(
       `📋 Menambahkan playlist **${playlist.name}** (${playlist.songs.length} lagu) ke antrean.`
     ).catch(console.error);
@@ -195,9 +173,6 @@ client.distube
   // Error handling audio streaming (DisTube v5: error, queue, song)
   .on('error', (error, queue, song) => {
     console.error('[DISTUBE ERROR]:', error?.message || error);
-    if (queue && isPatroliActive(queue.id)) {
-      return; // Hindari spam jika ada glitch sesaat di mode patroli
-    }
     const channel = queue?.textChannel;
     if (channel && typeof channel.send === 'function') {
       channel.send(`❌ Terjadi kendala saat memutar lagu **${song?.name || ''}**: ${error?.message || 'Sumber audio tidak tersedia'}`).catch(() => {});
@@ -205,30 +180,12 @@ client.distube
   })
   // Saat voice channel kosong (tetap tinggal jika mode patroli aktif)
   .on('empty', (queue) => {
-    if (isPatroliActive(queue.id)) {
-      return;
-    }
+    if (isPatroliActive(queue.id)) return;
     queue.textChannel?.send('👋 Voice channel kosong, bot meninggalkan voice channel.').catch(console.error);
   })
   // Saat seluruh antrean lagu telah selesai diputar
-  .on('finish', async (queue) => {
-    if (isPatroliActive(queue.id)) {
-      // Jika queue selesai saat patroli masih aktif, putar kembali lagu patroli
-      const cfg = getPatroliConfig(queue.id);
-      const voiceChannel = queue.voice?.channel || (cfg?.voiceChannelId ? queue.client.channels.cache.get(cfg.voiceChannelId) : null);
-      if (voiceChannel) {
-        try {
-          await queue.client.distube.play(voiceChannel, cfg?.songUrl || DEFAULT_PATROLI_SONG, {
-            textChannel: queue.textChannel,
-          });
-          const newQueue = queue.client.distube.getQueue(queue.id);
-          if (newQueue) newQueue.setRepeatMode(1);
-        } catch (e) {
-          console.error('[PATROLI] Gagal me-restart antrean patroli di event finish:', e.message);
-        }
-      }
-      return;
-    }
+  .on('finish', (queue) => {
+    if (isPatroliActive(queue.id)) return;
     queue.textChannel?.send('✅ Semua antrean musik telah selesai diputar.').catch(console.error);
   });
 
@@ -257,15 +214,10 @@ client.once(Events.ClientReady, (readyClient) => {
         if (!guild) continue;
         const voiceChannel = guild.channels.cache.get(cfg.voiceChannelId);
         if (!voiceChannel) continue;
-        const textChannel = cfg.textChannelId ? guild.channels.cache.get(cfg.textChannelId) : null;
 
         console.log(`[PATROLI RESUME] Melanjutkan patroli di ${guild.name} -> voice: ${voiceChannel.name}`);
         try {
-          await client.distube.play(voiceChannel, cfg.songUrl || DEFAULT_PATROLI_SONG, {
-            textChannel: textChannel || undefined,
-          });
-          const queue = client.distube.getQueue(guildId);
-          if (queue) queue.setRepeatMode(1);
+          joinPatroliChannel(voiceChannel);
         } catch (err) {
           console.error(`[PATROLI RESUME ERROR] Gagal melanjutkan patroli di ${guild.name}:`, err.message);
         }
@@ -492,12 +444,32 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-// Event saat ada perubahan voice channel (Join-to-Create & Auto Delete)
+// Event saat ada perubahan voice channel (Join-to-Create, Auto Delete, & Patroli Auto-Reconnect)
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
   try {
     await handleVoiceStateUpdate(oldState, newState);
   } catch (error) {
     console.error('Error saat handleVoiceStateUpdate:', error);
+  }
+
+  // Jika bot terputus dari voice channel padahal mode patroli aktif, sambungkan kembali otomatis
+  try {
+    if (oldState.member?.id === client.user.id && !newState.channelId && isPatroliActive(oldState.guild.id)) {
+      const cfg = getPatroliConfig(oldState.guild.id);
+      if (cfg?.voiceChannelId) {
+        const channel = oldState.guild.channels.cache.get(cfg.voiceChannelId);
+        if (channel) {
+          setTimeout(() => {
+            if (isPatroliActive(oldState.guild.id)) {
+              console.log(`[PATROLI] Bot terputus dari voice, menyambungkan kembali ke ${channel.name}...`);
+              joinPatroliChannel(channel);
+            }
+          }, 3000);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[PATROLI RECONNECT] Error:', e);
   }
 });
 

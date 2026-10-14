@@ -1,11 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } = require('@discordjs/voice');
 
 const PATROLI_FILE = path.join(__dirname, 'patroliConfig.json');
 let patroliConfig = {};
-
-const DEFAULT_PATROLI_SONG = 'https://soundcloud.com/nd7kuo66bxvt/ariana-grande-bye-altare-remix';
-const FALLBACK_PATROLI_SONG = 'Ariana Grande - bye (Altare Remix)';
 
 function loadPatroliConfig() {
   try {
@@ -38,12 +36,14 @@ function getPatroliConfig(guildId) {
   return patroliConfig[guildId] || null;
 }
 
-function setPatroliActive(guildId, voiceChannelId, textChannelId, songUrl = DEFAULT_PATROLI_SONG) {
-  resetPatroliRuntime(guildId);
+function getAllPatroliConfigs() {
+  return patroliConfig;
+}
+
+function setPatroliActive(guildId, voiceChannelId, textChannelId) {
   patroliConfig[guildId] = {
     voiceChannelId,
     textChannelId,
-    songUrl,
     startedAt: Date.now(),
   };
   savePatroliConfig();
@@ -51,7 +51,6 @@ function setPatroliActive(guildId, voiceChannelId, textChannelId, songUrl = DEFA
 }
 
 function removePatroliActive(guildId) {
-  resetPatroliRuntime(guildId);
   if (patroliConfig[guildId]) {
     delete patroliConfig[guildId];
     savePatroliConfig();
@@ -60,32 +59,42 @@ function removePatroliActive(guildId) {
   return false;
 }
 
-// State runtime (tidak disimpan ke file): anti-spam & deteksi stream yang langsung mati
-const patroliRuntime = new Map();
+function joinPatroliChannel(channel) {
+  if (!channel) return null;
+  const connection = joinVoiceChannel({
+    channelId: channel.id,
+    guildId: channel.guild.id,
+    adapterCreator: channel.guild.voiceAdapterCreator,
+    selfDeaf: false,
+    selfMute: false,
+  });
 
-function getPatroliRuntime(guildId) {
-  if (!patroliRuntime.has(guildId)) {
-    patroliRuntime.set(guildId, { announced: false, starts: [], debug: [] });
+  connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    try {
+      if (isPatroliActive(channel.guild.id)) {
+        connection.rejoin();
+      }
+    } catch (e) {}
+  });
+
+  return connection;
+}
+
+function leavePatroliChannel(guildId) {
+  const connection = getVoiceConnection(guildId);
+  if (connection) {
+    try {
+      connection.destroy();
+    } catch (e) {}
   }
-  return patroliRuntime.get(guildId);
-}
-
-function resetPatroliRuntime(guildId) {
-  patroliRuntime.delete(guildId);
-}
-
-function getAllPatroliConfigs() {
-  return patroliConfig;
 }
 
 module.exports = {
-  DEFAULT_PATROLI_SONG,
-  FALLBACK_PATROLI_SONG,
   isPatroliActive,
   getPatroliConfig,
   getAllPatroliConfigs,
   setPatroliActive,
   removePatroliActive,
-  getPatroliRuntime,
-  resetPatroliRuntime,
+  joinPatroliChannel,
+  leavePatroliChannel,
 };

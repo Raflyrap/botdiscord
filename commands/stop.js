@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { removePatroliActive } = require('../patroliHelper');
+const { removePatroliActive, leavePatroliChannel } = require('../patroliHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,35 +15,37 @@ module.exports = {
     }
 
     // Cabut status patroli jika aktif
-    removePatroliActive(interaction.guildId);
+    const wasPatroli = removePatroliActive(interaction.guildId);
+    leavePatroliChannel(interaction.guildId);
 
-    const queue = interaction.client.distube.getQueue(interaction.guildId);
-    if (!queue) {
-      // Jika queue tidak ada tapi bot masih nyangkut di voice, disconnect
-      const meVoice = interaction.guild.members.me?.voice;
-      if (meVoice?.channel) {
-        meVoice.disconnect().catch(() => {});
-        return interaction.reply('Patroli dihentikan dan bot telah keluar dari voice channel.');
+    // Hentikan queue musik DisTube jika ada
+    const queue = interaction.client.distube?.getQueue(interaction.guildId);
+    if (queue) {
+      try {
+        queue.setRepeatMode(0);
+        await queue.stop();
+      } catch (e) {
+        console.error('Error saat queue.stop:', e);
       }
-
-      return interaction.reply({
-        content: 'Tidak ada musik atau patroli yang sedang berjalan saat ini.',
-        flags: MessageFlags.Ephemeral,
-      });
     }
 
-    try {
-      queue.setRepeatMode(0);
-      await queue.stop();
-    } catch (e) {
-      console.error('Error saat queue.stop:', e);
-    }
-
+    // Pastikan bot keluar dari voice channel
     const meVoice = interaction.guild.members.me?.voice;
     if (meVoice?.channel) {
       meVoice.disconnect().catch(() => {});
     }
 
-    await interaction.reply('Musik dan mode patroli telah dihentikan, antrean dibersihkan, dan bot telah keluar dari voice channel.');
+    if (wasPatroli) {
+      return interaction.reply('🛡️ Mode patroli 24 jam telah dinonaktifkan dan bot telah keluar dari voice channel.');
+    }
+
+    if (!queue) {
+      return interaction.reply({
+        content: 'Tidak ada patroli atau musik yang sedang berjalan saat ini.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    await interaction.reply('Musik telah dihentikan, antrean dibersihkan, dan bot telah keluar dari voice channel.');
   },
 };
