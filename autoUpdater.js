@@ -55,6 +55,13 @@ async function checkForUpdates() {
       fs.writeFileSync(versionFile, latestSha, 'utf-8');
       if (fs.existsSync(tempTarPath)) fs.unlinkSync(tempTarPath);
       console.log('[AUTO-UPDATER] ✅ Berhasil auto-update kode ke versi terbaru dari GitHub!');
+
+      try {
+        console.log('[AUTO-UPDATER] Memeriksa & sinkronisasi dependensi baru...');
+        execSync('npm install --omit=dev --no-audit', { cwd: __dirname, stdio: 'ignore' });
+      } catch (npmErr) {
+        console.warn('[AUTO-UPDATER] Lewati npm install:', npmErr.message);
+      }
     } catch (extractErr) {
       console.error('[AUTO-UPDATER] Gagal mengekstrak update:', extractErr);
     }

@@ -5,7 +5,19 @@ const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, Events, EmbedBuilder, MessageFlags } = require('discord.js');
 const { DisTube } = require('distube');
-const { YouTubePlugin } = require('@distube/youtube');
+let YouTubePlugin;
+try {
+  YouTubePlugin = require('@distube/youtube').YouTubePlugin;
+} catch (e) {
+  try {
+    const { execSync } = require('child_process');
+    console.log('[DEPENDENCY] Mengunduh @distube/youtube...');
+    execSync('npm install @distube/youtube --omit=dev --no-audit', { stdio: 'inherit' });
+    YouTubePlugin = require('@distube/youtube').YouTubePlugin;
+  } catch (err) {
+    console.error('[DEPENDENCY] Gagal memuat @distube/youtube:', err.message);
+  }
+}
 const { SpotifyPlugin } = require('@distube/spotify');
 const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
@@ -66,16 +78,19 @@ for (const file of commandFiles) {
 }
 
 // Inisialisasi DisTube untuk audio streaming musik
+const musicPlugins = [];
+if (YouTubePlugin) musicPlugins.push(new YouTubePlugin());
+musicPlugins.push(
+  new SpotifyPlugin(),
+  new SoundCloudPlugin(),
+  new YtDlpPlugin({ update: false })
+);
+
 const distubeOptions = {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
-  plugins: [
-    new YouTubePlugin(),
-    new SpotifyPlugin(),
-    new SoundCloudPlugin(),
-    new YtDlpPlugin({ update: false }),
-  ],
+  plugins: musicPlugins,
 };
 
 if (ffmpegPath && fs.existsSync(ffmpegPath)) {
