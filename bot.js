@@ -30,9 +30,21 @@ try {
     }
   }
 } catch (e) {}
-// Load sodium for voice encryption
+// Atur agar voice connection selalu join dengan selfDeaf: false sejak awal
+// Ini mencegah pemanggilan rejoin() di tengah pemutaran yang dapat memutus audio UDP
+const voice = require('@discordjs/voice');
+const originalJoinVoiceChannel = voice.joinVoiceChannel;
+voice.joinVoiceChannel = function(options) {
+  return originalJoinVoiceChannel({
+    selfDeaf: false,
+    selfMute: false,
+    ...options
+  });
+};
+
+// Load voice encryption & audio encoding
+try { require('@noble/ciphers'); } catch (e) {}
 try { require('libsodium-wrappers'); } catch (e) {}
-// Load opus encoder for voice audio
 try { require('opusscript'); } catch (e) {}
 const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
 const { handleVoiceStateUpdate } = require('./tempVoiceHelper');
@@ -106,37 +118,12 @@ if (ffmpegPath && fs.existsSync(ffmpegPath)) {
 
 client.distube = new DisTube(client, distubeOptions);
 
-// PENTING: Un-deafen bot saat voice connection sudah ready agar bot tidak berstatus tuli di Discord
-client.distube.on('initQueue', (queue) => {
-  const undeafen = () => {
-    try {
-      if (queue.voice && typeof queue.voice.setSelfDeaf === 'function') {
-        queue.voice.setSelfDeaf(false);
-      }
-    } catch (e) {
-      console.warn('[VOICE] Gagal setSelfDeaf:', e.message);
-    }
-  };
-
-  const connection = queue.voice?.connection;
-  if (connection) {
-    if (connection.state?.status === 'ready') {
-      undeafen();
-    } else {
-      connection.once('stateChange', (_, newState) => {
-        if (newState.status === 'ready') {
-          undeafen();
-        }
-      });
-    }
-  }
-});
 
 // Event Listener DisTube untuk notifikasi otomatis di channel Discord
 client.distube
   // Saat lagu mulai diputar
   .on('playSong', (queue, song) => {
-
+    console.log(`[AUDIO PLAYING] Memutar: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
     const embed = new EmbedBuilder()
       .setColor(0x00FF7F)
       .setTitle('🎵 Sedang Memutar Lagu')
