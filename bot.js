@@ -17,6 +17,10 @@ try {
     }
   }
 } catch (e) {}
+// Load sodium for voice encryption
+try { require('libsodium-wrappers'); } catch (e) {}
+// Load opus encoder for voice audio
+try { require('opusscript'); } catch (e) {}
 const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
 const { handleVoiceStateUpdate } = require('./tempVoiceHelper');
 const { updateServerStats } = require('./serverStatsHelper');
@@ -65,6 +69,11 @@ const distubeOptions = {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
+  // PENTING: selfDeaf false agar bot bisa memutar audio
+  joinVoiceChannel: {
+    selfDeaf: false,
+    selfMute: false,
+  },
   plugins: [
     new SpotifyPlugin(),
     new SoundCloudPlugin(),
