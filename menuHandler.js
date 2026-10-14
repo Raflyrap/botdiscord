@@ -23,67 +23,75 @@ const {
 } = require('./levelingHelper');
 const { getUserHistoryCount } = require('./aiHelper');
 
-// 1. Tampilan Dashboard Menu Utama (Minimalist Clean Console)
+// 1. Tampilan Dashboard Menu Utama (Super Jelas, Rapi & Ramah Orang Awam)
 function getMainDashboard(guild) {
   const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle('FLY CONTROL HUB')
+    .setColor(0x5865F2)
+    .setTitle('⚡ FLYBOT PUSAT BANTUAN & DAFTAR PERINTAH')
     .setDescription(
-      `### **${guild.name}** • Pusat Navigasi\n\n` +
-      `╭─── MENU NAVIGASI ────────────────────────╮\n` +
-      `│\n` +
-      `│  Music Lounge     — Audio player, playlist & antrean\n` +
-      `│  Server Builder   — Temp voice, stats counter & layout\n` +
-      `│  Embed Studio     — Rules, info direktori & bulletin\n` +
-      `│  Role & Members   — Auto-role, welcome & leave card\n` +
-      `│  Rank & Leveling  — XP chat, leaderboard & badges\n` +
-      `│  Fly AI Lounge    — Ruang chat & asisten privat\n` +
-      `│  System Monitor   — Latency ping & performa server\n` +
-      `│\n` +
-      `╰──────────────────────────────────────────╯\n\n` +
-      `*Pilih menu pada dropdown di bawah untuk membuka panel fitur.*`
+      `Halo! Bingung cara pakai bot? Di bawah ini panduan lengkap seluruh fitur FlyBot di **${guild.name}**.\nSemua perintah dibuat simpel, tinggal ketik atau pilih menu di bawah!\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🎵 **MUSIK & LAGU** (Suara Jernih 24/7)\n` +
+      `• \`/play <judul/link>\` ➔ Putar lagu dari Spotify, YouTube, atau SoundCloud\n` +
+      `• \`/pause\` ➔ Jeda / hentikan sementara lagu yang diputar\n` +
+      `• \`/resume\` ➔ Lanjutkan memutar lagu yang tadi di-pause\n` +
+      `• \`/skip\` ➔ Lewati lagu sekarang dan lanjut ke lagu berikutnya\n` +
+      `• \`/stop\` ➔ Matikan musik dan bot keluar dari voice channel\n` +
+      `• \`/queue\` ➔ Lihat daftar antrean lagu yang bakal diputar\n` +
+      `• \`/volume <1-100>\` ➔ Atur volume suara musik bot\n\n` +
+      `🤖 **KECERDASAN BUATAN / AI**\n` +
+      `• \`/ai <pertanyaan>\` ➔ Tanya apa saja ke ChatGPT AI cerdas\n` +
+      `• \`/setupaichat\` ➔ Buat channel khusus ngobrol langsung sama AI tanpa command\n\n` +
+      `🛡️ **KEAMANAN & STATUS ANGGOTA**\n` +
+      `• \`/afk [alasan]\` ➔ Pasang status AFK (otomatis lepas saat kamu ngetik lagi)\n` +
+      `• \`/antitoxic\` ➔ Atur kata kasar/toxic yang otomatis dihapus bot\n` +
+      `• *Anti-Phishing* ➔ Otomatis hapus link palsu / scam nitro berbahaya!\n\n` +
+      `⚙️ **PENGATURAN SERVER & OTOMATISASI**\n` +
+      `• \`/autorole\` ➔ Otomatis kasih role ke member baru yang baru join\n` +
+      `• \`/setwelcome\` ➔ Pasang channel sambutan selamat datang\n` +
+      `• \`/setuptempvoice\` ➔ Bikin ruang voice otomatis (Join-to-Create)\n` +
+      `• \`/setupstats\` ➔ Bikin channel counter jumlah member real-time\n` +
+      `• \`/buatembed\` ➔ Bikin pengumuman / rules keren berkotak rapi\n` +
+      `• \`/ping\` ➔ Cek kecepatan sinyal dan respon bot\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `💡 *Mau pakai fitur tanpa ngetik? Pilih menu dropdown di bawah untuk kontrol tombol interaktif!*`
     )
     .setThumbnail(guild.iconURL({ dynamic: true }) || null)
-    .setFooter({ text: 'Fly System • Navigation Console' })
+    .setFooter({ text: 'FlyBot • Bantuan & Pusat Navigasi' })
     .setTimestamp();
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('menu_category_select')
-    .setPlaceholder('Pilih menu yang ingin dibuka...')
+    .setPlaceholder('👉 Klik di sini untuk buka panel tombol interaktif...')
     .addOptions(
       {
-        label: 'Music Lounge',
-        description: 'Putar lagu, antrean, volume & kontrol player',
+        label: '🎵 Music Player Console',
+        description: 'Buka panel tombol Play, Pause, Skip & Volume musik',
         value: 'cat_music',
       },
       {
-        label: 'Server Builder',
-        description: 'Auto setup, join-to-create temp voice & counter stats',
-        value: 'cat_rooms',
-      },
-      {
-        label: 'Embed Studio',
-        description: 'Cetak rules server, direktori info & pengumuman',
-        value: 'cat_embeds',
-      },
-      {
-        label: 'Role & Members',
-        description: 'Auto-role member baru & simulasi welcome/leave',
-        value: 'cat_roles',
-      },
-      {
-        label: 'Rank & Leveling',
-        description: 'Cek level, XP chat, leaderboard & achievement',
-        value: 'cat_leveling',
-      },
-      {
-        label: 'Fly AI Lounge',
-        description: 'Ngobrol santai, curhat privat & asisten cerdas',
+        label: '🤖 AI Chat Assistant',
+        description: 'Buka ruang obrolan cerdas OpenAI GPT',
         value: 'cat_ai',
       },
       {
-        label: 'System Monitor',
-        description: 'Cek latency ping & performa server bot',
+        label: '🛡️ Keamanan & Server Builder',
+        description: 'Setup Temp Voice, Member Counter & Auto-Role',
+        value: 'cat_rooms',
+      },
+      {
+        label: '📜 Pembuat Embed & Pengumuman',
+        description: 'Bikin pesan rules dan bulletin server dengan tombol',
+        value: 'cat_embeds',
+      },
+      {
+        label: '🏆 Rank & Leveling XP',
+        description: 'Cek level chat kamu, leaderboard & ranking server',
+        value: 'cat_leveling',
+      },
+      {
+        label: '📡 Cek Sinyal & Info Bot',
+        description: 'Lihat status server hosting & kecepatan ping bot',
         value: 'cat_info',
       }
     );
@@ -91,6 +99,7 @@ function getMainDashboard(guild) {
   const row = new ActionRowBuilder().addComponents(selectMenu);
   return { embeds: [embed], components: [row] };
 }
+
 
 // 2. Tampilan Sub-Menu Musik
 function getMusicMenu(guild) {
