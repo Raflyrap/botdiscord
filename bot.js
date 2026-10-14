@@ -78,13 +78,14 @@ for (const file of commandFiles) {
 }
 
 // Inisialisasi DisTube untuk audio streaming musik
-const musicPlugins = [];
-if (YouTubePlugin) musicPlugins.push(new YouTubePlugin());
-musicPlugins.push(
+// PENTING: Spotify dan SoundCloud diletakkan di awal agar lagu Spotify & pencarian umum
+// langsung di-stream via SoundCloud, bebas dari batasan anti-bot YouTube di server hosting/Pterodactyl.
+const musicPlugins = [
   new SpotifyPlugin(),
   new SoundCloudPlugin(),
-  new YtDlpPlugin({ update: false })
-);
+];
+if (YouTubePlugin) musicPlugins.push(new YouTubePlugin());
+musicPlugins.push(new YtDlpPlugin({ update: false }));
 
 const distubeOptions = {
   emitNewSongOnly: true,
@@ -166,10 +167,13 @@ client.distube
       `📋 Menambahkan playlist **${playlist.name}** (${playlist.songs.length} lagu) ke antrean.`
     ).catch(console.error);
   })
-  // Error handling audio streaming
-  .on('error', (channel, error) => {
-    console.error('DisTube Error:', error);
-    channel?.send?.(`❌ Terjadi error saat memutar audio: ${error.message || error}`).catch(console.error);
+  // Error handling audio streaming (DisTube v5: error, queue, song)
+  .on('error', (error, queue, song) => {
+    console.error('[DISTUBE ERROR]:', error?.message || error);
+    const channel = queue?.textChannel;
+    if (channel && typeof channel.send === 'function') {
+      channel.send(`❌ Terjadi kendala saat memutar lagu **${song?.name || ''}**: ${error?.message || 'Sumber audio tidak tersedia'}`).catch(() => {});
+    }
   })
   // Saat voice channel kosong
   .on('empty', (queue) => {
