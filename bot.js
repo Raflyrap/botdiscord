@@ -520,6 +520,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // === MINI GAMES: 1. TEBAK KOIN ===
     if (interaction.customId.startsWith('btn_game_coin_')) {
+      const { getCoinGameRow } = require('./gameHelper');
       const type = interaction.customId.replace('btn_game_coin_', '');
       const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
       const flipName = flip === 'gambar' ? 'Gambar (🦅)' : 'Angka (🪙)';
@@ -527,6 +528,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (type === 'random') {
         return interaction.reply({
           content: `🪙 **Koin dilempar ke udara...**\nKoin mendarat di sisi: **${flipName}**!`,
+          components: [getCoinGameRow()],
         });
       }
 
@@ -541,11 +543,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
           (won
             ? `🎉 **TEBAKAN TEPAT! Kamu Menang!** 🏆`
             : `❌ **Sayang sekali, belum beruntung.** Coba lagi!`),
+        components: [getCoinGameRow()],
       });
     }
 
     // === MINI GAMES: 2. SUIT JEPANG (GUNTING BATU KERTAS) ===
     if (interaction.customId.startsWith('btn_game_rps_')) {
+      const { getRpsGameRow } = require('./gameHelper');
       const userChoice = interaction.customId.replace('btn_game_rps_', '');
       const choices = ['rock', 'paper', 'scissors'];
       const botChoice = choices[Math.floor(Math.random() * choices.length)];
@@ -575,6 +579,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           `• <@${interaction.user.id}>: **${choiceMap[userChoice]}**\n` +
           `• FlyBot: **${choiceMap[botChoice]}**\n\n` +
           `${resultText}`,
+        components: [getRpsGameRow()],
       });
     }
 
@@ -958,7 +963,7 @@ client.on(Events.MessageCreate, async (message) => {
 
   // === MINI GAME: TEBAK ANGKA CHAT GUESS ===
   try {
-    const { getGameConfig, checkNumberGuess } = require('./gameHelper');
+    const { getGameConfig, checkNumberGuess, getNumberGameRow } = require('./gameHelper');
     const gameCfg = getGameConfig(message.guild.id);
     if (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) {
       const trimmed = message.content.trim();
@@ -966,7 +971,10 @@ client.on(Events.MessageCreate, async (message) => {
       if (!isNaN(guessNum) && String(guessNum) === trimmed && guessNum >= 1 && guessNum <= 100) {
         const res = checkNumberGuess(message.guild.id, guessNum);
         if (!res) {
-          message.reply('Ronde tebak angka belum dimulai! Klik tombol **🎯 Mulai Game Baru** di atas untuk mulai bermain.').catch(() => {});
+          message.reply({
+            content: 'Ronde tebak angka belum dimulai! Klik tombol **🎯 Main Lagi** di bawah untuk mulai bermain.',
+            components: [getNumberGameRow()],
+          }).catch(() => {});
         } else if (res.status === 'LOW') {
           message.reply(`📈 **${guessNum}** masih **Terlalu KECIL**! Coba tebak angka yang lebih besar dari itu.`).catch(() => {});
         } else if (res.status === 'HIGH') {
@@ -978,10 +986,10 @@ client.on(Events.MessageCreate, async (message) => {
             .setDescription(
               `Selamat <@${message.author.id}>! Angka rahasianya memang **${res.target}**!\n\n` +
               `Berhasil ditebak dalam **${res.attempts} percobaan**.\n\n` +
-              `*Klik tombol **🎯 Mulai Game Baru** di atas untuk memainkan ronde berikutnya!*`
+              `*Klik tombol **🎯 Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll!*`
             )
             .setTimestamp();
-          message.channel.send({ embeds: [winEmbed] }).catch(() => {});
+          message.channel.send({ embeds: [winEmbed], components: [getNumberGameRow()] }).catch(() => {});
         }
       }
     }
