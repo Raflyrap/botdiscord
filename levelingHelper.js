@@ -2,6 +2,29 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_PATH = path.join(__dirname, 'levelingData.json');
+const CONFIG_PATH = path.join(__dirname, 'levelingConfig.json');
+
+// ==========================================
+// CONFIG CHANNEL NOTIFIKASI (per guild)
+// ==========================================
+function loadConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function getLevelConfig(guildId) {
+  return loadConfig()[guildId] || {};
+}
+
+function setLevelConfig(guildId, updates) {
+  const cfg = loadConfig();
+  cfg[guildId] = { ...(cfg[guildId] || {}), ...updates };
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
+  return cfg[guildId];
+}
 
 // Cooldown map (guild:user -> timestamp terakhir dapat XP)
 const cooldowns = new Map();
@@ -249,4 +272,7 @@ module.exports = {
   checkAchievements,
   getAchievementById,
   ACHIEVEMENTS,
+  getLevelConfig,
+  setLevelConfig,
+  totalXpForLevel,
 };

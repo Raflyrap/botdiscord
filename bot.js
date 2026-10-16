@@ -583,36 +583,37 @@ client.on(Events.MessageCreate, async (message) => {
     const result = processMessage(message.guild.id, message.author.id);
 
 
-    // Notifikasi level up
-    if (result.leveledUp) {
-      const levelUpEmbed = new EmbedBuilder()
-        .setColor(0xFFD700)
-        .setTitle('🎉 LEVEL UP!')
-        .setDescription(
-          `Selamat <@${message.author.id}>! Kamu naik ke **Level ${result.newLevel}**!\n\n` +
-          `✨ Total XP: \`${result.userData.xp.toLocaleString()}\`\n` +
-          `💬 Total Pesan: \`${result.userData.totalMessages.toLocaleString()}\``
-        )
-        .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-        .setTimestamp();
+    const lvlHelper = require('./levelingHelper');
+    const lvlCfg = lvlHelper.getLevelConfig(message.guild.id);
+    const resolveChannel = (id) => {
+      const ch = id ? message.guild.channels.cache.get(id) : null;
+      return ch && ch.isTextBased() ? ch : message.channel;
+    };
 
-      await message.channel.send({ embeds: [levelUpEmbed] }).catch(console.error);
+    const { buildLevelUpEmbed, buildAchievementEmbed } = require('./levelEmbeds');
+    const ctx = { member: message.member, user: message.author, guild: message.guild };
+
+    // Notifikasi level up (channel khusus level-up)
+    if (result.leveledUp) {
+      const levelUpEmbed = buildLevelUpEmbed(ctx, {
+        oldLevel: result.oldLevel,
+        newLevel: result.newLevel,
+        xp: result.userData.xp,
+        totalMessages: result.userData.totalMessages,
+        position: lvlHelper.getUserRank(message.guild.id, message.author.id),
+      });
+
+      await resolveChannel(lvlCfg.levelUpChannel)
+        .send({ content: `<@${message.author.id}>`, embeds: [levelUpEmbed] })
+        .catch(console.error);
     }
 
-    // Notifikasi achievement baru
+    // Notifikasi achievement baru (channel khusus achievement)
     if (result.newAchievements.length > 0) {
+      const achChannel = resolveChannel(lvlCfg.achievementChannel);
       for (const ach of result.newAchievements) {
-        const achEmbed = new EmbedBuilder()
-          .setColor(0xE91E63)
-          .setTitle('🏅 ACHIEVEMENT UNLOCKED!')
-          .setDescription(
-            `<@${message.author.id}> membuka achievement baru:\n\n` +
-            `${ach.emoji} **${ach.name}**\n` +
-            `*${ach.desc}*`
-          )
-          .setTimestamp();
-
-        await message.channel.send({ embeds: [achEmbed] }).catch(console.error);
+        const achEmbed = buildAchievementEmbed(ctx, ach, result.userData.achievements.length);
+        await achChannel.send({ embeds: [achEmbed] }).catch(console.error);
       }
     }
   } catch (error) {
