@@ -317,8 +317,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         await interaction.member.roles.add(targetRole);
+
+        // Cabut role belum verifikasi jika ada
+        if (verifCfg.unverifiedRoleId && interaction.member.roles.cache.has(verifCfg.unverifiedRoleId)) {
+          await interaction.member.roles.remove(verifCfg.unverifiedRoleId).catch(console.error);
+        }
+
         return interaction.reply({
-          content: 'Verifikasi berhasil! Akses ke server telah dibuka. Selamat beraktivitas!',
+          content: 'Verifikasi berhasil! Seluruh channel telah terbuka. Selamat beraktivitas!',
           flags: MessageFlags.Ephemeral,
         });
       } catch (err) {
@@ -473,8 +479,21 @@ client.on(Events.GuildMemberAdd, async (member) => {
         console.log(`[AUTOROLE] Berhasil memberikan role ${role.name} ke ${member.user.tag}`);
       }
     }
+
+    // Berikan Role Belum Verifikasi jika sistem verifikasi aktif dan ada role belum verif
+    const { getVerifConfig } = require('./verifHelper');
+    const verifCfg = getVerifConfig(member.guild.id);
+    if (verifCfg.enabled && verifCfg.unverifiedRoleId) {
+      const unverifiedRole =
+        member.guild.roles.cache.get(verifCfg.unverifiedRoleId) ||
+        (await member.guild.roles.fetch(verifCfg.unverifiedRoleId).catch(() => null));
+      if (unverifiedRole) {
+        await member.roles.add(unverifiedRole).catch(console.error);
+        console.log(`[VERIF] Memberikan role belum verif ${unverifiedRole.name} ke ${member.user.tag}`);
+      }
+    }
   } catch (error) {
-    console.error('Error saat mengirim pesan welcome / autorole:', error);
+    console.error('Error saat memproses member baru (welcome/autorole/verif):', error);
   } finally {
     updateServerStats(member.guild).catch(console.error);
   }

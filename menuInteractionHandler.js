@@ -125,6 +125,30 @@ async function handleMenuInteraction(interaction) {
 
     // --- AKSI COMMAND ADMIN (SUDAH LOLOS CEK PERMISSION) ---
 
+    if (val === 'cmd_setverif') {
+      const { getVerifConfig } = require('./verifHelper');
+      const cfg = getVerifConfig(interaction.guildId);
+      const verifiedRole = cfg.verifiedRoleId || cfg.roleId ? interaction.guild.roles.cache.get(cfg.verifiedRoleId || cfg.roleId) : null;
+      const unverifiedRole = cfg.unverifiedRoleId ? interaction.guild.roles.cache.get(cfg.unverifiedRoleId) : null;
+      const verifChannel = cfg.channelId ? interaction.guild.channels.cache.get(cfg.channelId) : null;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('Pengaturan Kunci Channel & Verifikasi')
+        .setDescription(
+          `Konfigurasi saat ini:\n\n` +
+          `• Role Sudah Verifikasi: ${verifiedRole ? `<@&${verifiedRole.id}>` : '*(Belum diatur)*'}\n` +
+          `• Role Belum Verifikasi: ${unverifiedRole ? `<@&${unverifiedRole.id}>` : '*Menggunakan @everyone*'}\n` +
+          `• Channel Verifikasi: ${verifChannel ? `<#${verifChannel.id}>` : '*(Belum diatur)*'}\n\n` +
+          `Untuk mengatur role & otomatis menyembunyikan seluruh channel sebelum verifikasi, ketik perintah ini:\n` +
+          `\`/setverif role_sudah_verif:@Member channel_verif:#verifikasi role_belum_verif:@Unverified\``
+        )
+        .setFooter({ text: 'Channel lain otomatis terkunci dari yang belum verif' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
     if (val === 'cmd_verif') {
       const { getVerifConfig } = require('./verifHelper');
       const cfg = getVerifConfig(interaction.guildId);
