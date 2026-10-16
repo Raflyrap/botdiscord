@@ -72,6 +72,19 @@ async function applyChannelLockdown(guild, { verifChannelId, verifiedRoleId, unv
           });
         }
 
+        // 4. Jika channel verifikasi berada di dalam kategori, pastikan kategorinya dapat dilihat
+        if (ch.parent) {
+          await ch.parent.permissionOverwrites.edit(guild.id, {
+            ViewChannel: true,
+          }).catch(() => null);
+
+          if (unverifiedRoleId) {
+            await ch.parent.permissionOverwrites.edit(unverifiedRoleId, {
+              ViewChannel: true,
+            }).catch(() => null);
+          }
+        }
+
         updatedCount++;
       } else {
         // Channel lain:

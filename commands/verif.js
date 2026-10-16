@@ -129,6 +129,19 @@ module.exports = {
           components: [row],
         });
 
+        // Atur izin channel verifikasi:
+        // @everyone: bisa lihat & baca, tapi tidak bisa kirim chat (hanya klik tombol)
+        await targetChannel.permissionOverwrites.edit(guild.id, {
+          ViewChannel: true,
+          SendMessages: false,
+          ReadMessageHistory: true,
+        }).catch(() => null);
+
+        // targetRole (sudah verif): sembunyikan channel verifikasi ini
+        await targetChannel.permissionOverwrites.edit(targetRole.id, {
+          ViewChannel: false,
+        }).catch(() => null);
+
         setVerifConfig(interaction.guildId, {
           channelId: targetChannel.id,
           roleId: targetRole.id,
@@ -137,7 +150,7 @@ module.exports = {
         });
 
         return interaction.reply({
-          content: `Panel verifikasi berhasil dikirim ke <#${targetChannel.id}> dengan role <@&${targetRole.id}>.`,
+          content: `Panel verifikasi berhasil dikirim ke <#${targetChannel.id}> dengan role <@&${targetRole.id}>.\nChannel verifikasi otomatis disembunyikan dari member yang sudah verifikasi.`,
           flags: MessageFlags.Ephemeral,
         });
       } catch (err) {

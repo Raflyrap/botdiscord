@@ -323,6 +323,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.member.roles.remove(verifCfg.unverifiedRoleId).catch(console.error);
         }
 
+        // Sembunyikan channel verifikasi dari user ini secara langsung
+        if (interaction.channel?.permissionOverwrites) {
+          await interaction.channel.permissionOverwrites.edit(interaction.user.id, {
+            ViewChannel: false,
+          }).catch(() => null);
+        }
+
         return interaction.reply({
           content: 'Verifikasi berhasil! Seluruh channel telah terbuka. Selamat beraktivitas!',
           flags: MessageFlags.Ephemeral,
