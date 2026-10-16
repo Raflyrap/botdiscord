@@ -201,6 +201,17 @@ client.distube
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`✅ Bot online! Masuk sebagai ${readyClient.user.tag}`);
 
+  // Auto-sync slash command global berdasarkan command yang ter-load di server ini
+  (async () => {
+    try {
+      const body = [...client.commands.values()].map((c) => c.data.toJSON());
+      const synced = await readyClient.application.commands.set(body);
+      console.log(`[SYNC] ${synced.size} slash command berhasil disinkronkan ke Discord`);
+    } catch (err) {
+      console.error('[SYNC] Gagal sinkron slash command:', err.message);
+    }
+  })();
+
   // Inisialisasi dan perbarui statistik server berkala (setiap 10 menit)
   for (const [, guild] of readyClient.guilds.cache) {
     updateServerStats(guild).catch(console.error);
