@@ -194,8 +194,10 @@ async function handleMenuInteraction(interaction) {
           `• Kategori Tiket: ${cat ? `**${cat.name}**` : '*(Default / Tanpa kategori)*'}\n` +
           `• Role Staff/Admin: ${staffRole ? `<@&${staffRole.id}>` : '*(Semua Administrator)*'}\n` +
           `• Total Tiket Terbuat: \`${cfg.ticketCounter || 0}\` tiket\n\n` +
-          `Untuk memasang atau memperbarui panel tiket dengan tombol, jalankan perintah:\n` +
-          `\`/setticket channel:#channel-tiket kategori:Kategori-Tiket role_staff:@Staff\``
+          `Untuk setup otomatis instan (kategori SUPPORT + channel langsung jadi):\n` +
+          `Ketik: \`/ticket\`\n\n` +
+          `Atau kustomisasi manual dengan:\n` +
+          `\`/setticket channel:#channel-tiket kategori:Kategori role_staff:@Staff\``
         )
         .setFooter({ text: 'Member tinggal klik Buat Tiket untuk membuka channel obrolan privat' })
         .setTimestamp();

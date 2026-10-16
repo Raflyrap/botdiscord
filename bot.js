@@ -425,12 +425,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
           }
         }
 
-        const category = cfg.categoryId ? interaction.guild.channels.cache.get(cfg.categoryId) : null;
+        let category = cfg.categoryId ? interaction.guild.channels.cache.get(cfg.categoryId) : null;
+        if (!category || category.type !== ChannelType.GuildCategory) {
+          category = interaction.guild.channels.cache.find(
+            (c) => c.type === ChannelType.GuildCategory && c.name.toUpperCase() === 'SUPPORT'
+          );
+        }
+        if (!category) {
+          category = await interaction.guild.channels.create({
+            name: 'SUPPORT',
+            type: ChannelType.GuildCategory,
+            reason: 'Auto-create kategori untuk tiket bantuan',
+          }).catch(() => null);
+        }
 
         const ticketChannel = await interaction.guild.channels.create({
           name: channelName,
           type: ChannelType.GuildText,
-          parent: category && category.type === ChannelType.GuildCategory ? category.id : undefined,
+          parent: category ? category.id : undefined,
           permissionOverwrites: overwrites,
           reason: `Tiket bantuan dibuat oleh ${interaction.user.tag}`,
         });

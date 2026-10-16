@@ -52,7 +52,7 @@ function getMainDashboard(guild, member) {
             value: [
               line('/setwelcome', 'Channel sambutan & member keluar'),
               line('/setverif', 'Setup role & kunci channel sebelum verif'),
-              line('/setticket', 'Pasang panel tiket bantuan privat'),
+              line('/ticket', 'Setup otomatis kategori SUPPORT & channel'),
               line('/setlevel', 'Channel notifikasi level & achievement'),
               line('/verif', 'Pasang panel verifikasi ber-tombol'),
               line('/autorole', 'Role otomatis untuk member baru'),
