@@ -58,10 +58,10 @@ async function resolveChannel(guild, type = 'welcome') {
     return guild.systemChannel;
   }
 
-  // 3. Fallback: Cari text channel berdasarkan nama umum
+  // 3. Fallback: Cari text channel khusus berdasarkan nama spesifik (welcome / leave)
   const keywords = type === 'welcome' 
-    ? ['welcome', 'selamat-datang', 'lobby', 'general', 'utama', 'chat']
-    : ['leave', 'goodbye', 'sampai-jumpa', 'welcome', 'lobby', 'general'];
+    ? ['welcome', 'selamat-datang', 'sambutan', 'member-join']
+    : ['leave', 'goodbye', 'sampai-jumpa', 'keluar', 'member-left'];
 
   const channels = await guild.channels.fetch().catch(() => guild.channels.cache);
   for (const [, ch] of channels) {
@@ -70,13 +70,6 @@ async function resolveChannel(guild, type = 'welcome') {
       if (keywords.some((k) => name.includes(k)) && ch.permissionsFor(guild.client.user)?.has(PermissionFlagsBits.SendMessages)) {
         return ch;
       }
-    }
-  }
-
-  // 4. Fallback terakhir: Ambil text channel pertama yang bisa dikirimi pesan
-  for (const [, ch] of channels) {
-    if (ch && ch.type === ChannelType.GuildText && ch.permissionsFor(guild.client.user)?.has(PermissionFlagsBits.SendMessages)) {
-      return ch;
     }
   }
 

@@ -8,7 +8,7 @@ const {
   ButtonStyle,
   MessageFlags,
 } = require('discord.js');
-const { setVerifConfig, getVerifConfig, applyChannelLockdown } = require('../verifHelper');
+const { setVerifConfig, getVerifConfig, applyChannelLockdown, syncExistingMembers } = require('../verifHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -124,6 +124,14 @@ module.exports = {
       });
     }
 
+    let syncedMemberCount = 0;
+    if (unverifiedRole) {
+      syncedMemberCount = await syncExistingMembers(interaction.guild, {
+        verifiedRoleId: verifiedRole.id,
+        unverifiedRoleId: unverifiedRole.id,
+      });
+    }
+
     let panelStatus = 'Tidak dikirim (dilewati)';
     if (sendPanel) {
       try {
@@ -176,8 +184,15 @@ module.exports = {
         {
           name: 'Penyesuaian Channel',
           value: doLockdown
-            ? `${channelLockCount} channel/kategori disesuaikan (channel lain disembunyikan)`
+            ? `${channelLockCount} channel/kategori disesuaikan`
             : 'Dilewati',
+          inline: true,
+        },
+        {
+          name: 'Sinkron Member Lama',
+          value: unverifiedRole
+            ? `${syncedMemberCount} member lama diberikan role belum verif`
+            : 'Dilewati (@everyone)',
           inline: true,
         },
         { name: 'Panel Verifikasi', value: panelStatus, inline: true },

@@ -51,9 +51,47 @@ async function checkForUpdates() {
 
     // Ekstrak tar.gz menggunakan tar bawaan container Linux
     try {
+      // 1. Simpan backup file konfigurasi & database server agar tidak tertimpa git update
+      const DATA_FILES = [
+        'welcome-config.json',
+        'verifConfig.json',
+        'levelingConfig.json',
+        'levelingData.json',
+        'autoRoleConfig.json',
+        'autoModConfig.json',
+        'afkData.json',
+        'serverStatsConfig.json',
+        'tempVoiceConfig.json',
+        'privateAiConfig.json',
+        '.env',
+      ];
+
+      const backups = new Map();
+      for (const file of DATA_FILES) {
+        const fullPath = path.join(__dirname, file);
+        if (fs.existsSync(fullPath)) {
+          try {
+            backups.set(file, fs.readFileSync(fullPath));
+          } catch (e) {
+            console.warn(`[AUTO-UPDATER] Gagal membaca backup ${file}:`, e.message);
+          }
+        }
+      }
+
+      // 2. Ekstrak update kode terbaru dari GitHub
       execSync(`tar -xzf temp_update.tar.gz --strip-components=1 -C .`, { cwd: __dirname });
       fs.writeFileSync(versionFile, latestSha, 'utf-8');
       if (fs.existsSync(tempTarPath)) fs.unlinkSync(tempTarPath);
+
+      // 3. Kembalikan file konfigurasi server yang sudah dibackup
+      for (const [file, content] of backups) {
+        try {
+          fs.writeFileSync(path.join(__dirname, file), content);
+        } catch (e) {
+          console.warn(`[AUTO-UPDATER] Gagal memulihkan ${file}:`, e.message);
+        }
+      }
+      console.log(`[AUTO-UPDATER] Berhasil mempertahankan ${backups.size} file data/konfigurasi server.`);
       console.log('[AUTO-UPDATER] ✅ Berhasil auto-update kode ke versi terbaru dari GitHub!');
 
       try {

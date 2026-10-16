@@ -34,7 +34,7 @@ function setVerifConfig(guildId, updates) {
 
 /**
  * Mengatur permission channel di server:
- * - Channel verifikasi: Dibuka untuk @everyone dan role belum verifikasi (hanya baca).
+ * - Channel verifikasi: Dibuka untuk @everyone dan role belum verifikasi (hanya baca). Sembunyikan dari yang sudah verif.
  * - Seluruh channel lainnya: Ditutup dari @everyone dan role belum verifikasi, dibuka untuk role sudah verifikasi.
  */
 async function applyChannelLockdown(guild, { verifChannelId, verifiedRoleId, unverifiedRoleId }) {
@@ -48,37 +48,49 @@ async function applyChannelLockdown(guild, { verifChannelId, verifiedRoleId, unv
       const isVerifChannel = ch.id === verifChannelId;
 
       if (isVerifChannel) {
-        // Channel verifikasi: buka untuk @everyone dan role belum verif, kunci kirim pesan
+        // Channel verifikasi:
+        // 1. @everyone: Bisa melihat & baca history, TIDAK bisa kirim chat (hanya tombol verif)
         await ch.permissionOverwrites.edit(guild.id, {
-          [PermissionFlagsBits.ViewChannel]: true,
-          [PermissionFlagsBits.SendMessages]: false,
-          [PermissionFlagsBits.ReadMessageHistory]: true,
+          ViewChannel: true,
+          SendMessages: false,
+          ReadMessageHistory: true,
         });
 
+        // 2. Role belum verif: Bisa melihat & baca history, TIDAK bisa kirim chat
         if (unverifiedRoleId) {
           await ch.permissionOverwrites.edit(unverifiedRoleId, {
-            [PermissionFlagsBits.ViewChannel]: true,
-            [PermissionFlagsBits.SendMessages]: false,
-            [PermissionFlagsBits.ReadMessageHistory]: true,
+            ViewChannel: true,
+            SendMessages: false,
+            ReadMessageHistory: true,
+          });
+        }
+
+        // 3. Role sudah verif: Sembunyikan channel verifikasi agar tidak mengganggu setelah verifikasi
+        if (verifiedRoleId) {
+          await ch.permissionOverwrites.edit(verifiedRoleId, {
+            ViewChannel: false,
           });
         }
 
         updatedCount++;
       } else {
-        // Channel lain: sembunyikan dari @everyone dan role belum verif, buka untuk role yang sudah verifikasi
+        // Channel lain:
+        // 1. @everyone: Sembunyikan
         await ch.permissionOverwrites.edit(guild.id, {
-          [PermissionFlagsBits.ViewChannel]: false,
+          ViewChannel: false,
         });
 
+        // 2. Role belum verif: Sembunyikan
         if (unverifiedRoleId) {
           await ch.permissionOverwrites.edit(unverifiedRoleId, {
-            [PermissionFlagsBits.ViewChannel]: false,
+            ViewChannel: false,
           });
         }
 
+        // 3. Role sudah verifikasi: Buka channel
         if (verifiedRoleId) {
           await ch.permissionOverwrites.edit(verifiedRoleId, {
-            [PermissionFlagsBits.ViewChannel]: true,
+            ViewChannel: true,
           });
         }
 
@@ -92,9 +104,33 @@ async function applyChannelLockdown(guild, { verifChannelId, verifiedRoleId, unv
   return updatedCount;
 }
 
+/**
+ * Memberikan role belum verifikasi ke seluruh member lama yang belum verifikasi
+ */
+async function syncExistingMembers(guild, { verifiedRoleId, unverifiedRoleId }) {
+  if (!unverifiedRoleId) return 0;
+  try {
+    const members = await guild.members.fetch();
+    let assignedCount = 0;
+    for (const [, member] of members) {
+      if (member.user.bot) continue;
+      // Jika member belum punya role verified dan belum punya role unverified
+      if (!member.roles.cache.has(verifiedRoleId) && !member.roles.cache.has(unverifiedRoleId)) {
+        await member.roles.add(unverifiedRoleId).catch(() => null);
+        assignedCount++;
+      }
+    }
+    return assignedCount;
+  } catch (err) {
+    console.warn('[VERIF SYNC MEMBERS] Gagal sinkronisasi member lama:', err.message);
+    return 0;
+  }
+}
+
 module.exports = {
   getVerifConfig,
   setVerifConfig,
   applyChannelLockdown,
+  syncExistingMembers,
 };
 
