@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } = require('@discordjs/voice');
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 
 const PATROLI_FILE = path.join(__dirname, 'patroliConfig.json');
 let patroliConfig = {};
@@ -61,6 +61,12 @@ function removePatroliActive(guildId) {
 
 function joinPatroliChannel(channel) {
   if (!channel) return null;
+
+  const existingConnection = getVoiceConnection(channel.guild.id);
+  if (existingConnection && existingConnection.joinConfig.channelId === channel.id) {
+    return existingConnection;
+  }
+
   const connection = joinVoiceChannel({
     channelId: channel.id,
     guildId: channel.guild.id,
@@ -69,12 +75,27 @@ function joinPatroliChannel(channel) {
     selfMute: false,
   });
 
+  connection.on('error', (err) => {
+    console.error(`[PATROLI VOICE ERROR] Guild ${channel.guild.id}:`, err?.message || err);
+  });
+
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
-      if (isPatroliActive(channel.guild.id)) {
-        connection.rejoin();
+      await Promise.race([
+        entersState(connection, VoiceConnectionStatus.Signalling, 5000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 5000),
+      ]);
+    } catch (e) {
+      try {
+        if (isPatroliActive(channel.guild.id)) {
+          connection.rejoin();
+        } else {
+          connection.destroy();
+        }
+      } catch (err) {
+        console.error('[PATROLI ERROR] Rejoin failed:', err.message);
       }
-    } catch (e) {}
+    }
   });
 
   return connection;

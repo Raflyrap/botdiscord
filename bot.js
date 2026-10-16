@@ -1,6 +1,14 @@
 // Memuat variabel lingkungan dari file .env
 require('dotenv').config();
 
+// Mencegah bot crash saat terjadi unhandled rejection atau network/voice error
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+});
+
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, Events, EmbedBuilder, MessageFlags } = require('discord.js');
@@ -673,4 +681,16 @@ if (!token) {
 }
 
 // Login ke Discord menggunakan token dari file .env
-client.login(token);
+client.login(token).catch((err) => {
+  console.error('❌ Error saat login ke Discord:', err.message || err);
+  if (err.code === 'TokenInvalid') {
+    console.error('================================================================');
+    console.error('⚠️ TOKEN BOT DISCORD TIDAK VALID ATAU TELAH DI-RESET OLEH DISCORD!');
+    console.error('👉 Solusi:');
+    console.error('1. Buka https://discord.com/developers/applications');
+    console.error('2. Pilih bot Anda -> Tab "Bot" -> Klik "Reset Token"');
+    console.error('3. Salin token baru tersebut dan masukkan ke dalam file .env');
+    console.error('================================================================');
+  }
+  process.exit(1);
+});
