@@ -47,20 +47,20 @@ module.exports = {
         const result = await setupMiniGames(interaction.guild);
 
         const embed = new EmbedBuilder()
-          .setColor(0x57F287) // Green
+          .setColor(0x57F287)
           .setAuthor({
-            name: `${interaction.guild.name}  •  Arena Mini Games`,
+            name: `${interaction.guild.name}  •  Mini Games`,
             iconURL: interaction.guild.iconURL() || undefined,
           })
-          .setTitle('Arena Mini Games Berhasil Dibuat!')
+          .setTitle('Arena Mini Games Berhasil Dibuat')
           .setDescription(
             `Kategori **${result.category.name}** dan 3 channel game khusus telah siap:\n\n` +
             `• <#${result.coinChannel.id}> — Tebak Koin (Gambar / Angka)\n` +
-            `• <#${result.numberChannel.id}> — Tebak Angka 1-100\n` +
-            `• <#${result.rpsChannel.id}> — Suit Jepang (Gunting Batu Kertas)\n\n` +
-            `Setiap channel sudah dilengkapi **tata cara bermain** dan tombol aksi interaktif!`
+            `• <#${result.numberChannel.id}> — Tebak Angka (1 - 100)\n` +
+            `• <#${result.rpsChannel.id}> — Suit (Gunting Batu Kertas)\n\n` +
+            `Setiap channel telah dilengkapi panduan bermain yang disematkan permanen dan tombol interaktif.`
           )
-          .setFooter({ text: 'Ketik /game aksi:Hapus kapan saja jika ingin menghapus arena game' })
+          .setFooter({ text: 'Ketik /game aksi:Hapus jika ingin menghapus arena game' })
           .setTimestamp();
 
         return interaction.editReply({ embeds: [embed] });

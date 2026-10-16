@@ -523,26 +523,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const { getCoinGameRow } = require('./gameHelper');
       const type = interaction.customId.replace('btn_game_coin_', '');
       const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
-      const flipName = flip === 'gambar' ? 'Gambar (🦅)' : 'Angka (🪙)';
+      const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
 
       if (type === 'random') {
         return interaction.reply({
-          content: `🪙 **Koin dilempar ke udara...**\nKoin mendarat di sisi: **${flipName}**!`,
+          content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**`,
           components: [getCoinGameRow()],
         });
       }
 
-      const guessName = type === 'gambar' ? 'Gambar (🦅)' : 'Angka (🪙)';
+      const guessName = type === 'gambar' ? 'Gambar' : 'Angka';
       const won = type === flip;
 
       return interaction.reply({
         content:
-          `🪙 **Koin dilempar ke udara...**\n` +
-          `• Koin mendarat di: **${flipName}**\n` +
+          `**Hasil Lemparan Koin**\n` +
+          `• Sisi Koin: **${flipName}**\n` +
           `• Tebakan <@${interaction.user.id}>: **${guessName}**\n\n` +
           (won
-            ? `🎉 **TEBAKAN TEPAT! Kamu Menang!** 🏆`
-            : `❌ **Sayang sekali, belum beruntung.** Coba lagi!`),
+            ? `Status: **Tebakan Tepat (Menang)**`
+            : `Status: **Belum Tepat (Coba Lagi)**`),
         components: [getCoinGameRow()],
       });
     }
@@ -555,27 +555,27 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const botChoice = choices[Math.floor(Math.random() * choices.length)];
 
       const choiceMap = {
-        rock: '🪨 Batu',
-        paper: '📄 Kertas',
-        scissors: '✂️ Gunting',
+        rock: 'Batu',
+        paper: 'Kertas',
+        scissors: 'Gunting',
       };
 
       let resultText = '';
       if (userChoice === botChoice) {
-        resultText = '🤝 **Hasilnya SERI!** Duel yang sengit!';
+        resultText = 'Hasil: **Seri**';
       } else if (
         (userChoice === 'rock' && botChoice === 'scissors') ||
         (userChoice === 'paper' && botChoice === 'rock') ||
         (userChoice === 'scissors' && botChoice === 'paper')
       ) {
-        resultText = '🏆 **KAMU MENANG!** Taktikmu luar biasa!';
+        resultText = 'Hasil: **Kamu Menang**';
       } else {
-        resultText = '💀 **KAMU KALAH!** FlyBot lebih unggul kali ini!';
+        resultText = 'Hasil: **Kamu Kalah**';
       }
 
       return interaction.reply({
         content:
-          `✊ **Duel Suit Jepang!**\n` +
+          `**Duel Suit**\n` +
           `• <@${interaction.user.id}>: **${choiceMap[userChoice]}**\n` +
           `• FlyBot: **${choiceMap[botChoice]}**\n\n` +
           `${resultText}`,
@@ -590,9 +590,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       return interaction.reply({
         content:
-          `🎯 **Ronde Tebak Angka Baru Dimulai oleh <@${interaction.user.id}>!**\n` +
-          `Bot sudah menyimpan angka rahasia antara **1 sampai 100**.\n\n` +
-          `*Ketik angka tebakanmu (1 - 100) langsung di chat channel ini untuk menebak!*`,
+          `**Ronde Tebak Angka Dimulai** oleh <@${interaction.user.id}>\n` +
+          `Angka rahasia antara **1 sampai 100** telah disiapkan.\n\n` +
+          `Ketik angka tebakan kamu (1 - 100) langsung di channel ini untuk menebak.`,
       });
     }
 
@@ -602,12 +602,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (state && state.active) {
         return interaction.reply({
-          content: `ℹ️ Ronde sedang berjalan! Sudah ada **${state.attempts}** tebakan yang diajukan. Ketik angkamu (1 - 100) di chat sekarang!`,
+          content: `Ronde sedang aktif. Total tebakan: **${state.attempts}** kali. Ketik angka tebakan kamu (1 - 100) di chat.`,
           flags: MessageFlags.Ephemeral,
         });
       } else {
         return interaction.reply({
-          content: `ℹ️ Belum ada ronde yang aktif. Klik tombol **🎯 Mulai Game Baru** untuk memulai!`,
+          content: `Belum ada ronde yang aktif. Klik tombol **Main Lagi** untuk memulai ronde baru.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -972,21 +972,21 @@ client.on(Events.MessageCreate, async (message) => {
         const res = checkNumberGuess(message.guild.id, guessNum);
         if (!res) {
           message.reply({
-            content: 'Ronde tebak angka belum dimulai! Klik tombol **🎯 Main Lagi** di bawah untuk mulai bermain.',
+            content: 'Ronde tebak angka belum dimulai. Klik tombol **Main Lagi** di bawah untuk mulai bermain.',
             components: [getNumberGameRow()],
           }).catch(() => {});
         } else if (res.status === 'LOW') {
-          message.reply(`📈 **${guessNum}** masih **Terlalu KECIL**! Coba tebak angka yang lebih besar dari itu.`).catch(() => {});
+          message.reply(`[Terlalu KECIL] Angka **${guessNum}** masih lebih kecil dari angka rahasia. Coba angka yang lebih besar.`).catch(() => {});
         } else if (res.status === 'HIGH') {
-          message.reply(`📉 **${guessNum}** masih **Terlalu BESAR**! Coba tebak angka yang lebih kecil dari itu.`).catch(() => {});
+          message.reply(`[Terlalu BESAR] Angka **${guessNum}** masih lebih besar dari angka rahasia. Coba angka yang lebih kecil.`).catch(() => {});
         } else if (res.status === 'CORRECT') {
           const winEmbed = new EmbedBuilder()
             .setColor(0x57F287)
-            .setTitle('🎉 TEBAKAN TEPAT! JUARA! 🏆')
+            .setTitle('Tebakan Tepat  •  Pemenang')
             .setDescription(
-              `Selamat <@${message.author.id}>! Angka rahasianya memang **${res.target}**!\n\n` +
+              `Selamat <@${message.author.id}>, angka rahasianya memang **${res.target}**!\n\n` +
               `Berhasil ditebak dalam **${res.attempts} percobaan**.\n\n` +
-              `*Klik tombol **🎯 Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll!*`
+              `*Klik tombol **Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll.*`
             )
             .setTimestamp();
           message.channel.send({ embeds: [winEmbed], components: [getNumberGameRow()] }).catch(() => {});

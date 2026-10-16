@@ -83,20 +83,20 @@ function resetNumberGuessing(guildId) {
   activeNumberGames.delete(guildId);
 }
 
-// Generator ActionRow Tombol Game
+// Generator ActionRow Tombol Game (Tanpa Emoji)
 function getCoinGameRow() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_coin_gambar')
-      .setLabel('🦅 Tebak Gambar')
+      .setLabel('Tebak Gambar')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('btn_game_coin_angka')
-      .setLabel('🪙 Tebak Angka')
+      .setLabel('Tebak Angka')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('btn_game_coin_random')
-      .setLabel('🎲 Lempar Acak')
+      .setLabel('Lempar Acak')
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -105,15 +105,15 @@ function getRpsGameRow() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_rps_rock')
-      .setLabel('🪨 Batu')
+      .setLabel('Batu')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('btn_game_rps_paper')
-      .setLabel('📄 Kertas')
+      .setLabel('Kertas')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('btn_game_rps_scissors')
-      .setLabel('✂️ Gunting')
+      .setLabel('Gunting')
       .setStyle(ButtonStyle.Danger)
   );
 }
@@ -122,11 +122,11 @@ function getNumberGameRow() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_number_start')
-      .setLabel('🎯 Main Lagi (Ronde Baru)')
+      .setLabel('Main Lagi')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('btn_game_number_status')
-      .setLabel('ℹ️ Cek Status')
+      .setLabel('Cek Status')
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -135,7 +135,7 @@ function getNumberGameRow() {
 async function setupMiniGames(guild) {
   const cfg = getGameConfig(guild.id) || {};
 
-  // 1. Kategori
+  // 1. Kategori (Tanpa Emoji)
   let category = cfg.categoryId ? guild.channels.cache.get(cfg.categoryId) : null;
   if (!category || category.type !== ChannelType.GuildCategory) {
     category = guild.channels.cache.find(
@@ -145,7 +145,7 @@ async function setupMiniGames(guild) {
 
   if (!category) {
     category = await guild.channels.create({
-      name: '🎮 ARENA MINI GAMES',
+      name: 'MINI GAMES',
       type: ChannelType.GuildCategory,
       reason: 'Auto-setup Kategori Mini Games',
     });
@@ -173,31 +173,31 @@ async function setupMiniGames(guild) {
     },
   ];
 
-  // 2. Channel 1: Tebak Koin
+  // 2. Channel 1: Tebak Koin (Tanpa Emoji)
   const coinEmbed = new EmbedBuilder()
-    .setColor(0xFEE75C) // Gold/Yellow
-    .setAuthor({ name: 'FlyBot Mini Games  •  Tebak Koin', iconURL: guild.client.user.displayAvatarURL() })
-    .setTitle('🪙 Arena Tebak Koin (Coin Flip)')
+    .setColor(0x5865F2)
+    .setAuthor({ name: 'FlyBot  •  Tebak Koin', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Tebak Koin')
     .setDescription(
-      `Selamat datang di **Arena Tebak Koin**!\n` +
-      `Uji insting dan keberuntunganmu di sini.\n\n` +
-      `📖 **Tata Cara Bermain:**\n` +
-      `1. Tentukan pilihan tebakanmu: **Gambar (🦅)** atau **Angka (🪙)**.\n` +
-      `2. Klik salah satu tombol di bawah untuk langsung melempar koin.\n` +
-      `3. Bot akan mengocok koin dan mengumumkan apakah tebakanmu tepat!\n` +
-      `4. Kamu juga bisa klik tombol **Lempar Koin Acak** untuk sekadar mengocok koin.`
+      `Selamat datang di Arena Tebak Koin.\n` +
+      `Uji insting dan tebakan kamu di sini.\n\n` +
+      `**Panduan Permainan:**\n` +
+      `1. Tentukan pilihan tebakan kamu: **Gambar** atau **Angka**.\n` +
+      `2. Klik tombol di bawah untuk langsung melempar koin.\n` +
+      `3. Bot akan mengocok koin dan mengumumkan hasilnya.\n` +
+      `4. Kamu juga bisa klik tombol **Lempar Acak** untuk sekadar mengocok koin.`
     )
     .addFields(
-      { name: 'Pilihan Sisi', value: '🦅 Gambar  |  🪙 Angka', inline: true },
-      { name: 'Peluang Menang', value: '50% : 50%', inline: true },
+      { name: 'Pilihan Sisi', value: 'Gambar  |  Angka', inline: true },
+      { name: 'Peluang', value: '50% : 50%', inline: true },
     )
-    .setFooter({ text: 'Pesan ini disematkan permanen • Klik tombol di bawah untuk bermain!' })
+    .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk bermain' })
     .setTimestamp();
 
   let coinChannel = cfg.coinChannelId ? guild.channels.cache.get(cfg.coinChannelId) : null;
   if (!coinChannel) {
     coinChannel = await guild.channels.create({
-      name: '🪙・tebak-koin',
+      name: 'tebak-koin',
       type: ChannelType.GuildText,
       parent: category.id,
       permissionOverwrites: channelOverwrites,
@@ -214,33 +214,33 @@ async function setupMiniGames(guild) {
     }
   }
 
-  // 3. Channel 2: Tebak Angka
+  // 3. Channel 2: Tebak Angka (Tanpa Emoji)
   const numberEmbed = new EmbedBuilder()
-    .setColor(0x5865F2) // Blurple
-    .setAuthor({ name: 'FlyBot Mini Games  •  Tebak Angka', iconURL: guild.client.user.displayAvatarURL() })
-    .setTitle('🔢 Arena Tebak Angka (1 - 100)')
+    .setColor(0x5865F2)
+    .setAuthor({ name: 'FlyBot  •  Tebak Angka', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Tebak Angka (1 - 100)')
     .setDescription(
-      `Selamat datang di **Arena Tebak Angka**!\n` +
-      `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh bot.\n\n` +
-      `📖 **Tata Cara Bermain:**\n` +
-      `1. Klik tombol **🎯 Mulai Game Baru** di bawah untuk memulai ronde.\n` +
-      `2. Ketik angka tebakanmu (misal: \`50\`) langsung di chat channel ini.\n` +
-      `3. Bot akan memberi petunjuk arah:\n` +
-      `   • 📈 **Terlalu KECIL!** (Artinya angka rahasia lebih besar)\n` +
-      `   • 📉 **Terlalu BESAR!** (Artinya angka rahasia lebih kecil)\n` +
-      `4. Siapa yang berhasil menebak tepat akan menjadi juaranya!`
+      `Selamat datang di Arena Tebak Angka.\n` +
+      `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem.\n\n` +
+      `**Panduan Permainan:**\n` +
+      `1. Klik tombol **Main Lagi** di bawah untuk memulai ronde baru.\n` +
+      `2. Ketik angka tebakan kamu (contoh: 50) langsung di chat channel ini.\n` +
+      `3. Bot akan memberikan petunjuk arah:\n` +
+      `   • [Terlalu KECIL] Angka rahasia lebih besar dari tebakanmu\n` +
+      `   • [Terlalu BESAR] Angka rahasia lebih kecil dari tebakanmu\n` +
+      `4. Member yang berhasil menebak dengan tepat dinyatakan sebagai pemenang.`
     )
     .addFields(
-      { name: 'Rentang Angka', value: '1 s/d 100', inline: true },
+      { name: 'Rentang Angka', value: '1 sampai 100', inline: true },
       { name: 'Mode', value: 'Multiplayer Komunitas', inline: true },
     )
-    .setFooter({ text: 'Pesan ini disematkan permanen • Klik tombol di bawah untuk mulai!' })
+    .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk mulai' })
     .setTimestamp();
 
   let numberChannel = cfg.numberChannelId ? guild.channels.cache.get(cfg.numberChannelId) : null;
   if (!numberChannel) {
     numberChannel = await guild.channels.create({
-      name: '🔢・tebak-angka',
+      name: 'tebak-angka',
       type: ChannelType.GuildText,
       parent: category.id,
       permissionOverwrites: channelOverwrites,
@@ -257,31 +257,30 @@ async function setupMiniGames(guild) {
     }
   }
 
-  // 4. Channel 3: Suit Jepang (Gunting Batu Kertas)
+  // 4. Channel 3: Suit Jepang (Tanpa Emoji)
   const rpsEmbed = new EmbedBuilder()
-    .setColor(0xEB459E) // Pinkish Magenta
-    .setAuthor({ name: 'FlyBot Mini Games  •  Suit Jepang', iconURL: guild.client.user.displayAvatarURL() })
-    .setTitle('✊ Arena Suit Jepang (Gunting Batu Kertas)')
+    .setColor(0x5865F2)
+    .setAuthor({ name: 'FlyBot  •  Suit Jepang', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Suit (Gunting Batu Kertas)')
     .setDescription(
-      `Selamat datang di **Arena Suit Jepang**!\n` +
-      `Tantang FlyBot dalam adu taktik klasik.\n\n` +
-      `📖 **Aturan & Cara Bermain:**\n` +
-      `• 🪨 **Batu** mengalahkan ✂️ **Gunting**\n` +
-      `• ✂️ **Gunting** mengalahkan 📄 **Kertas**\n` +
-      `• 📄 **Kertas** mengalahkan 🪨 **Batu**\n\n` +
-      `Cukup klik salah satu tombol pilihan kamu di bawah ini untuk langsung berduel!`
+      `Tantang FlyBot dalam adu pilihan klasik.\n\n` +
+      `**Aturan Permainan:**\n` +
+      `• Batu mengalahkan Gunting\n` +
+      `• Gunting mengalahkan Kertas\n` +
+      `• Kertas mengalahkan Batu\n\n` +
+      `Cukup klik salah satu tombol pilihan kamu di bawah ini untuk memulai duel.`
     )
     .addFields(
-      { name: 'Lawan', value: 'FlyBot AI RNG', inline: true },
-      { name: 'Kecepatan', value: 'Instan Ber-tombol', inline: true },
+      { name: 'Lawan', value: 'FlyBot AI (Acak)', inline: true },
+      { name: 'Sistem', value: 'Respons Instan', inline: true },
     )
-    .setFooter({ text: 'Pesan ini disematkan permanen • Pilih Batu, Kertas, atau Gunting di bawah!' })
+    .setFooter({ text: 'Pesan disematkan permanen • Pilih Batu, Kertas, atau Gunting di bawah' })
     .setTimestamp();
 
   let rpsChannel = cfg.rpsChannelId ? guild.channels.cache.get(cfg.rpsChannelId) : null;
   if (!rpsChannel) {
     rpsChannel = await guild.channels.create({
-      name: '✊・suit-jepang',
+      name: 'suit-jepang',
       type: ChannelType.GuildText,
       parent: category.id,
       permissionOverwrites: channelOverwrites,
