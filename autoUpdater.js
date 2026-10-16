@@ -65,6 +65,7 @@ async function checkForUpdates() {
         'privateAiConfig.json',
         'ticketConfig.json',
         'ticketData.json',
+        'gameConfig.json',
         'music/music.mp3',
         '.env',
       ];

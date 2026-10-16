@@ -33,6 +33,7 @@ async function handleMenuInteraction(interaction) {
       'cmd_verif',
       'cmd_ticket',
       'cmd_stats',
+      'cmd_game',
       'cmd_setlevel',
       'cmd_leveltest'
     ];
@@ -225,6 +226,30 @@ async function handleMenuInteraction(interaction) {
           `• \`/stats off\` : Nonaktifkan & hapus semua channel counter statistik`
         )
         .setFooter({ text: 'Channel terkunci otomatis & angka terupdate realtime' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_game') {
+      const { getGameConfig } = require('./gameHelper');
+      const cfg = getGameConfig(interaction.guildId);
+      const isEnabled = cfg && cfg.enabled;
+
+      const embed = new EmbedBuilder()
+        .setColor(isEnabled ? 0x57F287 : 0x5865F2)
+        .setTitle('Arena Mini Games Interaktif')
+        .setDescription(
+          `Status: **${isEnabled ? 'Aktif' : 'Belum Dibuat'}**\n\n` +
+          `• Kategori: ${cfg?.categoryId ? `<#${cfg.categoryId}>` : '*(Belum dibuat)*'}\n` +
+          `• Tebak Koin: ${cfg?.coinChannelId ? `<#${cfg.coinChannelId}>` : '*(Belum dibuat)*'}\n` +
+          `• Tebak Angka: ${cfg?.numberChannelId ? `<#${cfg.numberChannelId}>` : '*(Belum dibuat)*'}\n` +
+          `• Suit Jepang: ${cfg?.rpsChannelId ? `<#${cfg.rpsChannelId}>` : '*(Belum dibuat)*'}\n\n` +
+          `**Perintah Kontrol:**\n` +
+          `• \`/game\` : Otomatis buat kategori & 3 channel game lengkap dengan panduannya\n` +
+          `• \`/game aksi:Hapus\` : Hapus kategori & 3 channel game`
+        )
+        .setFooter({ text: '1 game = 1 channel dengan tombol & instruksi lengkap' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

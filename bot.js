@@ -518,6 +518,96 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // === MINI GAMES: 1. TEBAK KOIN ===
+    if (interaction.customId.startsWith('btn_game_coin_')) {
+      const type = interaction.customId.replace('btn_game_coin_', '');
+      const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
+      const flipName = flip === 'gambar' ? 'Gambar (🦅)' : 'Angka (🪙)';
+
+      if (type === 'random') {
+        return interaction.reply({
+          content: `🪙 **Koin dilempar ke udara...**\nKoin mendarat di sisi: **${flipName}**!`,
+        });
+      }
+
+      const guessName = type === 'gambar' ? 'Gambar (🦅)' : 'Angka (🪙)';
+      const won = type === flip;
+
+      return interaction.reply({
+        content:
+          `🪙 **Koin dilempar ke udara...**\n` +
+          `• Koin mendarat di: **${flipName}**\n` +
+          `• Tebakan <@${interaction.user.id}>: **${guessName}**\n\n` +
+          (won
+            ? `🎉 **TEBAKAN TEPAT! Kamu Menang!** 🏆`
+            : `❌ **Sayang sekali, belum beruntung.** Coba lagi!`),
+      });
+    }
+
+    // === MINI GAMES: 2. SUIT JEPANG (GUNTING BATU KERTAS) ===
+    if (interaction.customId.startsWith('btn_game_rps_')) {
+      const userChoice = interaction.customId.replace('btn_game_rps_', '');
+      const choices = ['rock', 'paper', 'scissors'];
+      const botChoice = choices[Math.floor(Math.random() * choices.length)];
+
+      const choiceMap = {
+        rock: '🪨 Batu',
+        paper: '📄 Kertas',
+        scissors: '✂️ Gunting',
+      };
+
+      let resultText = '';
+      if (userChoice === botChoice) {
+        resultText = '🤝 **Hasilnya SERI!** Duel yang sengit!';
+      } else if (
+        (userChoice === 'rock' && botChoice === 'scissors') ||
+        (userChoice === 'paper' && botChoice === 'rock') ||
+        (userChoice === 'scissors' && botChoice === 'paper')
+      ) {
+        resultText = '🏆 **KAMU MENANG!** Taktikmu luar biasa!';
+      } else {
+        resultText = '💀 **KAMU KALAH!** FlyBot lebih unggul kali ini!';
+      }
+
+      return interaction.reply({
+        content:
+          `✊ **Duel Suit Jepang!**\n` +
+          `• <@${interaction.user.id}>: **${choiceMap[userChoice]}**\n` +
+          `• FlyBot: **${choiceMap[botChoice]}**\n\n` +
+          `${resultText}`,
+      });
+    }
+
+    // === MINI GAMES: 3. TEBAK ANGKA ===
+    if (interaction.customId === 'btn_game_number_start') {
+      const { startNumberGuessing } = require('./gameHelper');
+      startNumberGuessing(interaction.guildId, interaction.user.id);
+
+      return interaction.reply({
+        content:
+          `🎯 **Ronde Tebak Angka Baru Dimulai oleh <@${interaction.user.id}>!**\n` +
+          `Bot sudah menyimpan angka rahasia antara **1 sampai 100**.\n\n` +
+          `*Ketik angka tebakanmu (1 - 100) langsung di chat channel ini untuk menebak!*`,
+      });
+    }
+
+    if (interaction.customId === 'btn_game_number_status') {
+      const { getNumberGuessingState } = require('./gameHelper');
+      const state = getNumberGuessingState(interaction.guildId);
+
+      if (state && state.active) {
+        return interaction.reply({
+          content: `ℹ️ Ronde sedang berjalan! Sudah ada **${state.attempts}** tebakan yang diajukan. Ketik angkamu (1 - 100) di chat sekarang!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      } else {
+        return interaction.reply({
+          content: `ℹ️ Belum ada ronde yang aktif. Klik tombol **🎯 Mulai Game Baru** untuk memulai!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+
     // Tombol Self-Role (Ambil / Cabut Role)
     if (
       interaction.customId === 'selfrole_announcement' ||
@@ -758,6 +848,22 @@ client.on(Events.ChannelDelete, async (channel) => {
       }
     }
   } catch {}
+
+  try {
+    const { getGameConfig, setGameConfig } = require('./gameHelper');
+    const cfg = getGameConfig(channel.guild?.id);
+    if (cfg && cfg.enabled) {
+      if (channel.id === cfg.categoryId) {
+        setGameConfig(channel.guild.id, { categoryId: null, enabled: false });
+      } else if (channel.id === cfg.coinChannelId) {
+        setGameConfig(channel.guild.id, { coinChannelId: null });
+      } else if (channel.id === cfg.numberChannelId) {
+        setGameConfig(channel.guild.id, { numberChannelId: null });
+      } else if (channel.id === cfg.rpsChannelId) {
+        setGameConfig(channel.guild.id, { rpsChannelId: null });
+      }
+    }
+  } catch {}
 });
 
 // Event saat ada pesan baru (Leveling XP System & AI Chat)
@@ -848,6 +954,39 @@ client.on(Events.MessageCreate, async (message) => {
         setTimeout(() => afkWarn.delete().catch(() => {}), 10000);
       }
     }
+  }
+
+  // === MINI GAME: TEBAK ANGKA CHAT GUESS ===
+  try {
+    const { getGameConfig, checkNumberGuess } = require('./gameHelper');
+    const gameCfg = getGameConfig(message.guild.id);
+    if (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) {
+      const trimmed = message.content.trim();
+      const guessNum = parseInt(trimmed, 10);
+      if (!isNaN(guessNum) && String(guessNum) === trimmed && guessNum >= 1 && guessNum <= 100) {
+        const res = checkNumberGuess(message.guild.id, guessNum);
+        if (!res) {
+          message.reply('Ronde tebak angka belum dimulai! Klik tombol **🎯 Mulai Game Baru** di atas untuk mulai bermain.').catch(() => {});
+        } else if (res.status === 'LOW') {
+          message.reply(`📈 **${guessNum}** masih **Terlalu KECIL**! Coba tebak angka yang lebih besar dari itu.`).catch(() => {});
+        } else if (res.status === 'HIGH') {
+          message.reply(`📉 **${guessNum}** masih **Terlalu BESAR**! Coba tebak angka yang lebih kecil dari itu.`).catch(() => {});
+        } else if (res.status === 'CORRECT') {
+          const winEmbed = new EmbedBuilder()
+            .setColor(0x57F287)
+            .setTitle('🎉 TEBAKAN TEPAT! JUARA! 🏆')
+            .setDescription(
+              `Selamat <@${message.author.id}>! Angka rahasianya memang **${res.target}**!\n\n` +
+              `Berhasil ditebak dalam **${res.attempts} percobaan**.\n\n` +
+              `*Klik tombol **🎯 Mulai Game Baru** di atas untuk memainkan ronde berikutnya!*`
+            )
+            .setTimestamp();
+          message.channel.send({ embeds: [winEmbed] }).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error saat tebak angka chat:', err);
   }
 
   try {
