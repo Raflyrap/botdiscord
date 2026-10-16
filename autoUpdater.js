@@ -63,6 +63,8 @@ async function checkForUpdates() {
         'serverStatsConfig.json',
         'tempVoiceConfig.json',
         'privateAiConfig.json',
+        'ticketConfig.json',
+        'ticketData.json',
         'music/music.mp3',
         '.env',
       ];

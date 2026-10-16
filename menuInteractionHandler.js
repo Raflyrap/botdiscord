@@ -28,7 +28,12 @@ async function handleMenuInteraction(interaction) {
     // Proteksi Fitur Admin
     const adminCommands = [
       'cmd_autorole',
-      'cmd_antitoxic'
+      'cmd_antitoxic',
+      'cmd_setverif',
+      'cmd_verif',
+      'cmd_ticket',
+      'cmd_setlevel',
+      'cmd_leveltest'
     ];
 
     if (adminCommands.includes(val) && !isAdmin) {
@@ -167,6 +172,32 @@ async function handleMenuInteraction(interaction) {
           `\`/verif panel channel:#verifikasi role:@Member\``
         )
         .setFooter({ text: 'Member tinggal menekan tombol untuk verifikasi instan' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_ticket') {
+      const { getGuildTicketConfig } = require('./ticketHelper');
+      const cfg = getGuildTicketConfig(interaction.guildId);
+      const ch = cfg.panelChannelId ? interaction.guild.channels.cache.get(cfg.panelChannelId) : null;
+      const cat = cfg.categoryId ? interaction.guild.channels.cache.get(cfg.categoryId) : null;
+      const staffRole = cfg.supportRoleId ? interaction.guild.roles.cache.get(cfg.supportRoleId) : null;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('Sistem Tiket Bantuan Server')
+        .setDescription(
+          `Status panel tiket saat ini:\n\n` +
+          `• Status: **${cfg.enabled ? 'Aktif' : 'Belum Dikonfigurasi'}**\n` +
+          `• Channel Panel: ${ch ? `<#${ch.id}>` : '*(Belum diatur)*'}\n` +
+          `• Kategori Tiket: ${cat ? `**${cat.name}**` : '*(Default / Tanpa kategori)*'}\n` +
+          `• Role Staff/Admin: ${staffRole ? `<@&${staffRole.id}>` : '*(Semua Administrator)*'}\n` +
+          `• Total Tiket Terbuat: \`${cfg.ticketCounter || 0}\` tiket\n\n` +
+          `Untuk memasang atau memperbarui panel tiket dengan tombol, jalankan perintah:\n` +
+          `\`/setticket channel:#channel-tiket kategori:Kategori-Tiket role_staff:@Staff\``
+        )
+        .setFooter({ text: 'Member tinggal klik Buat Tiket untuk membuka channel obrolan privat' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

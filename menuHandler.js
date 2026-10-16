@@ -52,6 +52,7 @@ function getMainDashboard(guild, member) {
             value: [
               line('/setwelcome', 'Channel sambutan & member keluar'),
               line('/setverif', 'Setup role & kunci channel sebelum verif'),
+              line('/setticket', 'Pasang panel tiket bantuan privat'),
               line('/setlevel', 'Channel notifikasi level & achievement'),
               line('/verif', 'Pasang panel verifikasi ber-tombol'),
               line('/autorole', 'Role otomatis untuk member baru'),
@@ -83,6 +84,7 @@ function getMainDashboard(guild, member) {
     menuOptions.push(
       { label: 'Setup Kunci Channel & Verif', description: '[Admin] Setup role & sembunyikan channel', value: 'cmd_setverif' },
       { label: 'Panel Verifikasi', description: '[Admin] Status & panduan pasang panel verifikasi', value: 'cmd_verif' },
+      { label: 'Panel Tiket Bantuan', description: '[Admin] Status & panduan pasang panel tiket bantuan', value: 'cmd_ticket' },
       { label: 'Test Level Up & Achievement', description: '[Admin] Preview tampilan notifikasi level up', value: 'cmd_leveltest' },
       { label: 'Setting Channel Leveling', description: '[Admin] Status & info channel level up & achievement', value: 'cmd_setlevel' },
       { label: 'Autorole', description: '[Admin] Atur role otomatis member baru', value: 'cmd_autorole' },

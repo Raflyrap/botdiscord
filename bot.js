@@ -11,7 +11,20 @@ process.on('uncaughtException', (err) => {
 
 const fs = require('fs');
 const path = require('path');
-const { Client, Collection, GatewayIntentBits, Partials, Events, EmbedBuilder, MessageFlags } = require('discord.js');
+const {
+  Client,
+  Collection,
+  GatewayIntentBits,
+  Partials,
+  Events,
+  EmbedBuilder,
+  MessageFlags,
+  ChannelType,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 const { DisTube } = require('distube');
 let YouTubePlugin;
 try {
@@ -343,6 +356,156 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // Tombol Pembuatan Tiket Baru
+    if (interaction.customId === 'btn_create_ticket') {
+      try {
+        const {
+          getGuildTicketConfig,
+          getActiveTicket,
+          registerTicket,
+          getNextTicketNumber,
+        } = require('./ticketHelper');
+
+        const existing = getActiveTicket(interaction.guildId, interaction.user.id);
+        if (existing) {
+          const ch = interaction.guild.channels.cache.get(existing.channelId);
+          if (ch) {
+            return interaction.reply({
+              content: `Kamu masih memiliki tiket yang sedang aktif di <#${ch.id}>. Harap selesaikan terlebih dahulu sebelum membuka tiket baru.`,
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+        }
+
+        const cfg = getGuildTicketConfig(interaction.guildId);
+        const ticketNum = getNextTicketNumber(interaction.guildId);
+        const cleanName = interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) || 'user';
+        const channelName = `tiket-${cleanName}-${ticketNum}`;
+
+        const overwrites = [
+          {
+            id: interaction.guild.id, // @everyone
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: interaction.user.id, // Pembuat tiket
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.AttachFiles,
+              PermissionFlagsBits.EmbedLinks,
+            ],
+          },
+          {
+            id: interaction.client.user.id, // Bot
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.ManageChannels,
+              PermissionFlagsBits.ManageMessages,
+            ],
+          },
+        ];
+
+        if (cfg.supportRoleId) {
+          const staffRole = interaction.guild.roles.cache.get(cfg.supportRoleId);
+          if (staffRole) {
+            overwrites.push({
+              id: staffRole.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.AttachFiles,
+                PermissionFlagsBits.EmbedLinks,
+              ],
+            });
+          }
+        }
+
+        const category = cfg.categoryId ? interaction.guild.channels.cache.get(cfg.categoryId) : null;
+
+        const ticketChannel = await interaction.guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: category && category.type === ChannelType.GuildCategory ? category.id : undefined,
+          permissionOverwrites: overwrites,
+          reason: `Tiket bantuan dibuat oleh ${interaction.user.tag}`,
+        });
+
+        registerTicket(interaction.guildId, ticketChannel.id, interaction.user.id);
+
+        const welcomeEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setAuthor({
+            name: `${interaction.user.username}`,
+            iconURL: interaction.user.displayAvatarURL(),
+          })
+          .setTitle(`Tiket Bantuan  •  #${channelName}`)
+          .setDescription(
+            `Halo <@${interaction.user.id}>! Terima kasih telah membuka tiket bantuan.\n\n` +
+            `Silakan sampaikan pertanyaan, laporan, atau keperluan kamu secara jelas di sini.\n` +
+            `Tim Admin/Staff akan segera membaca dan merespons obrolan kamu.\n\n` +
+            `*Jika urusan sudah selesai, klik tombol **Tutup Tiket** di bawah.*`
+          )
+          .addFields(
+            { name: 'Pembuat Tiket', value: `<@${interaction.user.id}>`, inline: true },
+            { name: 'Waktu Dibuat', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+          )
+          .setFooter({ text: `${interaction.guild.name} • Tiket Bantuan` })
+          .setTimestamp();
+
+        const closeBtn = new ButtonBuilder()
+          .setCustomId('btn_close_ticket')
+          .setLabel('Tutup Tiket')
+          .setStyle(ButtonStyle.Danger);
+
+        const row = new ActionRowBuilder().addComponents(closeBtn);
+
+        await ticketChannel.send({
+          content: `<@${interaction.user.id}> ${cfg.supportRoleId ? `<@&${cfg.supportRoleId}>` : ''}`,
+          embeds: [welcomeEmbed],
+          components: [row],
+        });
+
+        return interaction.reply({
+          content: `Tiket kamu berhasil dibuat di <#${ticketChannel.id}>. Silakan masuk ke channel tersebut!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (err) {
+        console.error('Error saat membuat channel tiket:', err);
+        return interaction.reply({
+          content: `Gagal membuat tiket bantuan: ${err.message}`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+
+    // Tombol Tutup Tiket
+    if (interaction.customId === 'btn_close_ticket') {
+      try {
+        const { closeTicket } = require('./ticketHelper');
+        closeTicket(interaction.channelId);
+
+        await interaction.reply({
+          content: `Tiket ini ditutup oleh <@${interaction.user.id}> dan akan dihapus secara permanen dalam 5 detik...`,
+        });
+
+        setTimeout(() => {
+          interaction.channel?.delete('Tiket ditutup').catch(() => {});
+        }, 5000);
+        return;
+      } catch (err) {
+        console.error('Error saat menutup tiket:', err);
+        return interaction.reply({
+          content: `Gagal menutup tiket: ${err.message}`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+
     // Tombol Self-Role (Ambil / Cabut Role)
     if (
       interaction.customId === 'selfrole_announcement' ||
@@ -556,12 +719,17 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
   }
 });
 
-// Event saat channel dihapus (Sinkronisasi konfigurasi Private AI jika channel tersebut dihapus)
+// Event saat channel dihapus (Sinkronisasi konfigurasi Private AI & Ticket jika channel dihapus)
 client.on(Events.ChannelDelete, async (channel) => {
   if (isPrivateAiChannel(channel.id)) {
     unregisterPrivateChannel(channel.id);
     console.log(`[PRIVATE AI] Channel ${channel.id} telah dihapus dan dibersihkan dari database.`);
   }
+
+  try {
+    const { closeTicket } = require('./ticketHelper');
+    closeTicket(channel.id);
+  } catch {}
 });
 
 // Event saat ada pesan baru (Leveling XP System & AI Chat)
