@@ -125,6 +125,29 @@ async function handleMenuInteraction(interaction) {
 
     // --- AKSI COMMAND ADMIN (SUDAH LOLOS CEK PERMISSION) ---
 
+    if (val === 'cmd_verif') {
+      const { getVerifConfig } = require('./verifHelper');
+      const cfg = getVerifConfig(interaction.guildId);
+      const role = cfg.roleId ? interaction.guild.roles.cache.get(cfg.roleId) : null;
+      const ch = cfg.channelId ? interaction.guild.channels.cache.get(cfg.channelId) : null;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('Sistem Verifikasi Server')
+        .setDescription(
+          `Status panel verifikasi saat ini:\n\n` +
+          `• Status: **${cfg.enabled ? 'Aktif' : 'Nonaktif / Belum Diatur'}**\n` +
+          `• Channel Panel: ${ch ? `<#${ch.id}>` : cfg.channelId ? `ID: ${cfg.channelId}` : '*(Belum diatur)*'}\n` +
+          `• Role Diberikan: ${role ? `<@&${role.id}>` : cfg.roleId ? `ID: ${cfg.roleId}` : '*(Belum diatur)*'}\n\n` +
+          `Untuk memasang panel verifikasi ber-tombol ke suatu channel, gunakan perintah:\n` +
+          `\`/verif panel channel:#verifikasi role:@Member\``
+        )
+        .setFooter({ text: 'Member tinggal menekan tombol untuk verifikasi instan' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
     if (val === 'cmd_leveltest') {
       const leveltestCmd = interaction.client.commands.get('leveltest');
       if (leveltestCmd) return leveltestCmd.execute(interaction);

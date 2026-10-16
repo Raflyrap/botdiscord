@@ -278,23 +278,47 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Tombol Verifikasi Member
     if (interaction.customId === 'btn_do_verify') {
       try {
-        let memberRole = interaction.guild.roles.cache.find((r) => r.name.toLowerCase() === 'member');
-        if (!memberRole) {
-          memberRole = await interaction.guild.roles.create({
+        const { getVerifConfig } = require('./verifHelper');
+        const verifCfg = getVerifConfig(interaction.guildId);
+
+        let targetRole = null;
+        if (verifCfg.roleId) {
+          targetRole =
+            interaction.guild.roles.cache.get(verifCfg.roleId) ||
+            (await interaction.guild.roles.fetch(verifCfg.roleId).catch(() => null));
+        }
+
+        // Fallback jika belum diatur atau role terhapus: cari role bernama 'member'
+        if (!targetRole) {
+          targetRole = interaction.guild.roles.cache.find((r) => r.name.toLowerCase() === 'member');
+        }
+
+        if (!targetRole) {
+          targetRole = await interaction.guild.roles.create({
             name: 'Member',
             color: 0x57F287,
             reason: 'Role otomatis verifikasi',
           });
         }
-        if (interaction.member.roles.cache.has(memberRole.id)) {
+
+        const botMember = interaction.guild.members.me;
+        if (targetRole.position >= botMember.roles.highest.position) {
+          return interaction.reply({
+            content: 'Gagal verifikasi: Posisi role bot lebih rendah dari role verifikasi. Harap hubungi Admin server untuk memindahkan role bot ke posisi lebih atas.',
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        if (interaction.member.roles.cache.has(targetRole.id)) {
           return interaction.reply({
             content: 'Kamu sudah terverifikasi sebelumnya.',
             flags: MessageFlags.Ephemeral,
           });
         }
-        await interaction.member.roles.add(memberRole);
+
+        await interaction.member.roles.add(targetRole);
         return interaction.reply({
-          content: 'Verifikasi berhasil! Selamat datang dan selamat beraktivitas di server.',
+          content: 'Verifikasi berhasil! Akses ke server telah dibuka. Selamat beraktivitas!',
           flags: MessageFlags.Ephemeral,
         });
       } catch (err) {
