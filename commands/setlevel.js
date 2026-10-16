@@ -5,7 +5,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('setlevel')
     .setDescription('Atur channel khusus notifikasi Level Up & Achievement')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption((o) =>
       o.setName('channel_levelup')
         .setDescription('Channel khusus pengumuman naik level')
@@ -25,6 +24,17 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    const hasPerm =
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      interaction.guild?.ownerId === interaction.user.id;
+
+    if (!hasPerm) {
+      return interaction.reply({
+        content: '⚠️ Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
     const lvlCh = interaction.options.getChannel('channel_levelup');
     const achCh = interaction.options.getChannel('channel_achievement');
     const reset = interaction.options.getBoolean('reset');

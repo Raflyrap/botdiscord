@@ -6,7 +6,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('leveltest')
     .setDescription('[Admin] Preview tampilan notifikasi Level Up / Achievement (hanya kamu yang lihat)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((o) =>
       o.setName('jenis')
         .setDescription('Notifikasi yang mau di-preview')
@@ -26,8 +25,16 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: 'Command ini khusus admin.', flags: MessageFlags.Ephemeral });
+    const hasPerm =
+      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+      interaction.guild?.ownerId === interaction.user.id;
+
+    if (!hasPerm) {
+      return interaction.reply({
+        content: '⚠️ Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
+        flags: MessageFlags.Ephemeral,
+      });
     }
 
     const jenis = interaction.options.getString('jenis') || 'both';

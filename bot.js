@@ -209,12 +209,18 @@ client.distube
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`✅ Bot online! Masuk sebagai ${readyClient.user.tag}`);
 
-  // Auto-sync slash command global berdasarkan command yang ter-load di server ini
+  // Auto-sync slash command global & ke setiap server (agar langsung aktif instan tanpa delay cache)
   (async () => {
     try {
       const body = [...client.commands.values()].map((c) => c.data.toJSON());
       const synced = await readyClient.application.commands.set(body);
-      console.log(`[SYNC] ${synced.size} slash command berhasil disinkronkan ke Discord`);
+      console.log(`[SYNC] ${synced.size} slash command berhasil disinkronkan secara global`);
+
+      // Daftarkan juga langsung ke setiap server yang bot ikuti agar instan muncul di Discord (0 delay)
+      for (const [, guild] of readyClient.guilds.cache) {
+        await guild.commands.set(body).catch((e) => console.warn(`[SYNC GUILD] ${guild.name}:`, e.message));
+      }
+      console.log(`[SYNC] Berhasil disinkronkan langsung ke ${readyClient.guilds.cache.size} server`);
     } catch (err) {
       console.error('[SYNC] Gagal sinkron slash command:', err.message);
     }

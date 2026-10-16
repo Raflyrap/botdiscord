@@ -125,6 +125,33 @@ async function handleMenuInteraction(interaction) {
 
     // --- AKSI COMMAND ADMIN (SUDAH LOLOS CEK PERMISSION) ---
 
+    if (val === 'cmd_leveltest') {
+      const leveltestCmd = interaction.client.commands.get('leveltest');
+      if (leveltestCmd) return leveltestCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah leveltest tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_setlevel') {
+      const { getLevelConfig } = require('./levelingHelper');
+      const cfg = getLevelConfig(interaction.guildId);
+      const fmt = (id) => (id ? `<#${id}>` : '*Channel tempat user chat*');
+
+      const embed = new EmbedBuilder()
+        .setColor(0x9B59FF)
+        .setTitle('Pengaturan Channel Leveling')
+        .setDescription(
+          `Status channel notifikasi saat ini:\n\n` +
+          `• Level Up: ${fmt(cfg.levelUpChannel)}\n` +
+          `• Achievement: ${fmt(cfg.achievementChannel)}\n\n` +
+          `Untuk mengubah channel, ketik perintah ini di chat:\n` +
+          `\`/setlevel channel_levelup:#level-up channel_achievement:#archivment\``
+        )
+        .setFooter({ text: 'Gunakan /setlevel reset:True untuk mengembalikan ke chat biasa' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
     if (val === 'cmd_autorole') {
       return interaction.reply({
         content: 'Gunakan perintah `/autorole set <role>` langsung di chat untuk menentukan role anggota baru.',

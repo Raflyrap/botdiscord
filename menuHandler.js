@@ -79,6 +79,8 @@ function getMainDashboard(guild, member) {
   ];
   if (isAdmin) {
     menuOptions.push(
+      { label: 'Test Level Up & Achievement', description: '[Admin] Preview tampilan notifikasi level up', value: 'cmd_leveltest' },
+      { label: 'Setting Channel Leveling', description: '[Admin] Status & info channel level up & achievement', value: 'cmd_setlevel' },
       { label: 'Autorole', description: '[Admin] Atur role otomatis member baru', value: 'cmd_autorole' },
       { label: 'Antitoxic', description: '[Admin] Lihat daftar kata terlarang', value: 'cmd_antitoxic' },
     );
