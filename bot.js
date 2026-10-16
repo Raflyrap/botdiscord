@@ -101,7 +101,15 @@ client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 
+// Command yang dinonaktifkan sementara (fitur musik). Hapus dari daftar ini untuk mengaktifkan lagi.
+// /stop tetap aktif karena dipakai untuk menghentikan /patroli.
+const DISABLED_COMMANDS = ['play', 'pause', 'resume', 'skip', 'queue', 'volume'];
+
 for (const file of commandFiles) {
+  if (DISABLED_COMMANDS.includes(file.replace(/\.js$/, ''))) {
+    console.log(`[SKIP] Command dinonaktifkan: /${file.replace(/\.js$/, '')}`);
+    continue;
+  }
   const filePath = path.join(commandsPath, file);
   const command = require(filePath);
 

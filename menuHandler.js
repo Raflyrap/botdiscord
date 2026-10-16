@@ -19,108 +19,74 @@ function getMainDashboard(guild, member) {
     member.permissions.has(PermissionFlagsBits.ManageChannels)
   );
 
+  const name = member?.displayName || member?.user?.username || 'kamu';
+  const line = (cmd, desc) => `\`${cmd.padEnd(13, ' ')}\` ${desc}`;
+
   const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle(`Pusat Perintah FlyBot - ${guild.name}`)
+    .setColor(0x5865F2)
+    .setAuthor({ name: 'FlyBot  •  Pusat Perintah', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle(guild.name)
     .setDescription(
-      `Pilih perintah di menu pilihan bawah untuk langsung menjalankannya.\n\n` +
-      `**Perintah Musik:**\n` +
-      `• /play - Memutar musik dari Spotify, YouTube, atau SoundCloud\n` +
-      `• /pause - Menghentikan sementara lagu yang sedang berputar\n` +
-      `• /resume - Melanjutkan lagu yang dihentikan sementara\n` +
-      `• /skip - Melewati lagu saat ini dan memutar lagu berikutnya\n` +
-      `• /stop - Menghentikan musik dan mengeluarkan bot dari voice\n` +
-      `• /patroli - Menjaga voice channel 24 jam nonstop (looping)\n` +
-      `• /queue - Melihat urutan antrean lagu\n` +
-      `• /volume - Mengatur volume suara musik bot\n\n` +
-      `**Perintah Anggota & AI:**\n` +
-      `• /ai - Bertanya dan berdiskusi dengan kecerdasan buatan\n` +
-      `• /afk - Mengaktifkan status sedang tidak di tempat (AFK)\n` +
-      `• /ping - Memeriksa waktu respons dan sinyal bot\n\n` +
-      (isAdmin
-        ? `**Perintah Pengelola Server (Admin):**\n` +
-          `• /setwelcome - Mengatur saluran pesan sambutan anggota baru\n` +
-          `• /autorole - Memberikan peran otomatis untuk anggota baru\n` +
-          `• /antitoxic - Mengelola kata yang dilarang di server\n` +
-          `• /buatembed - Membuat pesan informasi berbingkai\n`
-        : `*Catatan: Perintah pengaturan server hanya dapat dijalankan oleh Admin.*`)
+      `Halo **${name}**, pilih perintah dari menu di bawah untuk langsung menjalankannya.\n` +
+      `Semua respons dari menu ini hanya terlihat oleh kamu.`
     )
-    .setFooter({ text: 'FlyBot System' })
+    .addFields(
+      {
+        name: 'Voice',
+        value: [
+          line('/patroli', 'Jaga voice channel 24 jam nonstop'),
+          line('/stop', 'Hentikan patroli & keluar dari voice'),
+        ].join('\n'),
+      },
+      {
+        name: 'Anggota & AI',
+        value: [
+          line('/ai', 'Tanya dan diskusi dengan AI'),
+          line('/afk', 'Pasang status sedang tidak di tempat'),
+          line('/ping', 'Cek kecepatan respons bot'),
+        ].join('\n'),
+      },
+      isAdmin
+        ? {
+            name: 'Pengelola Server',
+            value: [
+              line('/setwelcome', 'Channel sambutan & member keluar'),
+              line('/setlevel', 'Channel notifikasi level & achievement'),
+              line('/autorole', 'Role otomatis untuk member baru'),
+              line('/antitoxic', 'Kelola kata terlarang'),
+              line('/buatembed', 'Buat pesan informasi berbingkai'),
+              line('/leveltest', 'Preview tampilan level up'),
+            ].join('\n'),
+          }
+        : {
+            name: 'Pengelola Server',
+            value: '*Perintah pengaturan server hanya tersedia untuk Admin.*',
+          },
+    )
+    .setThumbnail(guild.iconURL({ size: 256 }) || guild.client.user.displayAvatarURL())
+    .setFooter({
+      text: `${guild.memberCount.toLocaleString()} member  •  Diminta oleh ${name}`,
+      iconURL: member?.displayAvatarURL?.() || undefined,
+    })
     .setTimestamp();
 
-  // Opsi dropdown interaktif langsung ke perintahnya
   const menuOptions = [
-    {
-      label: '/play',
-      description: 'Memutar musik dari judul atau link',
-      value: 'cmd_play'
-    },
-    {
-      label: '/pause',
-      description: 'Menjeda pemutaran musik sementara',
-      value: 'cmd_pause'
-    },
-    {
-      label: '/resume',
-      description: 'Melanjutkan kembali lagu yang dijeda',
-      value: 'cmd_resume'
-    },
-    {
-      label: '/skip',
-      description: 'Melewati lagu ke urutan berikutnya',
-      value: 'cmd_skip'
-    },
-    {
-      label: '/stop',
-      description: 'Menghentikan musik dan keluar dari voice',
-      value: 'cmd_stop'
-    },
-    {
-      label: '/patroli',
-      description: 'Menjaga voice channel 24 jam nonstop (looping lagu)',
-      value: 'cmd_patroli'
-    },
-    {
-      label: '/queue',
-      description: 'Melihat daftar antrean lagu',
-      value: 'cmd_queue'
-    },
-    {
-      label: '/volume',
-      description: 'Mengatur tingkat volume musik',
-      value: 'cmd_volume'
-    },
-    {
-      label: '/ai',
-      description: 'Mengajukan pertanyaan ke kecerdasan buatan AI',
-      value: 'cmd_ai'
-    },
-    {
-      label: '/afk',
-      description: 'Mengatur status sedang tidak di tempat (AFK)',
-      value: 'cmd_afk'
-    },
-    {
-      label: '/ping',
-      description: 'Memeriksa kecepatan respons sinyal bot',
-      value: 'cmd_ping'
-    },
-    // Fitur Khusus Admin (Bisa dilihat tapi diverifikasi permission)
-    {
-      label: '/autorole (Admin)',
-      description: 'Mengatur peran otomatis untuk anggota baru',
-      value: 'cmd_autorole'
-    },
-    {
-      label: '/antitoxic (Admin)',
-      description: 'Melihat daftar kata terlarang di server',
-      value: 'cmd_antitoxic'
-    }
+    { label: 'Patroli Voice', description: 'Jaga voice channel 24 jam nonstop', value: 'cmd_patroli' },
+    { label: 'Stop', description: 'Hentikan patroli dan keluar dari voice', value: 'cmd_stop' },
+    { label: 'Tanya AI', description: 'Ajukan pertanyaan ke AI', value: 'cmd_ai' },
+    { label: 'AFK', description: 'Pasang status sedang tidak di tempat', value: 'cmd_afk' },
+    { label: 'Ping', description: 'Cek kecepatan respons bot', value: 'cmd_ping' },
   ];
+  if (isAdmin) {
+    menuOptions.push(
+      { label: 'Autorole', description: '[Admin] Atur role otomatis member baru', value: 'cmd_autorole' },
+      { label: 'Antitoxic', description: '[Admin] Lihat daftar kata terlarang', value: 'cmd_antitoxic' },
+    );
+  }
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('menu_direct_action')
-    .setPlaceholder('Pilih perintah yang ingin langsung dijalankan...')
+    .setPlaceholder('Pilih perintah...')
     .addOptions(menuOptions);
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
