@@ -1,9 +1,69 @@
 const fs = require('fs');
 const path = require('path');
-const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+const {
+  joinVoiceChannel,
+  getVoiceConnection,
+  VoiceConnectionStatus,
+  entersState,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+} = require('@discordjs/voice');
 
 const PATROLI_FILE = path.join(__dirname, 'patroliConfig.json');
+const MUSIC_PATH = path.join(__dirname, 'music', 'music.mp3');
 let patroliConfig = {};
+
+// Map untuk menyimpan audio player aktif per guild (guildId -> player)
+const activePlayers = new Map();
+
+function playPatroliMusicLoop(guildId, connection) {
+  if (!fs.existsSync(MUSIC_PATH)) {
+    console.warn(`[PATROLI AUDIO] File tidak ditemukan di ${MUSIC_PATH}`);
+    return;
+  }
+
+  let player = activePlayers.get(guildId);
+  if (!player) {
+    player = createAudioPlayer();
+    activePlayers.set(guildId, player);
+
+    // Saat audio selesai diputar -> otomatis loop memutar ulang dari awal tanpa henti
+    player.on(AudioPlayerStatus.Idle, () => {
+      if (isPatroliActive(guildId)) {
+        try {
+          const resource = createAudioResource(MUSIC_PATH);
+          player.play(resource);
+          console.log(`[PATROLI AUDIO] Looping music.mp3 di Guild ${guildId}`);
+        } catch (err) {
+          console.error(`[PATROLI AUDIO LOOP ERROR] Guild ${guildId}:`, err.message);
+        }
+      }
+    });
+
+    player.on('error', (err) => {
+      console.error(`[PATROLI AUDIO PLAYER ERROR] Guild ${guildId}:`, err.message);
+      // Coba ulang setelah jeda 2 detik jika patroli masih aktif
+      setTimeout(() => {
+        if (isPatroliActive(guildId)) {
+          try {
+            const resource = createAudioResource(MUSIC_PATH);
+            player.play(resource);
+          } catch {}
+        }
+      }, 2000);
+    });
+  }
+
+  try {
+    const resource = createAudioResource(MUSIC_PATH);
+    player.play(resource);
+    connection.subscribe(player);
+    console.log(`[PATROLI AUDIO] Memulai pemutaran loop music.mp3 di Guild ${guildId}`);
+  } catch (err) {
+    console.error(`[PATROLI AUDIO PLAY ERROR] Guild ${guildId}:`, err.message);
+  }
+}
 
 function loadPatroliConfig() {
   try {
@@ -64,6 +124,7 @@ function joinPatroliChannel(channel) {
 
   const existingConnection = getVoiceConnection(channel.guild.id);
   if (existingConnection && existingConnection.joinConfig.channelId === channel.id) {
+    playPatroliMusicLoop(channel.guild.id, existingConnection);
     return existingConnection;
   }
 
@@ -74,6 +135,9 @@ function joinPatroliChannel(channel) {
     selfDeaf: false,
     selfMute: false,
   });
+
+  // Mulai memutar music.mp3 secara looping di background
+  playPatroliMusicLoop(channel.guild.id, connection);
 
   connection.on('error', (err) => {
     console.error(`[PATROLI VOICE ERROR] Guild ${channel.guild.id}:`, err?.message || err);
@@ -89,8 +153,9 @@ function joinPatroliChannel(channel) {
       try {
         if (isPatroliActive(channel.guild.id)) {
           connection.rejoin();
+          playPatroliMusicLoop(channel.guild.id, connection);
         } else {
-          connection.destroy();
+          leavePatroliChannel(channel.guild.id);
         }
       } catch (err) {
         console.error('[PATROLI ERROR] Rejoin failed:', err.message);
@@ -102,6 +167,15 @@ function joinPatroliChannel(channel) {
 }
 
 function leavePatroliChannel(guildId) {
+  // Hentikan pemutaran audio
+  const player = activePlayers.get(guildId);
+  if (player) {
+    try {
+      player.stop();
+    } catch {}
+    activePlayers.delete(guildId);
+  }
+
   const connection = getVoiceConnection(guildId);
   if (connection) {
     try {

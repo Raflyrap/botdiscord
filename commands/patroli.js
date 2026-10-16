@@ -76,12 +76,12 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
-        .setTitle('🛡️ Patroli Voice 24 Jam Aktif')
+        .setTitle('Patroli Voice 24 Jam Aktif')
         .setDescription(
-          `Bot telah masuk ke saluran <#${targetVoice.id}> untuk berjaga 24 jam nonstop.\n\n` +
-          `• **Status:** Berjaga Nonstop (24/7)\n` +
-          `• **Mode:** Standby Room Guard\n` +
-          `• **Voice Channel:** <#${targetVoice.id}>\n\n` +
+          `Bot telah bergabung ke saluran <#${targetVoice.id}> untuk berjaga 24 jam nonstop.\n\n` +
+          `• Status: Berjaga Nonstop (24/7)\n` +
+          `• Mode: Standby & Audio Looper (music.mp3)\n` +
+          `• Voice Channel: <#${targetVoice.id}>\n\n` +
           `*Gunakan perintah \`/stop\` jika ingin menghentikan patroli dan mengeluarkan bot dari voice channel.*`
         )
         .setFooter({ text: `${interaction.guild.name} • Sistem Keamanan Voice` })

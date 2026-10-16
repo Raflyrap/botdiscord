@@ -63,6 +63,7 @@ async function checkForUpdates() {
         'serverStatsConfig.json',
         'tempVoiceConfig.json',
         'privateAiConfig.json',
+        'music/music.mp3',
         '.env',
       ];
 
@@ -86,7 +87,10 @@ async function checkForUpdates() {
       // 3. Kembalikan file konfigurasi server yang sudah dibackup
       for (const [file, content] of backups) {
         try {
-          fs.writeFileSync(path.join(__dirname, file), content);
+          const targetPath = path.join(__dirname, file);
+          const dir = path.dirname(targetPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(targetPath, content);
         } catch (e) {
           console.warn(`[AUTO-UPDATER] Gagal memulihkan ${file}:`, e.message);
         }
