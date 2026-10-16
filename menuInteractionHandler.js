@@ -34,6 +34,7 @@ async function handleMenuInteraction(interaction) {
       'cmd_ticket',
       'cmd_stats',
       'cmd_game',
+      'cmd_log',
       'cmd_setlevel',
       'cmd_leveltest'
     ];
@@ -128,6 +129,18 @@ async function handleMenuInteraction(interaction) {
       const pingCmd = interaction.client.commands.get('ping');
       if (pingCmd) return pingCmd.execute(interaction);
       return interaction.reply({ content: `Ping bot saat ini: ${interaction.client.ws.ping}ms`, flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_userinfo') {
+      const userinfoCmd = interaction.client.commands.get('userinfo');
+      if (userinfoCmd) return userinfoCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah userinfo tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_serverinfo') {
+      const serverinfoCmd = interaction.client.commands.get('serverinfo');
+      if (serverinfoCmd) return serverinfoCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah serverinfo tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
     // --- AKSI COMMAND ADMIN (SUDAH LOLOS CEK PERMISSION) ---
@@ -250,6 +263,28 @@ async function handleMenuInteraction(interaction) {
           `• \`/game aksi:Hapus\` : Hapus kategori & 3 channel game`
         )
         .setFooter({ text: '1 game = 1 channel dengan tombol & instruksi lengkap' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_log') {
+      const { getLogConfig } = require('./logHelper');
+      const cfg = getLogConfig(interaction.guildId);
+      const isEnabled = cfg && cfg.enabled;
+
+      const embed = new EmbedBuilder()
+        .setColor(isEnabled ? 0x57F287 : 0x5865F2)
+        .setTitle('Sistem Audit Log Server')
+        .setDescription(
+          `Status: **${isEnabled ? 'Aktif Merekam' : 'Nonaktif / Belum Diatur'}**\n\n` +
+          `• Kategori: ${cfg?.categoryId ? `<#${cfg.categoryId}>` : '*(Belum dibuat)*'}\n` +
+          `• Channel Log: ${cfg?.channelId ? `<#${cfg.channelId}>` : '*(Belum dibuat)*'}\n\n` +
+          `**Perintah Kontrol:**\n` +
+          `• \`/log\` : Otomatis buat kategori AUDIT LOG & channel rahasia\n` +
+          `• \`/log aksi:Hapus\` : Nonaktifkan & hapus channel audit log`
+        )
+        .setFooter({ text: 'Hanya bisa dilihat oleh Administrator' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

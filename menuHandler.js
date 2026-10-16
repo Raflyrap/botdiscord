@@ -43,6 +43,9 @@ function getMainDashboard(guild, member) {
         value: [
           line('/ai', 'Tanya dan diskusi dengan AI'),
           line('/afk', 'Pasang status sedang tidak di tempat'),
+          line('/remind', 'Pasang pengingat jadwal otomatis'),
+          line('/userinfo', 'Lihat profil & detail akun pengguna'),
+          line('/serverinfo', 'Lihat statistik & info lengkap server'),
           line('/ping', 'Cek kecepatan respons bot'),
         ].join('\n'),
       },
@@ -52,6 +55,7 @@ function getMainDashboard(guild, member) {
             value: [
               line('/setwelcome', 'Channel sambutan & member keluar'),
               line('/setverif', 'Setup role & kunci channel sebelum verif'),
+              line('/log', 'Setup otomatis kategori AUDIT LOG & channel'),
               line('/ticket', 'Setup otomatis kategori SUPPORT & channel'),
               line('/stats', 'Channel statistik realtime (on / off)'),
               line('/game', 'Setup otomatis 3 channel mini games interaktif'),
@@ -80,11 +84,14 @@ function getMainDashboard(guild, member) {
     { label: 'Stop', description: 'Hentikan patroli dan keluar dari voice', value: 'cmd_stop' },
     { label: 'Tanya AI', description: 'Ajukan pertanyaan ke AI', value: 'cmd_ai' },
     { label: 'AFK', description: 'Pasang status sedang tidak di tempat', value: 'cmd_afk' },
+    { label: 'Info Pengguna', description: 'Lihat profil & detail akun pengguna', value: 'cmd_userinfo' },
+    { label: 'Info Server', description: 'Lihat statistik & info lengkap server', value: 'cmd_serverinfo' },
     { label: 'Ping', description: 'Cek kecepatan respons bot', value: 'cmd_ping' },
   ];
   if (isAdmin) {
     menuOptions.push(
       { label: 'Setup Kunci Channel & Verif', description: '[Admin] Setup role & sembunyikan channel', value: 'cmd_setverif' },
+      { label: 'Audit Log Server', description: '[Admin] Status & kelola channel audit log', value: 'cmd_log' },
       { label: 'Panel Verifikasi', description: '[Admin] Status & panduan pasang panel verifikasi', value: 'cmd_verif' },
       { label: 'Panel Tiket Bantuan', description: '[Admin] Status & panduan pasang panel tiket bantuan', value: 'cmd_ticket' },
       { label: 'Statistik Server Real-time', description: '[Admin] Aktifkan / matikan counter statistik server', value: 'cmd_stats' },

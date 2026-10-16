@@ -249,6 +249,14 @@ client.once(Events.ClientReady, (readyClient) => {
     }
   }, 10 * 60 * 1000);
 
+  // Inisialisasi pengingat waktu (reminders)
+  try {
+    const { initReminders } = require('./reminderHelper');
+    initReminders(readyClient);
+  } catch (err) {
+    console.error('[REMINDER INIT] Error:', err.message);
+  }
+
   // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
   setTimeout(async () => {
     try {
@@ -794,6 +802,21 @@ client.on(Events.GuildMemberRemove, async (member) => {
     console.error('Error saat mengirim pesan leave:', error);
   } finally {
     updateServerStats(member.guild).catch(console.error);
+
+    // Audit Log: Member Keluar
+    try {
+      const { sendAuditLog } = require('./logHelper');
+      const memberLog = new EmbedBuilder()
+        .setColor(0xED4245)
+        .setTitle('Member Meninggalkan Server')
+        .setDescription(`**${member.user.tag}** (\`${member.id}\`) telah keluar atau dikeluarkan dari server.`)
+        .addFields(
+          { name: 'Bergabung Server', value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:F>` : '-', inline: true },
+          { name: 'Role Terakhir', value: member.roles.cache.filter(r => r.id !== member.guild.id).map(r => `<@&${r.id}>`).join(', ') || 'Tidak ada', inline: true }
+        )
+        .setTimestamp();
+      sendAuditLog(member.guild, memberLog);
+    } catch {}
   }
 });
 
@@ -869,6 +892,99 @@ client.on(Events.ChannelDelete, async (channel) => {
       }
     }
   } catch {}
+
+  try {
+    const { getLogConfig, setLogConfig } = require('./logHelper');
+    const cfg = getLogConfig(channel.guild?.id);
+    if (cfg && cfg.enabled) {
+      if (channel.id === cfg.categoryId) {
+        setLogConfig(channel.guild.id, { categoryId: null, enabled: false });
+      } else if (channel.id === cfg.channelId) {
+        setLogConfig(channel.guild.id, { channelId: null, enabled: false });
+      }
+    }
+  } catch {}
+});
+
+// Event saat role member diperbarui (Audit Log)
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  try {
+    const { sendAuditLog } = require('./logHelper');
+    const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
+    const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
+
+    if (addedRoles.size > 0 || removedRoles.size > 0) {
+      const logEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('Perubahan Role Member')
+        .setDescription(`Perubahan role untuk <@${newMember.id}> (\`${newMember.user.tag}\`)`)
+        .setTimestamp();
+
+      if (addedRoles.size > 0) {
+        logEmbed.addFields({ name: 'Role Ditambahkan', value: addedRoles.map(r => `<@&${r.id}>`).join(', ') });
+      }
+      if (removedRoles.size > 0) {
+        logEmbed.addFields({ name: 'Role Dicabut', value: removedRoles.map(r => `<@&${r.id}>`).join(', ') });
+      }
+
+      sendAuditLog(newMember.guild, logEmbed);
+    }
+  } catch (err) {
+    console.error('Error saat log GuildMemberUpdate:', err);
+  }
+});
+
+// Event saat pesan dihapus (Audit Log)
+client.on(Events.MessageDelete, async (message) => {
+  if (!message.guild || message.author?.bot) return;
+
+  try {
+    const { sendAuditLog } = require('./logHelper');
+    const logEmbed = new EmbedBuilder()
+      .setColor(0xED4245)
+      .setTitle('Pesan Dihapus')
+      .addFields(
+        { name: 'Pengirim', value: message.author ? `<@${message.author.id}> (\`${message.author.id}\`)` : 'Tidak diketahui', inline: true },
+        { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
+        { name: 'Waktu Dibuat', value: message.createdTimestamp ? `<t:${Math.floor(message.createdTimestamp / 1000)}:R>` : '-', inline: true },
+        { name: 'Isi Pesan', value: message.content ? (message.content.length > 1024 ? message.content.substring(0, 1020) + '...' : message.content) : '*(Tidak ada teks / hanya media)*' }
+      );
+
+    if (message.attachments?.size > 0) {
+      const attachList = message.attachments.map(a => a.url).join('\n');
+      logEmbed.addFields({ name: 'Lampiran File', value: attachList.substring(0, 1024) });
+    }
+
+    logEmbed.setTimestamp();
+    sendAuditLog(message.guild, logEmbed);
+  } catch (err) {
+    console.error('Error saat log MessageDelete:', err);
+  }
+});
+
+// Event saat pesan diedit (Audit Log)
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+  if (!oldMessage.guild || oldMessage.author?.bot) return;
+  if (oldMessage.content === newMessage.content) return;
+
+  try {
+    const { sendAuditLog } = require('./logHelper');
+    const logEmbed = new EmbedBuilder()
+      .setColor(0xFEE75C)
+      .setTitle('Pesan Diedit')
+      .addFields(
+        { name: 'Pengirim', value: `<@${newMessage.author.id}> (\`${newMessage.author.id}\`)`, inline: true },
+        { name: 'Channel', value: `<#${newMessage.channelId}>`, inline: true },
+        { name: 'Tautan Pesan', value: `[Buka Pesan](${newMessage.url})`, inline: true },
+        { name: 'Sebelum Diedit', value: oldMessage.content ? (oldMessage.content.length > 1024 ? oldMessage.content.substring(0, 1020) + '...' : oldMessage.content) : '*(Tidak ada teks)*' },
+        { name: 'Sesudah Diedit', value: newMessage.content ? (newMessage.content.length > 1024 ? newMessage.content.substring(0, 1020) + '...' : newMessage.content) : '*(Tidak ada teks)*' }
+      )
+      .setTimestamp();
+
+    sendAuditLog(newMessage.guild, logEmbed);
+  } catch (err) {
+    console.error('Error saat log MessageUpdate:', err);
+  }
 });
 
 // Event saat ada pesan baru (Leveling XP System & AI Chat)

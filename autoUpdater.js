@@ -66,6 +66,8 @@ async function checkForUpdates() {
         'ticketConfig.json',
         'ticketData.json',
         'gameConfig.json',
+        'logConfig.json',
+        'reminderData.json',
         'music/music.mp3',
         '.env',
       ];
