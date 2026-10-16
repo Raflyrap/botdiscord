@@ -742,6 +742,22 @@ client.on(Events.ChannelDelete, async (channel) => {
     const { closeTicket } = require('./ticketHelper');
     closeTicket(channel.id);
   } catch {}
+
+  try {
+    const { getStatsConfig, setStatsConfig } = require('./serverStatsHelper');
+    const cfg = getStatsConfig(channel.guild?.id);
+    if (cfg && cfg.enabled) {
+      if (channel.id === cfg.categoryId) {
+        setStatsConfig(channel.guild.id, { categoryId: null, enabled: false });
+      } else if (channel.id === cfg.memberChannelId) {
+        setStatsConfig(channel.guild.id, { memberChannelId: null });
+      } else if (channel.id === cfg.adminChannelId) {
+        setStatsConfig(channel.guild.id, { adminChannelId: null });
+      } else if (channel.id === cfg.activeChannelId) {
+        setStatsConfig(channel.guild.id, { activeChannelId: null });
+      }
+    }
+  } catch {}
 });
 
 // Event saat ada pesan baru (Leveling XP System & AI Chat)

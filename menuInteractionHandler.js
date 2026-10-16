@@ -32,6 +32,7 @@ async function handleMenuInteraction(interaction) {
       'cmd_setverif',
       'cmd_verif',
       'cmd_ticket',
+      'cmd_stats',
       'cmd_setlevel',
       'cmd_leveltest'
     ];
@@ -200,6 +201,30 @@ async function handleMenuInteraction(interaction) {
           `\`/setticket channel:#channel-tiket kategori:Kategori role_staff:@Staff\``
         )
         .setFooter({ text: 'Member tinggal klik Buat Tiket untuk membuka channel obrolan privat' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_stats') {
+      const { getStatsConfig } = require('./serverStatsHelper');
+      const cfg = getStatsConfig(interaction.guildId);
+      const isEnabled = cfg && cfg.enabled;
+
+      const embed = new EmbedBuilder()
+        .setColor(isEnabled ? 0x57F287 : 0x5865F2)
+        .setTitle('Statistik Server Real-time')
+        .setDescription(
+          `Status: **${isEnabled ? 'Aktif' : 'Nonaktif'}**\n\n` +
+          `• Kategori: ${cfg?.categoryId ? `<#${cfg.categoryId}>` : '*(Belum dibuat)*'}\n` +
+          `• Total Member: ${cfg?.memberChannelId ? `<#${cfg.memberChannelId}>` : '*(Belum dibuat)*'}\n` +
+          `• Total Admin: ${cfg?.adminChannelId ? `<#${cfg.adminChannelId}>` : '*(Belum dibuat)*'}\n` +
+          `• Channel Aktif: ${cfg?.activeChannelId ? `<#${cfg.activeChannelId}>` : '*(Belum dibuat)*'}\n\n` +
+          `**Perintah Kontrol:**\n` +
+          `• \`/stats on\` : Aktifkan & buat channel counter otomatis di posisi teratas\n` +
+          `• \`/stats off\` : Nonaktifkan & hapus semua channel counter statistik`
+        )
+        .setFooter({ text: 'Channel terkunci otomatis & angka terupdate realtime' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
