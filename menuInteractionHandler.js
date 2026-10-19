@@ -53,35 +53,37 @@ async function handleMenuInteraction(interaction) {
     }
 
     if (val === 'cmd_pause') {
-      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
-      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
-      if (player.paused) return interaction.reply({ content: 'Musik sudah dalam keadaan dijeda.', flags: MessageFlags.Ephemeral });
-      await player.pause();
-      return interaction.reply({ content: '⏸️ Musik telah dijeda.', flags: MessageFlags.Ephemeral });
+      const pauseCmd = interaction.client.commands.get('pause');
+      if (pauseCmd) return pauseCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah pause tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_resume') {
-      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
-      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar atau dijeda.', flags: MessageFlags.Ephemeral });
-      if (!player.paused) return interaction.reply({ content: 'Musik sedang diputar (tidak dijeda).', flags: MessageFlags.Ephemeral });
-      await player.resume();
-      return interaction.reply({ content: '▶️ Musik dilanjutkan kembali.', flags: MessageFlags.Ephemeral });
+      const resumeCmd = interaction.client.commands.get('resume');
+      if (resumeCmd) return resumeCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah resume tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_skip') {
-      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
-      if (!player || !player.queue.current) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
-      try {
-        const nextSong = player.queue.tracks[0];
-        await player.skip();
-        if (nextSong) {
-          return interaction.reply({ content: `⏭️ Lagu dilewati ke: **${nextSong.info.title}**`, flags: MessageFlags.Ephemeral });
-        } else {
-          return interaction.reply({ content: '⏭️ Tidak ada lagu lagi di antrean. Pemutaran selesai.', flags: MessageFlags.Ephemeral });
-        }
-      } catch (err) {
-        return interaction.reply({ content: `Gagal melewati lagu: ${err.message}`, flags: MessageFlags.Ephemeral });
-      }
+      const skipCmd = interaction.client.commands.get('skip');
+      if (skipCmd) return skipCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah skip tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_repeat') {
+      const repeatCmd = interaction.client.commands.get('repeat');
+      if (repeatCmd) return repeatCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah repeat tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_queue') {
+      const queueCmd = interaction.client.commands.get('queue');
+      if (queueCmd) return queueCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah queue tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_volume') {
+      return interaction.showModal(createVolumeModal());
     }
 
     if (val === 'cmd_stop') {
@@ -94,31 +96,6 @@ async function handleMenuInteraction(interaction) {
       const patroliCmd = interaction.client.commands.get('patroli');
       if (patroliCmd) return patroliCmd.execute(interaction);
       return interaction.reply({ content: 'Perintah patroli tidak ditemukan.', flags: MessageFlags.Ephemeral });
-    }
-
-    if (val === 'cmd_queue') {
-      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
-      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
-        return interaction.reply({ content: 'Antrean musik saat ini kosong.', flags: MessageFlags.Ephemeral });
-      }
-      const currentSong = player.queue.current;
-      const nextSongs = player.queue.tracks.slice(0, 10);
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('Antrean Musik Saat Ini')
-        .setDescription(
-          `**Sedang Diputar:**\n[**${currentSong.info.title}**](${currentSong.info.uri || ''}) - \`${formatDuration(currentSong.info.duration)}\`\n\n` +
-          `**Lagu Berikutnya:**\n` +
-          (nextSongs.length > 0
-            ? nextSongs.map((s, i) => `**${i + 1}.** [${s.info.title}](${s.info.uri || ''}) - \`${formatDuration(s.info.duration)}\``).join('\n')
-            : '*(Tidak ada antrean selanjutnya)*')
-        )
-        .setFooter({ text: `Total: ${(currentSong ? 1 : 0) + player.queue.tracks.length} lagu | Volume: ${player.volume}%` });
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    if (val === 'cmd_volume') {
-      return interaction.showModal(createVolumeModal());
     }
 
     // --- AKSI COMMAND UMUM ---
@@ -391,35 +368,71 @@ async function handleMenuInteraction(interaction) {
         const res = await searchTrackWithFallback(player, query, interaction.user);
 
         if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
-          return interaction.editReply(`❌ Tidak ditemukan lagu untuk: **${query}**`);
+          return interaction.editReply(`Tidak ditemukan lagu atau playlist untuk: **${query}**`);
         }
 
         if (res.loadType === 'playlist') {
           await player.queue.add(res.tracks);
           if (!player.playing && !player.paused) await player.play();
-          return interaction.editReply(`📋 Playlist **${res.playlist?.name || 'Playlist'}** (${res.tracks.length} lagu) berhasil ditambahkan ke antrean.`);
+
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setAuthor({ name: 'PLAYLIST ADDED' })
+            .setTitle(res.playlist?.name || 'Playlist')
+            .setDescription(`> Berhasil menambahkan **${res.tracks.length} lagu** ke dalam antrean.`)
+            .setFooter({ text: 'FlyBot HD Music • Queue Updated' })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [embed] });
         }
 
         const track = res.tracks[0];
         await player.queue.add(track);
         if (!player.playing && !player.paused) await player.play();
-        return interaction.editReply(`🎵 Ditambahkan ke antrean: **${track.info.title}**`);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x1DB954)
+          .setAuthor({ name: player.playing ? 'ADDED TO QUEUE' : 'NOW PLAYING' })
+          .setTitle(track.info.title)
+          .setDescription(`> Artis: \`${track.info.author || 'Tidak Diketahui'}\` • Durasi: \`${formatDuration(track.info.duration)}\``)
+          .setFooter({ text: 'FlyBot HD Music' })
+          .setTimestamp();
+
+        if (track.info.artworkUrl) {
+          embed.setThumbnail(track.info.artworkUrl);
+        }
+
+        return interaction.editReply({ embeds: [embed] });
       } catch (err) {
         console.error('Lavalink modal play error:', err);
-        return interaction.editReply(`Gagal memutar lagu: ${err.message}`);
+        return interaction.editReply(`Gagal memutar lagu: ${err.message || 'Terjadi kesalahan sistem'}`);
       }
     }
 
     if (id === 'modal_music_volume') {
       const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
-      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
+      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
+        return interaction.reply({ content: 'Tidak ada musik yang sedang diputar saat ini.', flags: MessageFlags.Ephemeral });
+      }
       const volStr = interaction.fields.getTextInputValue('volume_level');
       const volume = parseInt(volStr, 10);
       if (isNaN(volume) || volume < 1 || volume > 100) {
         return interaction.reply({ content: 'Harap masukkan angka volume antara 1 sampai 100.', flags: MessageFlags.Ephemeral });
       }
       await player.setVolume(volume);
-      return interaction.reply({ content: `🔊 Volume musik berhasil diatur ke ${volume}%.`, flags: MessageFlags.Ephemeral });
+
+      const filledBlocks = Math.round(volume / 10);
+      const emptyBlocks = 10 - filledBlocks;
+      const bar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setAuthor({ name: 'VOLUME ADJUSTED' })
+        .setDescription(`Tingkat volume telah diatur ke **${volume}%**\n\`[${bar}]\``)
+        .setFooter({ text: 'FlyBot HD Music • Volume Control' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     if (id === 'modal_ai_prompt') {

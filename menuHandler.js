@@ -32,7 +32,20 @@ function getMainDashboard(guild, member) {
     )
     .addFields(
       {
-        name: 'Voice',
+        name: 'FlyBot HD Music',
+        value: [
+          line('/play', 'Putar lagu satuan atau playlist Spotify/YT'),
+          line('/pause', 'Jeda pemutaran musik'),
+          line('/resume', 'Lanjutkan pemutaran musik'),
+          line('/skip', 'Lewati lagu ke berikutnya'),
+          line('/repeat', 'Loop 1 lagu atau seluruh antrean'),
+          line('/queue', 'Lihat daftar antrean musik'),
+          line('/volume', 'Atur volume musik (1 - 100%)'),
+          line('/stop', 'Hentikan musik & keluar voice'),
+        ].join('\n'),
+      },
+      {
+        name: 'Voice & Patroli',
         value: [
           line('/patroli', 'Jaga voice channel 24 jam nonstop'),
           line('/stop', 'Hentikan patroli & keluar dari voice'),
@@ -80,8 +93,15 @@ function getMainDashboard(guild, member) {
     .setTimestamp();
 
   const menuOptions = [
-    { label: 'Patroli Voice', description: 'Jaga voice channel 24 jam nonstop', value: 'cmd_patroli' },
-    { label: 'Stop', description: 'Hentikan patroli dan keluar dari voice', value: 'cmd_stop' },
+    { label: 'Putar Musik', description: 'Putar lagu satuan atau playlist', value: 'cmd_play' },
+    { label: 'Jeda Musik', description: 'Menjeda pemutaran musik yang aktif', value: 'cmd_pause' },
+    { label: 'Lanjutkan Musik', description: 'Melanjutkan musik yang sedang dijeda', value: 'cmd_resume' },
+    { label: 'Lewati Lagu', description: 'Melewati lagu ke daftar berikutnya', value: 'cmd_skip' },
+    { label: 'Repeat / Loop Lagu', description: 'Loop 1 lagu yang sedang diputar', value: 'cmd_repeat' },
+    { label: 'Antrean Musik', description: 'Melihat daftar antrean lagu saat ini', value: 'cmd_queue' },
+    { label: 'Atur Volume Musik', description: 'Ubah tingkat volume (1 - 100%)', value: 'cmd_volume' },
+    { label: 'Stop & Keluar Voice', description: 'Hentikan musik / patroli & keluar voice', value: 'cmd_stop' },
+    { label: 'Patroli Voice 24 Jam', description: 'Jaga voice channel 24 jam nonstop', value: 'cmd_patroli' },
     { label: 'Tanya AI', description: 'Ajukan pertanyaan ke AI', value: 'cmd_ai' },
     { label: 'AFK', description: 'Pasang status sedang tidak di tempat', value: 'cmd_afk' },
     { label: 'Info Pengguna', description: 'Lihat profil & detail akun pengguna', value: 'cmd_userinfo' },
