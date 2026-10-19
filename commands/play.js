@@ -4,18 +4,18 @@ const { formatDuration, searchTrackWithFallback } = require('../lavalinkHelper')
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Memutar lagu (satuan) atau playlist (Spotify, YouTube, SoundCloud)')
+    .setDescription('Memutar lagu satuan atau playlist (Spotify, YouTube, SoundCloud)')
     .addStringOption((option) =>
       option
         .setName('lagu')
-        .setDescription('Ketik "judul lagu - penyanyi" atau link playlist Spotify / YouTube / SoundCloud')
+        .setDescription('Ketik judul lagu - penyanyi atau link playlist Spotify / YouTube / SoundCloud')
         .setRequired(true)
     ),
 
   async execute(interaction) {
     if (!interaction.guild) {
       return interaction.reply({
-        content: '❌ Perintah ini hanya dapat dijalankan di dalam server!',
+        content: 'Perintah ini hanya dapat dijalankan di dalam server.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -40,8 +40,7 @@ module.exports = {
 
     if (!voiceChannel) {
       return interaction.reply({
-        content:
-          '❌ Kamu harus masuk ke dalam salah satu **Voice Channel** terlebih dahulu sebelum memutar musik!',
+        content: 'Kamu harus bergabung ke dalam Voice Channel terlebih dahulu sebelum memutar musik.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -50,13 +49,13 @@ module.exports = {
     const botPermissions = voiceChannel.permissionsFor(interaction.client.user);
     if (botPermissions && !botPermissions.has(PermissionsBitField.Flags.Connect)) {
       return interaction.reply({
-        content: `❌ Bot tidak memiliki izin untuk bergabung (**Connect**) di voice channel **${voiceChannel.name}**!`,
+        content: `Bot tidak memiliki izin untuk bergabung (Connect) di voice channel ${voiceChannel.name}.`,
         flags: MessageFlags.Ephemeral,
       });
     }
     if (botPermissions && !botPermissions.has(PermissionsBitField.Flags.Speak)) {
       return interaction.reply({
-        content: `❌ Bot tidak memiliki izin untuk bersuara (**Speak**) di voice channel **${voiceChannel.name}**!`,
+        content: `Bot tidak memiliki izin untuk bersuara (Speak) di voice channel ${voiceChannel.name}.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -64,7 +63,7 @@ module.exports = {
     const lavalink = interaction.client.lavalink;
     if (!lavalink) {
       return interaction.reply({
-        content: '❌ Layanan audio Lavalink belum aktif di sistem bot!',
+        content: 'Layanan audio Lavalink belum aktif di sistem bot.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -100,12 +99,14 @@ module.exports = {
       const res = await searchTrackWithFallback(player, query, interaction.user);
 
       if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
-        return interaction.editReply(`❌ Tidak ditemukan lagu atau playlist untuk: **${query}**`);
+        return interaction.editReply(`Tidak ditemukan lagu atau playlist untuk: **${query}**`);
       }
 
       if (res.loadType === 'error') {
-        return interaction.editReply(`❌ Terjadi kendala saat memuat audio: ${res.exception?.message || 'Gagal terhubung ke sumber lagu'}`);
+        return interaction.editReply(`Terjadi kendala saat memuat audio: ${res.exception?.message || 'Gagal terhubung ke sumber lagu.'}`);
       }
+
+      const isUrl = /^https?:\/\//i.test(query);
 
       // KASUS 1: Playlist (Spotify Playlist, YouTube Playlist, dll)
       if (res.loadType === 'playlist') {
@@ -121,14 +122,16 @@ module.exports = {
 
         const embed = new EmbedBuilder()
           .setColor(0x5865F2)
-          .setTitle('📋 Playlist Ditambahkan ke Antrean')
-          .setDescription(`**[${playlistTitle}](${isUrl ? query : ''})**`)
+          .setAuthor({ name: 'PLAYLIST ADDED' })
+          .setTitle(playlistTitle.length > 250 ? playlistTitle.substring(0, 247) + '...' : playlistTitle)
+          .setURL(isUrl ? query : null)
+          .setDescription('> Berhasil menambahkan seluruh lagu playlist ke dalam antrean.')
           .addFields(
-            { name: '🎶 Jumlah Lagu', value: `\`${res.tracks.length} lagu\``, inline: true },
-            { name: '⏱️ Total Durasi', value: `\`${formatDuration(totalDuration)}\``, inline: true },
-            { name: '👤 Diminta Oleh', value: `<@${interaction.user.id}>`, inline: true }
+            { name: 'Jumlah Lagu', value: `\`${res.tracks.length} lagu\``, inline: true },
+            { name: 'Total Durasi', value: `\`${formatDuration(totalDuration)}\``, inline: true },
+            { name: 'Pemohon', value: `<@${interaction.user.id}>`, inline: true }
           )
-          .setFooter({ text: 'Lavalink v4 • Semua lagu berhasil dimuat ke antrean' })
+          .setFooter({ text: 'Lavalink Audio System • Queue Updated' })
           .setTimestamp();
 
         if (res.tracks[0]?.info?.artworkUrl) {
@@ -148,22 +151,31 @@ module.exports = {
         await player.play();
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(isAlreadyPlaying ? 0x5865F2 : 0x00FF7F)
-        .setTitle(isAlreadyPlaying ? '➕ Ditambahkan ke Antrean' : '🎵 Memulai Pemutaran Lagu')
-        .setDescription(`[**${track.info.title}**](${track.info.uri || ''})`)
-        .addFields(
-          { name: '🎤 Artis / Penulis', value: `\`${track.info.author || 'Tidak Diketahui'}\``, inline: true },
-          { name: '⏱️ Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
-          { name: '👤 Diminta Oleh', value: `<@${interaction.user.id}>`, inline: true }
-        )
-        .setTimestamp();
+      const titleClean = track.info.title.length > 250
+        ? track.info.title.substring(0, 247) + '...'
+        : track.info.title;
 
-      if (isAlreadyPlaying) {
-        embed.setFooter({ text: `Posisi antrean: #${player.queue.tracks.length}` });
-      } else {
-        embed.setFooter({ text: 'Lavalink v4 Audio Engine' });
-      }
+      const embed = new EmbedBuilder()
+        .setColor(isAlreadyPlaying ? 0x5865F2 : 0x1DB954)
+        .setAuthor({ name: isAlreadyPlaying ? 'ADDED TO QUEUE' : 'NOW PLAYING' })
+        .setTitle(titleClean)
+        .setURL(track.info.uri || null)
+        .setDescription(
+          isAlreadyPlaying
+            ? `> Berhasil ditambahkan ke dalam antrean.`
+            : `> Voice Channel: <#${voiceChannel.id}>`
+        )
+        .addFields(
+          { name: 'Artis', value: `\`${track.info.author || 'Tidak Diketahui'}\``, inline: true },
+          { name: 'Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
+          { name: 'Pemohon', value: `<@${interaction.user.id}>`, inline: true }
+        )
+        .setFooter({
+          text: isAlreadyPlaying
+            ? `Posisi Antrean: #${player.queue.tracks.length} • Lavalink Audio System`
+            : 'Lavalink Audio System • High Fidelity',
+        })
+        .setTimestamp();
 
       if (track.info.artworkUrl) {
         embed.setThumbnail(track.info.artworkUrl);
@@ -172,7 +184,7 @@ module.exports = {
       return interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('[PLAY ERROR]:', error);
-      return interaction.editReply(`❌ Gagal memutar lagu: ${error.message || 'Terjadi kesalahan sistem'}`);
+      return interaction.editReply(`Gagal memutar lagu: ${error.message || 'Terjadi kesalahan sistem'}`);
     }
   },
 };

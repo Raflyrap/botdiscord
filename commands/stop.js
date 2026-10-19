@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
 const { removePatroliActive, leavePatroliChannel } = require('../patroliHelper');
 
 module.exports = {
@@ -36,21 +36,29 @@ module.exports = {
       meVoice.disconnect().catch(() => {});
     }
 
-    if (wasPatroli && wasMusic) {
-      return interaction.reply('🛡️ Mode patroli dan musik telah dihentikan, antrean dibersihkan, dan bot keluar dari voice channel.');
-    }
-
-    if (wasPatroli) {
-      return interaction.reply('🛡️ Mode patroli 24 jam telah dinonaktifkan dan bot telah keluar dari voice channel.');
-    }
-
-    if (!wasMusic) {
+    if (!wasPatroli && !wasMusic) {
       return interaction.reply({
-        content: 'Tidak ada patroli atau musik yang sedang berjalan saat ini.',
+        content: 'Tidak ada musik atau sesi patroli yang sedang aktif saat ini.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.reply('⏹️ Musik telah dihentikan, antrean dibersihkan, dan bot telah keluar dari voice channel.');
+    let descriptionText = '';
+    if (wasPatroli && wasMusic) {
+      descriptionText = 'Mode patroli dan pemutaran musik telah dihentikan. Seluruh antrean dibersihkan dan bot telah keluar dari voice channel.';
+    } else if (wasPatroli) {
+      descriptionText = 'Mode patroli 24 jam telah dinonaktifkan dan bot telah keluar dari voice channel.';
+    } else {
+      descriptionText = 'Pemutaran musik telah dihentikan, seluruh antrean dibersihkan, dan bot telah keluar dari voice channel.';
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xED4245)
+      .setAuthor({ name: 'PLAYBACK STOPPED' })
+      .setDescription(descriptionText)
+      .setFooter({ text: 'Sesi dihentikan • Lavalink Audio System' })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
   },
 };

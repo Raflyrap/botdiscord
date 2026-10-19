@@ -22,7 +22,7 @@ function formatDuration(ms) {
 /**
  * Cari lagu atau playlist dengan fallback cerdas:
  * 1. Jika URL: cari langsung via URL (Spotify, SoundCloud, YouTube, dll)
- * 2. Jika teks pencarian judul lagu: cari via SoundCloud ('scsearch') yang 100% bebas dari blokir anti-bot YouTube.
+ * 2. Jika teks pencarian judul lagu: cari via Spotify ('spsearch') yang terbukti 100% lancar & bersuara.
  * 3. Otomatis mencoba node aktif lain jika node utama sedang lambat.
  * @param {import('lavalink-client').Player} player 
  * @param {string} query 
@@ -142,7 +142,7 @@ function initLavalink(client) {
     autoSkip: true,
     playerOptions: {
       clientBasedPositionUpdateInterval: 150,
-      defaultSearchPlatform: 'spsearch', // Default ke Spotify agar 100% lancar dan bersuara
+      defaultSearchPlatform: 'spsearch',
       volumeDecrementer: 1,
     },
     queueOptions: {
@@ -167,7 +167,7 @@ function initLavalink(client) {
 
   // Listener Pemutaran Musik (Player / Track events)
   manager
-    // Saat lagu mulai dimainkan
+    // Saat lagu mulai dimainkan (Tampilan Mewah, Bersih, Tanpa Emoji)
     .on('trackStart', async (player, track) => {
       if (!player.textChannelId) return;
       const channel = client.channels.cache.get(player.textChannelId);
@@ -177,17 +177,24 @@ function initLavalink(client) {
         ? `<@${track.requester.id}>`
         : (track.requester?.tag || track.requester?.username || 'User');
 
+      const titleClean = track.info.title.length > 250
+        ? track.info.title.substring(0, 247) + '...'
+        : track.info.title;
+
       const embed = new EmbedBuilder()
-        .setColor(0x00FF7F)
-        .setTitle('🎵 Sedang Memutar Lagu')
-        .setDescription(`[**${track.info.title}**](${track.info.uri || ''})`)
+        .setColor(0x1DB954) // Aksen Modern Spotify Green
+        .setAuthor({ name: 'NOW PLAYING' })
+        .setTitle(titleClean)
+        .setURL(track.info.uri || null)
+        .setDescription(`> Voice Channel: <#${player.voiceChannelId}>`)
         .addFields(
-          { name: '🎤 Artis / Penulis', value: `\`${track.info.author || 'Tidak Diketahui'}\``, inline: true },
-          { name: '⏱️ Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
-          { name: '👤 Diminta Oleh', value: `${requesterStr}`, inline: true },
-          { name: '🔊 Volume', value: `\`${player.volume}%\``, inline: true }
+          { name: 'Artis', value: `\`${track.info.author || 'Tidak Diketahui'}\``, inline: true },
+          { name: 'Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
+          { name: 'Pemohon', value: requesterStr, inline: true },
+          { name: 'Volume', value: `\`${player.volume}%\``, inline: true },
+          { name: 'Sumber', value: `\`${(track.info.sourceName || 'Audio').toUpperCase()}\``, inline: true }
         )
-        .setFooter({ text: `Lavalink v4 • Sumber: ${track.info.sourceName || 'Audio'}` })
+        .setFooter({ text: 'Lavalink Audio System • High Fidelity' })
         .setTimestamp();
 
       if (track.info.artworkUrl) {
@@ -205,9 +212,11 @@ function initLavalink(client) {
       const channel = client.channels.cache.get(player.textChannelId);
       if (channel && typeof channel.send === 'function') {
         const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setDescription('✅ **Semua antrean lagu telah selesai diputar.** Terima kasih sudah mendengarkan musik!')
-          .setFooter({ text: 'Bot akan keluar otomatis jika tidak ada lagu baru yang ditambahkan.' });
+          .setColor(0x2B2D31)
+          .setAuthor({ name: 'QUEUE COMPLETED' })
+          .setDescription('Seluruh daftar antrean lagu telah selesai diputar.')
+          .setFooter({ text: 'Bot akan meninggalkan voice channel jika tidak ada aktivitas lagu baru.' })
+          .setTimestamp();
 
         channel.send({ embeds: [embed] }).catch(() => {});
       }
@@ -238,7 +247,7 @@ function initLavalink(client) {
       if (isStreamUnavailable && track?.info?.title && !player.getData('fallback_attempted')) {
         player.setData('fallback_attempted', true);
         if (channel && typeof channel.send === 'function') {
-          channel.send(`⚠️ Audio stream sumber pertama tidak tersedia. Mengalihkan otomatis ke versi Spotify...`).catch(() => {});
+          channel.send(`Sumber audio pertama tidak dapat diakses. Mengalihkan otomatis ke versi Spotify...`).catch(() => {});
         }
 
         try {
@@ -257,7 +266,7 @@ function initLavalink(client) {
       }
 
       if (channel && typeof channel.send === 'function') {
-        channel.send(`❌ Gagal memutar lagu **${track?.info?.title || 'tidak diketahui'}**: ${payload?.exception?.message || 'Sumber audio tidak dapat diakses'}`).catch(() => {});
+        channel.send(`Gagal memutar lagu **${track?.info?.title || 'tidak diketahui'}**: ${payload?.exception?.message || 'Sumber audio tidak dapat diakses.'}`).catch(() => {});
       }
     });
 

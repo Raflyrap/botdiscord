@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,7 +21,7 @@ module.exports = {
     const voiceChannel = member?.voice?.channel;
     if (!voiceChannel) {
       return interaction.reply({
-        content: '❌ Kamu harus berada di dalam Voice Channel!',
+        content: 'Kamu harus berada di dalam voice channel untuk mengatur volume.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -29,13 +29,25 @@ module.exports = {
     const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
     if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
       return interaction.reply({
-        content: '❌ Tidak ada musik yang sedang diputar saat ini!',
+        content: 'Tidak ada musik yang sedang diputar saat ini.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
     const volume = interaction.options.getInteger('persen');
     await player.setVolume(volume);
-    await interaction.reply(`🔊 Volume musik berhasil diubah menjadi **${volume}%**`);
+
+    const filledBlocks = Math.round(volume / 10);
+    const emptyBlocks = 10 - filledBlocks;
+    const bar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setAuthor({ name: 'VOLUME ADJUSTED' })
+      .setDescription(`Tingkat volume telah diatur ke **${volume}%**\n\`[${bar}]\``)
+      .setFooter({ text: 'Lavalink Audio System • Volume Control' })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
   },
 };

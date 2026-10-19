@@ -10,7 +10,7 @@ module.exports = {
     const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
     if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
       return interaction.reply({
-        content: '❌ Tidak ada antrean musik saat ini!',
+        content: 'Tidak ada antrean musik saat ini.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -28,23 +28,25 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('🎶 Antrean Musik Server')
+      .setAuthor({ name: 'SERVER MUSIC QUEUE' })
+      .setTitle('Daftar Antrean Musik')
       .setDescription(
         (currentSong
-          ? `**Sedang Diputar:**\n[**${currentSong.info.title}**](${currentSong.info.uri || ''}) - \`${formatDuration(currentSong.info.duration)}\`\n*Diminta oleh:* ${requesterStr}\n\n`
+          ? `**Sedang Diputar:**\n[**${currentSong.info.title}**](${currentSong.info.uri || ''})\n` +
+            `Artis: \`${currentSong.info.author || 'Tidak Diketahui'}\` • Durasi: \`${formatDuration(currentSong.info.duration)}\` • Pemohon: ${requesterStr}\n\n`
           : '') +
         `**Lagu Berikutnya:**\n` +
         (nextSongs.length > 0
           ? nextSongs
               .map(
                 (song, index) =>
-                  `**${index + 1}.** [${song.info.title}](${song.info.uri || ''}) - \`${formatDuration(song.info.duration)}\``
+                  `\`${index + 1}.\` [${song.info.title}](${song.info.uri || ''}) • \`${formatDuration(song.info.duration)}\``
               )
               .join('\n')
           : '*(Tidak ada antrean lagu selanjutnya)*')
       )
       .setFooter({
-        text: `Total Antrean: ${totalTracks} lagu (${formatDuration(totalDurationMs)}) | Volume: ${player.volume}%`,
+        text: `Total Antrean: ${totalTracks} lagu (${formatDuration(totalDurationMs)}) • Volume: ${player.volume}%`,
       })
       .setTimestamp();
 
