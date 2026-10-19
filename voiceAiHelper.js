@@ -7,13 +7,37 @@ const {
   createAudioResource,
   AudioPlayerStatus,
   EndBehaviorType,
-  StreamType,
 } = require('@discordjs/voice');
 const prism = require('prism-media');
 const { Readable } = require('stream');
 
 // Map sesi aktif per guild: guildId -> SessionData
 const activeSessions = new Map();
+
+/**
+ * Buat WAV Header 44-byte untuk PCM Buffer
+ */
+function createWavHeader(dataLength, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const buffer = Buffer.alloc(44);
+
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataLength, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20); // PCM
+  buffer.writeUInt16LE(numChannels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(bitsPerSample, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataLength, 40);
+
+  return buffer;
+}
 
 /**
  * Konversi 48kHz Stereo 16-bit PCM (Discord) ke 24kHz Mono 16-bit PCM (OpenAI Realtime)
@@ -34,40 +58,81 @@ function convert48kStereoTo24kMono(stereo48kBuf) {
 }
 
 /**
- * Konversi 24kHz Mono 16-bit PCM (OpenAI Realtime) ke 48kHz Stereo 16-bit PCM (Discord)
+ * Ekstrak data server lengkap (nama grup, kategori, channel, member) untuk pengetahuan AI
  */
-function convert24kMonoTo48kStereo(mono24kBuf) {
-  const numSamples = Math.floor(mono24kBuf.length / 2);
-  const stereo48kBuf = Buffer.alloc(numSamples * 8);
+async function buildGuildContext(guild, voiceChannel) {
+  try {
+    const owner = await guild.fetchOwner().catch(() => null);
+    const channels = await guild.channels.fetch().catch(() => guild.channels.cache);
 
-  for (let i = 0; i < numSamples; i++) {
-    const b0 = mono24kBuf[i * 2];
-    const b1 = mono24kBuf[i * 2 + 1];
-    const outOffset = i * 8;
+    // Kategori mapping
+    const categoryMap = new Map();
+    const uncategorized = [];
 
-    // Frame 1: Left & Right
-    stereo48kBuf[outOffset] = b0;
-    stereo48kBuf[outOffset + 1] = b1;
-    stereo48kBuf[outOffset + 2] = b0;
-    stereo48kBuf[outOffset + 3] = b1;
+    // Ambil semua kategori (type: 4 = GuildCategory)
+    channels.forEach((ch) => {
+      if (ch && ch.type === 4) {
+        categoryMap.set(ch.id, { name: ch.name, channels: [] });
+      }
+    });
 
-    // Frame 2: Left & Right
-    stereo48kBuf[outOffset + 4] = b0;
-    stereo48kBuf[outOffset + 5] = b1;
-    stereo48kBuf[outOffset + 6] = b0;
-    stereo48kBuf[outOffset + 7] = b1;
+    // Kelompokkan channel ke dalam kategorinya masing-masing
+    channels.forEach((ch) => {
+      if (!ch || ch.type === 4) return;
+      const typeStr = ch.isVoiceBased() ? 'Voice' : 'Text';
+      const item = `${ch.name} (${typeStr})`;
+      if (ch.parentId && categoryMap.has(ch.parentId)) {
+        categoryMap.get(ch.parentId).channels.push(item);
+      } else {
+        uncategorized.push(item);
+      }
+    });
+
+    let structureLines = [];
+    categoryMap.forEach((cat) => {
+      if (cat.channels.length > 0) {
+        structureLines.push(`• Kategori "${cat.name}": ${cat.channels.join(', ')}`);
+      } else {
+        structureLines.push(`• Kategori "${cat.name}": (kosong)`);
+      }
+    });
+    if (uncategorized.length > 0) {
+      structureLines.push(`• Tanpa Kategori: ${uncategorized.join(', ')}`);
+    }
+
+    // Member yang ada di voice saat ini
+    const voiceMembers = voiceChannel.members
+      .filter((m) => !m.user.bot)
+      .map((m) => m.displayName)
+      .join(', ') || 'Hanya kamu';
+
+    // Daftar role server
+    const topRoles = guild.roles.cache
+      .filter((r) => r.id !== guild.id && !r.managed)
+      .sort((a, b) => b.position - a.position)
+      .map((r) => r.name)
+      .slice(0, 10)
+      .join(', ');
+
+    return (
+      `INFORMASI LENGKAP SERVER DISCORD (GRUP) TEMPAT KAMU BERADA SAAT INI:\n` +
+      `- Nama Server / Grup: "${guild.name}"\n` +
+      `- Pemilik Server: "${owner?.displayName || 'Owner'}"\n` +
+      `- Total Anggota Server: ${guild.memberCount} member\n` +
+      `- Voice Channel Tempat Kamu Berada: "${voiceChannel.name}"\n` +
+      `- Teman di Voice Channel Saat Ini: ${voiceMembers}\n` +
+      `- Struktur Kategori dan Channel Lengkap di Server Ini:\n${structureLines.join('\n')}\n` +
+      `- Role Utama Server: ${topRoles || 'Role Standar'}\n\n` +
+      `INSTRUKSI PENTING TENTANG SERVER INI:\n` +
+      `Kamu tahu persis seluruh isi server ini! Jika ada yang nanya nama grup/server ini apa, jawab dengan nama "${guild.name}".\n` +
+      `Jika disuruh sebutkan/bacakan kategori atau channel apa saja yang ada di grup ini, sebutkan dengan santai dan tepat sesuai data di atas.\n` +
+      `Jika ditanya isi kategori tertentu (misalnya kategori chatting isinya apa), jawab channel-channel yang ada di kategori tersebut.`
+    );
+  } catch (err) {
+    console.warn('[BUILD GUILD CONTEXT ERROR]', err.message);
+    return `Server ini bernama "${guild.name}" dengan total ${guild.memberCount} member.`;
   }
-  return stereo48kBuf;
 }
-
-const REALTIME_SYSTEM_PROMPT =
-  'Kamu adalah Fly, teman nongkrong AI yang sedang berbicara LANGSUNG lewat suara di Voice Channel Discord.\n\n' +
-  'ATURAN UTAMA PERCAKAPAN REAL-TIME:\n' +
-  '1. Karaktermu santai, asik, humoris, dan ekspresif layaknya sahabat tongkrongan anak gaul Jakarta / Jaksel.\n' +
-  '2. SELALU gunakan kata "gue" untuk diri sendiri dan "lo" untuk lawan bicara. Panggil bro/bray/sob.\n' +
-  '3. JAWAB SINGKAT DAN TO-THE-POINT (maksimal 1 sampai 2 kalimat saja!). Hindari ceramah atau daftar panjang agar percakapan terus mengalir dua arah.\n' +
-  '4. Bicaralah dengan intonasi hidup, bernapas, rileks, dan ekspresif. DILARANG KERAS menggunakan bahasa formal/kaku seperti "saya", "anda", atau "tentu saja".\n' +
-  '5. Jangan sebut simbol markdown atau emoji apa pun karena ini adalah obrolan suara langsung.';
 
 /**
  * Hubungkan ke WebSocket OpenAI Realtime API (GA Model gpt-realtime-mini)
@@ -99,17 +164,27 @@ function connectRealtimeWebSocket(session) {
 
       // Konfigurasi session setelah terkoneksi
       if (data.type === 'session.created') {
+        const fullInstructions =
+          'Kamu adalah Fly, teman nongkrong AI yang sedang berbicara LANGSUNG lewat suara di Voice Channel Discord.\n\n' +
+          'ATURAN UTAMA PERCAKAPAN REAL-TIME:\n' +
+          '1. Karaktermu santai, asik, humoris, dan ekspresif layaknya sahabat tongkrongan anak gaul Jakarta / Jaksel.\n' +
+          '2. SELALU gunakan kata "gue" untuk diri sendiri dan "lo" untuk lawan bicara. Panggil bro/bray/sob.\n' +
+          '3. JAWAB SINGKAT, PADAT, DAN TO-THE-POINT (maksimal 1 sampai 2 kalimat saja!). Hindari ceramah atau daftar yang kepanjangan agar percakapan tetap interaktif.\n' +
+          '4. Bicaralah dengan intonasi hidup, bernapas, rileks, dan ekspresif. DILARANG KERAS menggunakan bahasa formal/kaku seperti "saya", "anda", atau "tentu saja".\n' +
+          '5. Jangan sebut simbol markdown atau emoji apa pun karena ini adalah obrolan suara langsung.\n\n' +
+          session.guildContext;
+
         ws.send(
           JSON.stringify({
             type: 'session.update',
             session: {
               type: 'realtime',
-              instructions: REALTIME_SYSTEM_PROMPT,
+              instructions: fullInstructions,
               output_modalities: ['audio'],
               audio: {
                 input: {
                   format: { type: 'audio/pcm', rate: 24000 },
-                  turn_detection: null, // Dikontrol otomatis via Discord silence
+                  turn_detection: null,
                 },
                 output: {
                   format: { type: 'audio/pcm', rate: 24000 },
@@ -144,7 +219,7 @@ function connectRealtimeWebSocket(session) {
             currentTranscript = '';
           }
 
-          // Mainkan audio langsung ke Discord Voice
+          // Mainkan audio dengan WAV container berkualitas tinggi & bebas lag
           playRealtimeAudio(session, mono24kFull);
         } else {
           session.isProcessing = false;
@@ -182,35 +257,19 @@ function connectRealtimeWebSocket(session) {
 }
 
 /**
- * Mainkan Buffer audio hasil Realtime (24kHz Mono) langsung ke Discord Voice (48kHz Stereo)
+ * Mainkan Buffer audio hasil Realtime (24kHz Mono) dengan WAV Header resmi
+ * Menghindari distorsi dan suara patah-patah secara permanen
  */
 function playRealtimeAudio(session, mono24kBuffer) {
   session.isSpeaking = true;
 
   try {
-    const stereo48kBuffer = convert24kMonoTo48kStereo(mono24kBuffer);
-    const resource = createAudioResource(Readable.from(stereo48kBuffer), {
-      inputType: StreamType.Raw,
-    });
+    // Tambahkan header WAV resmi 24kHz Mono agar FFmpeg di discord.js meresample dengan mulus tanpa clipping/patah
+    const wavHeader = createWavHeader(mono24kBuffer.length, 24000, 1, 16);
+    const wavBuffer = Buffer.concat([wavHeader, mono24kBuffer]);
 
+    const resource = createAudioResource(Readable.from(wavBuffer));
     session.player.play(resource);
-
-    const onIdle = () => {
-      session.player.off(AudioPlayerStatus.Idle, onIdle);
-      setTimeout(() => {
-        session.isSpeaking = false;
-        session.isProcessing = false;
-      }, 200);
-    };
-
-    session.player.on(AudioPlayerStatus.Idle, onIdle);
-
-    // Timeout pengaman
-    setTimeout(() => {
-      session.player.off(AudioPlayerStatus.Idle, onIdle);
-      session.isSpeaking = false;
-      session.isProcessing = false;
-    }, 20000);
   } catch (err) {
     console.error('[PLAY REALTIME AUDIO ERROR]', err);
     session.isSpeaking = false;
@@ -227,6 +286,9 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
   if (activeSessions.has(guildId)) {
     await stopVoiceAiSession(guildId);
   }
+
+  // Siapkan ringkasan isi server lengkap (nama grup, kategori, channel)
+  const guildContext = await buildGuildContext(voiceChannel.guild, voiceChannel);
 
   const connection = joinVoiceChannel({
     channelId: voiceChannel.id,
@@ -249,11 +311,26 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     connection,
     player,
     ws: null,
+    guildContext,
     isSpeaking: false,
     isProcessing: false,
     activeListeners: new Set(),
     stats: { questionsAnswered: 0, startTime: Date.now() },
   };
+
+  // Listener Idle tunggal pada player untuk mencegah memory leak / tumpang tindih audio
+  player.on(AudioPlayerStatus.Idle, () => {
+    setTimeout(() => {
+      session.isSpeaking = false;
+      session.isProcessing = false;
+    }, 150);
+  });
+
+  player.on('error', (err) => {
+    console.warn('[AUDIO PLAYER ERROR]', err.message);
+    session.isSpeaking = false;
+    session.isProcessing = false;
+  });
 
   activeSessions.set(guildId, session);
 
@@ -262,7 +339,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
 
   // Kirim sapaan suara pertama saat join
   setTimeout(() => {
-    sendRealtimeTextMessage(session, 'Ucapkan salam sapaan santai bahwa lo udah masuk voice channel.');
+    sendRealtimeTextMessage(session, 'Ucapkan salam sapaan santai dan sebut bahwa lo udah masuk voice channel.');
   }, 1000);
 
   // Tangkap saat ada user mulai berbicara di voice
@@ -336,7 +413,7 @@ function handleUserSpeaking(session, userId) {
 
       const pcmBuffer = Buffer.concat(pcmChunks);
 
-      // Filter durasi minimal: abaikan suara < 0.4 detik (batuk/klik)
+      // Filter durasi minimal: abaikan suara < 0.4 detik (batuk/klik mic)
       if (pcmBuffer.length < 80000) {
         return;
       }
