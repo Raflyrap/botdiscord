@@ -131,7 +131,7 @@ module.exports = {
             { name: 'Total Durasi', value: `\`${formatDuration(totalDuration)}\``, inline: true },
             { name: 'Pemohon', value: `<@${interaction.user.id}>`, inline: true }
           )
-          .setFooter({ text: 'Lavalink Audio System • Queue Updated' })
+          .setFooter({ text: 'FlyBot HD Music • Queue Updated' })
           .setTimestamp();
 
         if (res.tracks[0]?.info?.artworkUrl) {
@@ -172,8 +172,8 @@ module.exports = {
         )
         .setFooter({
           text: isAlreadyPlaying
-            ? `Posisi Antrean: #${player.queue.tracks.length} • Lavalink Audio System`
-            : 'Lavalink Audio System • High Fidelity',
+            ? `Posisi Antrean: #${player.queue.tracks.length} • FlyBot HD Music`
+            : 'FlyBot HD Music',
         })
         .setTimestamp();
 

@@ -56,7 +56,7 @@ module.exports = {
       .setColor(0xED4245)
       .setAuthor({ name: 'PLAYBACK STOPPED' })
       .setDescription(descriptionText)
-      .setFooter({ text: 'Sesi dihentikan • Lavalink Audio System' })
+      .setFooter({ text: 'Sesi dihentikan • FlyBot HD Music' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

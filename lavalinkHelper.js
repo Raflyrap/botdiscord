@@ -194,7 +194,7 @@ function initLavalink(client) {
           { name: 'Volume', value: `\`${player.volume}%\``, inline: true },
           { name: 'Sumber', value: `\`${(track.info.sourceName || 'Audio').toUpperCase()}\``, inline: true }
         )
-        .setFooter({ text: 'Lavalink Audio System • High Fidelity' })
+        .setFooter({ text: 'FlyBot HD Music' })
         .setTimestamp();
 
       if (track.info.artworkUrl) {

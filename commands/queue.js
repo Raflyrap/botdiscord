@@ -26,6 +26,8 @@ module.exports = {
       ? `<@${currentSong.requester.id}>`
       : (currentSong?.requester?.tag || currentSong?.requester?.username || 'User');
 
+    const repeatLabel = player.repeatMode === 'track' ? 'Lagu' : player.repeatMode === 'queue' ? 'Antrean' : 'Nonaktif';
+
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setAuthor({ name: 'SERVER MUSIC QUEUE' })
@@ -46,7 +48,7 @@ module.exports = {
           : '*(Tidak ada antrean lagu selanjutnya)*')
       )
       .setFooter({
-        text: `Total Antrean: ${totalTracks} lagu (${formatDuration(totalDurationMs)}) • Volume: ${player.volume}%`,
+        text: `Total Antrean: ${totalTracks} lagu (${formatDuration(totalDurationMs)}) • Loop: ${repeatLabel} • FlyBot HD Music`,
       })
       .setTimestamp();
 

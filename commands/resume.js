@@ -40,7 +40,7 @@ module.exports = {
       .setColor(0x1DB954)
       .setAuthor({ name: 'PLAYBACK RESUMED' })
       .setDescription(currentTitle ? `Melanjutkan pemutaran: **${currentTitle}**` : 'Pemutaran musik telah dilanjutkan kembali.')
-      .setFooter({ text: 'Lavalink Audio System • High Fidelity' })
+      .setFooter({ text: 'FlyBot HD Music' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

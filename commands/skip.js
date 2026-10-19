@@ -40,7 +40,7 @@ module.exports = {
             ? `Sekarang memutar: **${nextSong.info.title}**`
             : 'Seluruh antrean lagu telah selesai diputar.'
         )
-        .setFooter({ text: 'Lavalink Audio System • Queue Progression' })
+        .setFooter({ text: 'FlyBot HD Music • Queue Progression' })
         .setTimestamp();
 
       await interaction.reply({ embeds: [embed] });

@@ -45,7 +45,7 @@ module.exports = {
       .setColor(0x5865F2)
       .setAuthor({ name: 'VOLUME ADJUSTED' })
       .setDescription(`Tingkat volume telah diatur ke **${volume}%**\n\`[${bar}]\``)
-      .setFooter({ text: 'Lavalink Audio System • Volume Control' })
+      .setFooter({ text: 'FlyBot HD Music • Volume Control' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

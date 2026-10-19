@@ -39,7 +39,7 @@ module.exports = {
       .setColor(0xFEE75C)
       .setAuthor({ name: 'PLAYBACK PAUSED' })
       .setDescription('Pemutaran musik telah dijeda.')
-      .setFooter({ text: 'Ketik /resume untuk melanjutkan pemutaran • Lavalink Audio' })
+      .setFooter({ text: 'Ketik /resume untuk melanjutkan pemutaran • FlyBot HD Music' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });
