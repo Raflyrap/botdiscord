@@ -1,21 +1,21 @@
-const { SlashCommandBuilder, MessageFlags, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags, PermissionsBitField, EmbedBuilder } = require('discord.js');
+const { formatDuration } = require('../lavalinkHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Memutar musik dari YouTube, Spotify, atau SoundCloud')
+    .setDescription('Memutar lagu (satuan) atau playlist (Spotify, YouTube, SoundCloud)')
     .addStringOption((option) =>
       option
         .setName('lagu')
-        .setDescription('Judul lagu atau URL (YouTube, Spotify, SoundCloud)')
+        .setDescription('Ketik "judul lagu - penyanyi" atau link playlist Spotify / YouTube / SoundCloud')
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    // Validasi apakah bot sudah ada di server ini
     if (!interaction.guild) {
       return interaction.reply({
-        content: '❌ Bot belum diundang ke server ini sebagai Bot Server! Silakan undang bot ke server ini terlebih dahulu agar bot bisa masuk ke voice channel.',
+        content: '❌ Perintah ini hanya dapat dijalankan di dalam server!',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -26,15 +26,11 @@ module.exports = {
       member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
     }
 
-    // 1. Coba ambil dari member.voice.channel
+    // 1. Cek voice channel user
     let voiceChannel = member?.voice?.channel;
-
-    // 2. Jika channel object belum dicache tapi channelId ada
     if (!voiceChannel && member?.voice?.channelId) {
       voiceChannel = await interaction.guild.channels.fetch(member.voice.channelId).catch(() => null);
     }
-
-    // 3. Jika masih belum ketemu, periksa voiceStates guild secara langsung
     if (!voiceChannel) {
       const vs = interaction.guild.voiceStates?.cache?.get(interaction.user.id);
       if (vs?.channelId) {
@@ -42,32 +38,15 @@ module.exports = {
       }
     }
 
-    // 4. Fallback: Cari di semua voice channel server ini apakah user ada di dalamnya
-    if (!voiceChannel) {
-      const channels = await interaction.guild.channels.fetch().catch(() => null);
-      if (channels) {
-        for (const [, ch] of channels) {
-          if (ch?.isVoiceBased() && ch.members?.has(interaction.user.id)) {
-            voiceChannel = ch;
-            break;
-          }
-        }
-      }
-    }
-
-    console.log(`[PLAY] User: ${interaction.user.tag} (${interaction.user.id}) di Server: ${interaction.guild.name} -> Voice Channel: ${voiceChannel ? voiceChannel.name : 'TIDAK TERDETEKSI'}`);
-
-    // Jika user benar-benar tidak terdeteksi di voice channel server ini
     if (!voiceChannel) {
       return interaction.reply({
         content:
-          '❌ Kamu harus masuk ke dalam salah satu **Voice Channel di server ini** terlebih dahulu sebelum memutar musik!\n' +
-          '*Pastikan kamu sudah connect ke channel suara (seperti yapping) di server ini.*',
+          '❌ Kamu harus masuk ke dalam salah satu **Voice Channel** terlebih dahulu sebelum memutar musik!',
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    // Cek izin bot untuk bergabung dan berbicara di voice channel
+    // Cek izin bot di voice channel
     const botPermissions = voiceChannel.permissionsFor(interaction.client.user);
     if (botPermissions && !botPermissions.has(PermissionsBitField.Flags.Connect)) {
       return interaction.reply({
@@ -82,22 +61,122 @@ module.exports = {
       });
     }
 
-    const query = interaction.options.getString('lagu');
+    const lavalink = interaction.client.lavalink;
+    if (!lavalink) {
+      return interaction.reply({
+        content: '❌ Layanan audio Lavalink belum aktif di sistem bot!',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
 
-    // Beritahu Discord bahwa bot sedang memproses
+    const query = interaction.options.getString('lagu').trim();
     await interaction.deferReply();
 
     try {
-      // Putar lagu menggunakan DisTube
-      await interaction.client.distube.play(voiceChannel, query, {
-        textChannel: interaction.channel,
-        member: member,
-      });
+      // Ambil player yang sudah ada atau buat player baru
+      let player = lavalink.getPlayer(interaction.guildId);
+      if (!player) {
+        player = lavalink.createPlayer({
+          guildId: interaction.guild.id,
+          voiceChannelId: voiceChannel.id,
+          textChannelId: interaction.channel.id,
+          selfDeaf: true,
+          selfMute: false,
+          volume: 100,
+        });
+      }
 
-      await interaction.editReply(`🔍 Mencari dan memproses: **${query}**...`);
+      // Pastikan player terhubung ke voice channel
+      if (!player.connected) {
+        await player.connect();
+      } else if (player.voiceChannelId !== voiceChannel.id) {
+        await player.changeVoiceState({ voiceChannelId: voiceChannel.id });
+      }
+
+      // Update text channel untuk notifikasi
+      player.textChannelId = interaction.channel.id;
+
+      // Cek apakah input berupa link/URL atau teks pencarian judul lagu
+      const isUrl = /^https?:\/\//i.test(query);
+      const searchOptions = isUrl ? { query } : { query, source: 'ytsearch' };
+
+      // Cari lagu / playlist di Lavalink node
+      const res = await player.search(searchOptions, interaction.user);
+
+      if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
+        return interaction.editReply(`❌ Tidak ditemukan lagu atau playlist untuk: **${query}**`);
+      }
+
+      if (res.loadType === 'error') {
+        return interaction.editReply(`❌ Terjadi kendala saat memuat audio: ${res.exception?.message || 'Gagal terhubung ke sumber lagu'}`);
+      }
+
+      // KASUS 1: Playlist (Spotify Playlist, YouTube Playlist, dll)
+      if (res.loadType === 'playlist') {
+        await player.queue.add(res.tracks);
+
+        // Jika bot belum memutar musik, langsung putar lagu pertama
+        if (!player.playing && !player.paused) {
+          await player.play();
+        }
+
+        const playlistTitle = res.playlist?.name || 'Playlist';
+        const totalDuration = res.tracks.reduce((acc, t) => acc + (t.info?.duration || 0), 0);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('📋 Playlist Ditambahkan ke Antrean')
+          .setDescription(`**[${playlistTitle}](${isUrl ? query : ''})**`)
+          .addFields(
+            { name: '🎶 Jumlah Lagu', value: `\`${res.tracks.length} lagu\``, inline: true },
+            { name: '⏱️ Total Durasi', value: `\`${formatDuration(totalDuration)}\``, inline: true },
+            { name: '👤 Diminta Oleh', value: `<@${interaction.user.id}>`, inline: true }
+          )
+          .setFooter({ text: 'Lavalink v4 • Semua lagu berhasil dimuat ke antrean' })
+          .setTimestamp();
+
+        if (res.tracks[0]?.info?.artworkUrl) {
+          embed.setThumbnail(res.tracks[0].info.artworkUrl);
+        }
+
+        return interaction.editReply({ embeds: [embed] });
+      }
+
+      // KASUS 2: Lagu Satuan (Hasil pencarian judul lagu atau link lagu tunggal)
+      const track = res.tracks[0];
+      await player.queue.add(track);
+
+      const isAlreadyPlaying = player.playing || player.paused;
+
+      if (!isAlreadyPlaying) {
+        await player.play();
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(isAlreadyPlaying ? 0x5865F2 : 0x00FF7F)
+        .setTitle(isAlreadyPlaying ? '➕ Ditambahkan ke Antrean' : '🎵 Memulai Pemutaran Lagu')
+        .setDescription(`[**${track.info.title}**](${track.info.uri || ''})`)
+        .addFields(
+          { name: '🎤 Artis / Penulis', value: `\`${track.info.author || 'Tidak Diketahui'}\``, inline: true },
+          { name: '⏱️ Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
+          { name: '👤 Diminta Oleh', value: `<@${interaction.user.id}>`, inline: true }
+        )
+        .setTimestamp();
+
+      if (isAlreadyPlaying) {
+        embed.setFooter({ text: `Posisi antrean: #${player.queue.tracks.length}` });
+      } else {
+        embed.setFooter({ text: 'Lavalink v4 Audio Engine' });
+      }
+
+      if (track.info.artworkUrl) {
+        embed.setThumbnail(track.info.artworkUrl);
+      }
+
+      return interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error('Error saat memutar lagu:', error);
-      await interaction.editReply(`❌ Gagal memutar lagu: ${error.message || 'Terjadi kesalahan sistem'}`);
+      console.error('[PLAY ERROR]:', error);
+      return interaction.editReply(`❌ Gagal memutar lagu: ${error.message || 'Terjadi kesalahan sistem'}`);
     }
   },
 };

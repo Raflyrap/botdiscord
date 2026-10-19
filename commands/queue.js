@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { formatDuration } = require('../lavalinkHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -6,36 +7,50 @@ module.exports = {
     .setDescription('Melihat daftar antrean musik yang sedang diputar'),
 
   async execute(interaction) {
-    const queue = interaction.client.distube.getQueue(interaction.guildId);
-    if (!queue || !queue.songs || queue.songs.length === 0) {
+    const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+    if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
       return interaction.reply({
         content: '❌ Tidak ada antrean musik saat ini!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    const currentSong = queue.songs[0];
-    const nextSongs = queue.songs.slice(1, 11);
+    const currentSong = player.queue.current;
+    const nextSongs = player.queue.tracks.slice(0, 10);
+    const totalTracks = (currentSong ? 1 : 0) + player.queue.tracks.length;
+    const totalDurationMs =
+      (currentSong?.info?.duration || 0) +
+      player.queue.tracks.reduce((acc, t) => acc + (t.info?.duration || 0), 0);
+
+    const requesterStr = currentSong?.requester?.id
+      ? `<@${currentSong.requester.id}>`
+      : (currentSong?.requester?.tag || currentSong?.requester?.username || 'User');
 
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('🎶 Antrean Musik Server')
       .setDescription(
-        `**Sedang Diputar:**\n[${currentSong.name}](${currentSong.url}) - \`${currentSong.formattedDuration}\`\n*Diminta oleh:* ${currentSong.user}\n\n` +
+        (currentSong
+          ? `**Sedang Diputar:**\n[**${currentSong.info.title}**](${currentSong.info.uri || ''}) - \`${formatDuration(currentSong.info.duration)}\`\n*Diminta oleh:* ${requesterStr}\n\n`
+          : '') +
         `**Lagu Berikutnya:**\n` +
         (nextSongs.length > 0
           ? nextSongs
               .map(
                 (song, index) =>
-                  `**${index + 1}.** [${song.name}](${song.url}) - \`${song.formattedDuration}\``
+                  `**${index + 1}.** [${song.info.title}](${song.info.uri || ''}) - \`${formatDuration(song.info.duration)}\``
               )
               .join('\n')
           : '*(Tidak ada antrean lagu selanjutnya)*')
       )
       .setFooter({
-        text: `Total Antrean: ${queue.songs.length} lagu | Volume: ${queue.volume}%`,
+        text: `Total Antrean: ${totalTracks} lagu (${formatDuration(totalDurationMs)}) | Volume: ${player.volume}%`,
       })
       .setTimestamp();
+
+    if (currentSong?.info?.artworkUrl) {
+      embed.setThumbnail(currentSong.info.artworkUrl);
+    }
 
     await interaction.reply({ embeds: [embed] });
   },

@@ -25,32 +25,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
-const { DisTube } = require('distube');
-let YouTubePlugin;
-try {
-  YouTubePlugin = require('@distube/youtube').YouTubePlugin;
-} catch (e) {
-  try {
-    const { execSync } = require('child_process');
-    console.log('[DEPENDENCY] Mengunduh @distube/youtube...');
-    execSync('npm install @distube/youtube --omit=dev --no-audit', { stdio: 'inherit' });
-    YouTubePlugin = require('@distube/youtube').YouTubePlugin;
-  } catch (err) {
-    console.error('[DEPENDENCY] Gagal memuat @distube/youtube:', err.message);
-  }
-}
-const { SpotifyPlugin } = require('@distube/spotify');
-const { SoundCloudPlugin } = require('@distube/soundcloud');
-const { YtDlpPlugin } = require('@distube/yt-dlp');
-let ffmpegPath = require('ffmpeg-static');
-try {
-  const installer = require('@ffmpeg-installer/ffmpeg');
-  if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
-    if (installer && installer.path && fs.existsSync(installer.path)) {
-      ffmpegPath = installer.path;
-    }
-  }
-} catch (e) {}
+const { initLavalink } = require('./lavalinkHelper');
 // Hook Module loader agar setiap panggilan ke @discordjs/voice selalu join dengan selfDeaf: false sejak awal.
 // Ini mencegah bot terkena status deafen dan mencegah pemanggilan rejoin() di tengah pemutaran yang merusak stream UDP audio.
 const Module = require('module');
@@ -114,15 +89,7 @@ client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 
-// Command yang dinonaktifkan sementara (fitur musik). Hapus dari daftar ini untuk mengaktifkan lagi.
-// /stop tetap aktif karena dipakai untuk menghentikan /patroli.
-const DISABLED_COMMANDS = ['play', 'pause', 'resume', 'skip', 'queue', 'volume'];
-
 for (const file of commandFiles) {
-  if (DISABLED_COMMANDS.includes(file.replace(/\.js$/, ''))) {
-    console.log(`[SKIP] Command dinonaktifkan: /${file.replace(/\.js$/, '')}`);
-    continue;
-  }
   const filePath = path.join(commandsPath, file);
   const command = require(filePath);
 
@@ -134,93 +101,24 @@ for (const file of commandFiles) {
   }
 }
 
-// Inisialisasi DisTube untuk audio streaming musik
-// PENTING: Spotify dan SoundCloud diletakkan di awal agar lagu Spotify & pencarian umum
-// langsung di-stream via SoundCloud, bebas dari batasan anti-bot YouTube di server hosting/Pterodactyl.
-const musicPlugins = [
-  new SpotifyPlugin(),
-  new SoundCloudPlugin(),
-];
-if (YouTubePlugin) musicPlugins.push(new YouTubePlugin());
-musicPlugins.push(new YtDlpPlugin({ update: false }));
+// Inisialisasi Lavalink v4 Engine
+client.lavalink = initLavalink(client);
 
-const distubeOptions = {
-  emitNewSongOnly: true,
-  emitAddSongWhenCreatingQueue: false,
-  emitAddListWhenCreatingQueue: false,
-  plugins: musicPlugins,
-};
+// Forwarding paket raw voice Discord Gateway ke LavalinkManager
+client.on('raw', (d) => {
+  client.lavalink?.sendRawData(d);
+});
 
-if (ffmpegPath && fs.existsSync(ffmpegPath)) {
-  try {
-    fs.chmodSync(ffmpegPath, 0o755);
-  } catch (e) {}
-  distubeOptions.ffmpeg = { path: ffmpegPath };
-  console.log(`[FFMPEG] Menggunakan binary ffmpeg di: ${ffmpegPath}`);
-} else {
-  console.log('[FFMPEG] Menggunakan ffmpeg bawaan sistem (PATH)');
-}
-
-client.distube = new DisTube(client, distubeOptions);
-
-
-// Event Listener DisTube untuk notifikasi otomatis di channel Discord
-client.distube
-  // Saat lagu mulai diputar
-  .on('playSong', (queue, song) => {
-    console.log(`[AUDIO PLAYING] Memutar: ${song.name} | Voice: ${queue.voice?.channel?.name || 'Voice'} | Guild: ${queue.textChannel?.guild?.name}`);
-    const embed = new EmbedBuilder()
-      .setColor(0x00FF7F)
-      .setTitle('🎵 Sedang Memutar Lagu')
-      .setDescription(`[${song.name}](${song.url})`)
-      .addFields(
-        { name: '⏱️ Durasi', value: `\`${song.formattedDuration}\``, inline: true },
-        { name: '👤 Diminta Oleh', value: `${song.user}`, inline: true },
-        { name: '🔊 Volume', value: `\`${queue.volume}%\``, inline: true }
-      )
-      .setThumbnail(song.thumbnail || null)
-      .setTimestamp();
-
-    queue.textChannel?.send({ embeds: [embed] }).catch(console.error);
-  })
-  // Saat lagu ditambahkan ke antrean
-  .on('addSong', (queue, song) => {
-    const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle('➕ Ditambahkan ke Antrean')
-      .setDescription(`[${song.name}](${song.url}) - \`${song.formattedDuration}\``)
-      .setFooter({ text: `Diminta oleh ${song.user.tag}` });
-
-    queue.textChannel?.send({ embeds: [embed] }).catch(console.error);
-  })
-  // Saat playlist ditambahkan
-  .on('addList', (queue, playlist) => {
-    queue.textChannel?.send(
-      `📋 Menambahkan playlist **${playlist.name}** (${playlist.songs.length} lagu) ke antrean.`
-    ).catch(console.error);
-  })
-  // Error handling audio streaming (DisTube v5: error, queue, song)
-  .on('error', (error, queue, song) => {
-    console.error('[DISTUBE ERROR]:', error?.message || error);
-    const channel = queue?.textChannel;
-    if (channel && typeof channel.send === 'function') {
-      channel.send(`❌ Terjadi kendala saat memutar lagu **${song?.name || ''}**: ${error?.message || 'Sumber audio tidak tersedia'}`).catch(() => {});
-    }
-  })
-  // Saat voice channel kosong (tetap tinggal jika mode patroli aktif)
-  .on('empty', (queue) => {
-    if (isPatroliActive(queue.id)) return;
-    queue.textChannel?.send('👋 Voice channel kosong, bot meninggalkan voice channel.').catch(console.error);
-  })
-  // Saat seluruh antrean lagu telah selesai diputar
-  .on('finish', (queue) => {
-    if (isPatroliActive(queue.id)) return;
-    queue.textChannel?.send('✅ Semua antrean musik telah selesai diputar.').catch(console.error);
-  });
-
-// Event saat bot berhasil terhubung dan siap digunakan
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`✅ Bot online! Masuk sebagai ${readyClient.user.tag}`);
+
+  // Inisialisasi LavalinkManager v4
+  try {
+    await client.lavalink.init({ id: readyClient.user.id, username: readyClient.user.username });
+    console.log('[LAVALINK v4] LavalinkManager siap melayani pemutaran audio.');
+  } catch (err) {
+    console.error('[LAVALINK v4] Gagal inisialisasi node:', err.message);
+  }
 
   // Auto-sync slash command global & ke setiap server (agar langsung aktif instan tanpa delay cache)
   (async () => {

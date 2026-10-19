@@ -18,22 +18,22 @@ module.exports = {
       });
     }
 
-    const queue = interaction.client.distube.getQueue(interaction.guildId);
-    if (!queue) {
+    const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+    if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
       return interaction.reply({
-        content: '❌ Tidak ada musik yang sedang diputar saat ini!',
+        content: '❌ Tidak ada musik yang sedang diputar atau dijeda saat ini!',
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    if (!queue.paused) {
+    if (!player.paused) {
       return interaction.reply({
         content: '⚠️ Musik sedang diputar (tidak dalam keadaan dijeda)!',
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    queue.resume();
+    await player.resume();
     await interaction.reply('▶️ Musik dilanjutkan kembali.');
   },
 };

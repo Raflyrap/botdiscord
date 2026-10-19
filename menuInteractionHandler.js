@@ -12,6 +12,7 @@ const {
 const { setAfk } = require('./afkHelper');
 const { askAI } = require('./aiHelper');
 const { getServerConfig, getAllBadwords } = require('./autoModHelper');
+const { formatDuration } = require('./lavalinkHelper');
 
 async function handleMenuInteraction(interaction) {
   // 1. SELECT MENU (Langsung aksi perintah)
@@ -52,30 +53,34 @@ async function handleMenuInteraction(interaction) {
     }
 
     if (val === 'cmd_pause') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
-      if (queue.paused) return interaction.reply({ content: 'Musik sudah dalam keadaan dijeda.', flags: MessageFlags.Ephemeral });
-      queue.pause();
-      return interaction.reply({ content: 'Musik telah dijeda.', flags: MessageFlags.Ephemeral });
+      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
+      if (player.paused) return interaction.reply({ content: 'Musik sudah dalam keadaan dijeda.', flags: MessageFlags.Ephemeral });
+      await player.pause();
+      return interaction.reply({ content: '⏸️ Musik telah dijeda.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_resume') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
-      if (!queue.paused) return interaction.reply({ content: 'Musik sedang diputar (tidak dijeda).', flags: MessageFlags.Ephemeral });
-      queue.resume();
-      return interaction.reply({ content: 'Musik dilanjutkan kembali.', flags: MessageFlags.Ephemeral });
+      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar atau dijeda.', flags: MessageFlags.Ephemeral });
+      if (!player.paused) return interaction.reply({ content: 'Musik sedang diputar (tidak dijeda).', flags: MessageFlags.Ephemeral });
+      await player.resume();
+      return interaction.reply({ content: '▶️ Musik dilanjutkan kembali.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_skip') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
+      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+      if (!player || !player.queue.current) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
       try {
-        const song = await queue.skip();
-        return interaction.reply({ content: `Lagu dilewati ke: ${song.name}`, flags: MessageFlags.Ephemeral });
-      } catch {
-        await queue.stop();
-        return interaction.reply({ content: 'Tidak ada lagu lagi di antrean. Musik dihentikan.', flags: MessageFlags.Ephemeral });
+        const nextSong = player.queue.tracks[0];
+        await player.skip();
+        if (nextSong) {
+          return interaction.reply({ content: `⏭️ Lagu dilewati ke: **${nextSong.info.title}**`, flags: MessageFlags.Ephemeral });
+        } else {
+          return interaction.reply({ content: '⏭️ Tidak ada lagu lagi di antrean. Pemutaran selesai.', flags: MessageFlags.Ephemeral });
+        }
+      } catch (err) {
+        return interaction.reply({ content: `Gagal melewati lagu: ${err.message}`, flags: MessageFlags.Ephemeral });
       }
     }
 
@@ -92,23 +97,23 @@ async function handleMenuInteraction(interaction) {
     }
 
     if (val === 'cmd_queue') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue || !queue.songs || queue.songs.length === 0) {
+      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
         return interaction.reply({ content: 'Antrean musik saat ini kosong.', flags: MessageFlags.Ephemeral });
       }
-      const currentSong = queue.songs[0];
-      const nextSongs = queue.songs.slice(1, 11);
+      const currentSong = player.queue.current;
+      const nextSongs = player.queue.tracks.slice(0, 10);
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle('Antrean Musik Saat Ini')
         .setDescription(
-          `**Sedang Diputar:**\n[${currentSong.name}](${currentSong.url}) - \`${currentSong.formattedDuration}\`\n\n` +
+          `**Sedang Diputar:**\n[**${currentSong.info.title}**](${currentSong.info.uri || ''}) - \`${formatDuration(currentSong.info.duration)}\`\n\n` +
           `**Lagu Berikutnya:**\n` +
           (nextSongs.length > 0
-            ? nextSongs.map((s, i) => `**${i + 1}.** [${s.name}](${s.url}) - \`${s.formattedDuration}\``).join('\n')
+            ? nextSongs.map((s, i) => `**${i + 1}.** [${s.info.title}](${s.info.uri || ''}) - \`${formatDuration(s.info.duration)}\``).join('\n')
             : '*(Tidak ada antrean selanjutnya)*')
         )
-        .setFooter({ text: `Total: ${queue.songs.length} lagu | Volume: ${queue.volume}%` });
+        .setFooter({ text: `Total: ${(currentSong ? 1 : 0) + player.queue.tracks.length} lagu | Volume: ${player.volume}%` });
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
@@ -362,30 +367,61 @@ async function handleMenuInteraction(interaction) {
       if (!voiceChannel) {
         return interaction.reply({ content: 'Kamu harus bergabung ke voice channel terlebih dahulu.', flags: MessageFlags.Ephemeral });
       }
-      const query = interaction.fields.getTextInputValue('music_query');
+      const query = interaction.fields.getTextInputValue('music_query').trim();
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
-        await interaction.client.distube.play(voiceChannel, query, {
-          textChannel: interaction.channel,
-          member: member || interaction.member,
-        });
-        return interaction.editReply(`Memproses lagu: **${query}**`);
+        let player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+        if (!player) {
+          player = interaction.client.lavalink.createPlayer({
+            guildId: interaction.guild.id,
+            voiceChannelId: voiceChannel.id,
+            textChannelId: interaction.channel.id,
+            selfDeaf: true,
+            selfMute: false,
+            volume: 100,
+          });
+        }
+        if (!player.connected) {
+          await player.connect();
+        } else if (player.voiceChannelId !== voiceChannel.id) {
+          await player.changeVoiceState({ voiceChannelId: voiceChannel.id });
+        }
+        player.textChannelId = interaction.channel.id;
+
+        const isUrl = /^https?:\/\//i.test(query);
+        const searchOptions = isUrl ? { query } : { query, source: 'ytsearch' };
+        const res = await player.search(searchOptions, interaction.user);
+
+        if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
+          return interaction.editReply(`❌ Tidak ditemukan lagu untuk: **${query}**`);
+        }
+
+        if (res.loadType === 'playlist') {
+          await player.queue.add(res.tracks);
+          if (!player.playing && !player.paused) await player.play();
+          return interaction.editReply(`📋 Playlist **${res.playlist?.name || 'Playlist'}** (${res.tracks.length} lagu) berhasil ditambahkan ke antrean.`);
+        }
+
+        const track = res.tracks[0];
+        await player.queue.add(track);
+        if (!player.playing && !player.paused) await player.play();
+        return interaction.editReply(`🎵 Ditambahkan ke antrean: **${track.info.title}**`);
       } catch (err) {
-        console.error('Distube modal play error:', err);
+        console.error('Lavalink modal play error:', err);
         return interaction.editReply(`Gagal memutar lagu: ${err.message}`);
       }
     }
 
     if (id === 'modal_music_volume') {
-      const queue = interaction.client.distube.getQueue(interaction.guildId);
-      if (!queue) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
+      const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+      if (!player || (!player.queue.current && player.queue.tracks.length === 0)) return interaction.reply({ content: 'Tidak ada musik yang sedang diputar.', flags: MessageFlags.Ephemeral });
       const volStr = interaction.fields.getTextInputValue('volume_level');
       const volume = parseInt(volStr, 10);
       if (isNaN(volume) || volume < 1 || volume > 100) {
         return interaction.reply({ content: 'Harap masukkan angka volume antara 1 sampai 100.', flags: MessageFlags.Ephemeral });
       }
-      queue.setVolume(volume);
-      return interaction.reply({ content: `Volume musik berhasil diatur ke ${volume}%.`, flags: MessageFlags.Ephemeral });
+      await player.setVolume(volume);
+      return interaction.reply({ content: `🔊 Volume musik berhasil diatur ke ${volume}%.`, flags: MessageFlags.Ephemeral });
     }
 
     if (id === 'modal_ai_prompt') {

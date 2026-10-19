@@ -26,8 +26,8 @@ module.exports = {
       });
     }
 
-    const queue = interaction.client.distube.getQueue(interaction.guildId);
-    if (!queue) {
+    const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+    if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
       return interaction.reply({
         content: '❌ Tidak ada musik yang sedang diputar saat ini!',
         flags: MessageFlags.Ephemeral,
@@ -35,7 +35,7 @@ module.exports = {
     }
 
     const volume = interaction.options.getInteger('persen');
-    queue.setVolume(volume);
+    await player.setVolume(volume);
     await interaction.reply(`🔊 Volume musik berhasil diubah menjadi **${volume}%**`);
   },
 };

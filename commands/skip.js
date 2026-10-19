@@ -18,8 +18,8 @@ module.exports = {
       });
     }
 
-    const queue = interaction.client.distube.getQueue(interaction.guildId);
-    if (!queue) {
+    const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
+    if (!player || !player.queue.current) {
       return interaction.reply({
         content: '❌ Tidak ada musik yang sedang diputar saat ini!',
         flags: MessageFlags.Ephemeral,
@@ -27,12 +27,20 @@ module.exports = {
     }
 
     try {
-      const song = await queue.skip();
-      await interaction.reply(`⏭️ Lagu dilewati! Sekarang memutar: **${song.name}**`);
+      const nextSong = player.queue.tracks[0];
+      await player.skip();
+
+      if (nextSong) {
+        await interaction.reply(`⏭️ Lagu dilewati! Sekarang memutar: **${nextSong.info.title}**`);
+      } else {
+        await interaction.reply('⏭️ Lagu dilewati. Tidak ada lagi lagu di antrean.');
+      }
     } catch (error) {
-      // Jika tidak ada lagu lagi di antrean
-      await queue.stop();
-      await interaction.reply('⏭️ Tidak ada lagu lagi di antrean. Musik dihentikan.');
+      console.error('[SKIP ERROR]:', error);
+      await interaction.reply({
+        content: `❌ Gagal melewati lagu: ${error.message || 'Terjadi kesalahan sistem'}`,
+        flags: MessageFlags.Ephemeral,
+      });
     }
   },
 };

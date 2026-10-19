@@ -3,3 +3,5 @@ node_modules
 *.zip
 pterodtcyl
 patroliConfig.json
+.current_commit
+reminderData.json

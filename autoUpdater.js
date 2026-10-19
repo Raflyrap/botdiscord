@@ -25,6 +25,10 @@ function downloadFile(url) {
 
 async function checkForUpdates() {
   try {
+    if (process.env.DISABLE_AUTO_UPDATE === 'true' || process.env.AUTO_UPDATE === 'false') {
+      console.log('[AUTO-UPDATER] Auto-update dilewati (dinonaktifkan via config).');
+      return;
+    }
     console.log('[AUTO-UPDATER] Memeriksa update terbaru dari GitHub...');
     // Cek commit SHA terbaru dari GitHub API
     const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${BRANCH}`;
