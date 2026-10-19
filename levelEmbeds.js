@@ -40,19 +40,55 @@ function buildLevelUpEmbed({ member, user, guild }, data) {
 
 function buildAchievementEmbed({ member, user }, ach, ownedCount) {
   return new EmbedBuilder()
-    .setColor(0xE91E63)
+    .setColor(0x5865F2)
     .setAuthor({
       name: member?.displayName || user.username,
       iconURL: (member || user).displayAvatarURL({ extension: 'png', forceStatic: false }),
     })
-    .setTitle('🏅 ACHIEVEMENT UNLOCKED!')
+    .setTitle('PRESTASI DIBUKA (ACHIEVEMENT)')
     .setDescription(
-      `<@${user.id}> membuka achievement baru:\n\n` +
-      `> ${ach.emoji} **${ach.name}**\n` +
+      `<@${user.id}> telah membuka prestasi baru:\n\n` +
+      `> **${ach.tag || '[ACH]'} ${ach.name}**\n` +
       `> *${ach.desc}*`
     )
-    .setFooter({ text: `Koleksi: ${ownedCount}/${lvl.ACHIEVEMENTS.length} achievement` })
+    .setFooter({ text: `Koleksi Prestasi: ${ownedCount} / ${lvl.ACHIEVEMENTS.length}` })
     .setTimestamp();
 }
 
-module.exports = { buildLevelUpEmbed, buildAchievementEmbed };
+async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChannel, result) {
+  if (!result || !guild) return;
+  const lvlCfg = lvl.getLevelConfig(guild.id);
+  const resolveChannel = (id) => {
+    const ch = id ? guild.channels.cache.get(id) : null;
+    return ch && ch.isTextBased() ? ch : fallbackChannel;
+  };
+
+  const ctx = { member, user, guild };
+
+  if (result.leveledUp) {
+    const levelUpEmbed = buildLevelUpEmbed(ctx, {
+      oldLevel: result.oldLevel,
+      newLevel: result.newLevel,
+      xp: result.userData.xp,
+      totalMessages: result.userData.totalMessages || 0,
+      position: lvl.getUserRank(guild.id, user.id),
+    });
+
+    const ch = resolveChannel(lvlCfg.levelUpChannel);
+    if (ch) {
+      await ch.send({ content: `<@${user.id}>`, embeds: [levelUpEmbed] }).catch(console.error);
+    }
+  }
+
+  if (result.newAchievements && result.newAchievements.length > 0) {
+    const achChannel = resolveChannel(lvlCfg.achievementChannel);
+    if (achChannel) {
+      for (const ach of result.newAchievements) {
+        const achEmbed = buildAchievementEmbed(ctx, ach, result.userData.achievements.length);
+        await achChannel.send({ embeds: [achEmbed] }).catch(console.error);
+      }
+    }
+  }
+}
+
+module.exports = { buildLevelUpEmbed, buildAchievementEmbed, dispatchLevelUpAndAchievements };

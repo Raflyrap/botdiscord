@@ -32,7 +32,7 @@ module.exports = {
 
     if (!hasPerm) {
       return interaction.reply({
-        content: '⚠️ Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
+        content: 'Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
         flags: MessageFlags.Ephemeral,
       });
     }

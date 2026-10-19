@@ -427,19 +427,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // === MINI GAMES: 1. TEBAK KOIN ===
     if (interaction.customId.startsWith('btn_game_coin_')) {
       const { getCoinGameRow } = require('./gameHelper');
+      const { addReward } = require('./levelingHelper');
+      const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
       const type = interaction.customId.replace('btn_game_coin_', '');
       const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
       const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
 
       if (type === 'random') {
+        const reward = addReward(interaction.guildId, interaction.user.id, { coins: 5, xp: 5, isWin: false });
+        dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
+        let bonusText = `\n• Hadiah Partisipasi: +5 Koin & +5 XP`;
+        if (reward.leveledUp) bonusText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
         return interaction.reply({
-          content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**`,
+          content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**${bonusText}`,
           components: [getCoinGameRow()],
         });
       }
 
       const guessName = type === 'gambar' ? 'Gambar' : 'Angka';
       const won = type === flip;
+      const coinsEarned = won ? 50 : 0;
+      const xpEarned = won ? 30 : 10;
+      const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin: won });
+      dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
+
+      let rewardText = won
+        ? `\n• Hadiah Menang: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
+        : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
+      if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
 
       return interaction.reply({
         content:
@@ -448,7 +463,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           `• Tebakan <@${interaction.user.id}>: **${guessName}**\n\n` +
           (won
             ? `Status: **Tebakan Tepat (Menang)**`
-            : `Status: **Belum Tepat (Coba Lagi)**`),
+            : `Status: **Belum Tepat (Coba Lagi)**`) +
+          `${rewardText}`,
         components: [getCoinGameRow()],
       });
     }
@@ -456,6 +472,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // === MINI GAMES: 2. SUIT JEPANG (GUNTING BATU KERTAS) ===
     if (interaction.customId.startsWith('btn_game_rps_')) {
       const { getRpsGameRow } = require('./gameHelper');
+      const { addReward } = require('./levelingHelper');
+      const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
       const userChoice = interaction.customId.replace('btn_game_rps_', '');
       const choices = ['rock', 'paper', 'scissors'];
       const botChoice = choices[Math.floor(Math.random() * choices.length)];
@@ -467,24 +485,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
       };
 
       let resultText = '';
+      let isWin = false;
+      let coinsEarned = 0;
+      let xpEarned = 10;
+
       if (userChoice === botChoice) {
         resultText = 'Hasil: **Seri**';
+        coinsEarned = 20;
+        xpEarned = 15;
       } else if (
         (userChoice === 'rock' && botChoice === 'scissors') ||
         (userChoice === 'paper' && botChoice === 'rock') ||
         (userChoice === 'scissors' && botChoice === 'paper')
       ) {
         resultText = 'Hasil: **Kamu Menang**';
+        isWin = true;
+        coinsEarned = 50;
+        xpEarned = 30;
       } else {
         resultText = 'Hasil: **Kamu Kalah**';
+        coinsEarned = 0;
+        xpEarned = 10;
       }
+
+      const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin });
+      dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
+
+      let rewardText = coinsEarned > 0
+        ? `\n• Hadiah: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
+        : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
+      if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
 
       return interaction.reply({
         content:
           `**Duel Suit**\n` +
           `• <@${interaction.user.id}>: **${choiceMap[userChoice]}**\n` +
           `• FlyBot: **${choiceMap[botChoice]}**\n\n` +
-          `${resultText}`,
+          `${resultText}${rewardText}`,
         components: [getRpsGameRow()],
       });
     }
@@ -517,6 +554,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
           flags: MessageFlags.Ephemeral,
         });
       }
+    }
+
+    // === PROFILE & LEADERBOARD BUTTONS ===
+    if (interaction.customId.startsWith('btn_profile_ach_')) {
+      const targetId = interaction.customId.replace('btn_profile_ach_', '');
+      const lvl = require('./levelingHelper');
+      const uData = lvl.getUserData(interaction.guildId, targetId);
+      const targetUser = await interaction.client.users.fetch(targetId).catch(() => interaction.user);
+
+      const owned = uData.achievements || [];
+      const lines = lvl.ACHIEVEMENTS.map((ach) => {
+        const isOwned = owned.includes(ach.id);
+        const status = isOwned ? '[TERBUKA]' : '[TERKUNCI]';
+        return `> **${ach.tag || '[ACH]'} ${ach.name}**  --  ${status}\n> *${ach.desc}*`;
+      });
+
+      const achListEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`Daftar Prestasi  •  ${targetUser.username}`)
+        .setDescription(
+          `Total Terbuka: **${owned.length} / ${lvl.ACHIEVEMENTS.length}**\n\n` +
+          lines.join('\n\n')
+        )
+        .setFooter({ text: 'Raih lebih banyak prestasi dengan aktif chat, bermain game, dan klaim harian.' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [achListEmbed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.customId === 'btn_profile_lb') {
+      const lbCmd = require('./commands/leaderboard');
+      const payload = lbCmd.buildLeaderboardEmbed(interaction.guild, 'xp', interaction.user);
+      return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.customId === 'btn_lb_xp' || interaction.customId === 'btn_lb_coins') {
+      const lbCmd = require('./commands/leaderboard');
+      const type = interaction.customId === 'btn_lb_xp' ? 'xp' : 'coins';
+      const payload = lbCmd.buildLeaderboardEmbed(interaction.guild, type, interaction.user);
+      return interaction.update(payload);
     }
 
     // Tombol Self-Role (Ambil / Cabut Role)
@@ -994,13 +1071,24 @@ client.on(Events.MessageCreate, async (message) => {
         } else if (res.status === 'HIGH') {
           message.reply(`[Terlalu BESAR] Angka **${guessNum}** masih lebih besar dari angka rahasia. Coba angka yang lebih kecil.`).catch(() => {});
         } else if (res.status === 'CORRECT') {
+          const { addReward } = require('./levelingHelper');
+          const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
+          const bonusCoins = res.attempts <= 3 ? 200 : res.attempts <= 6 ? 150 : res.attempts <= 10 ? 100 : 70;
+          const xpEarned = 100;
+          const reward = addReward(message.guild.id, message.author.id, { coins: bonusCoins, xp: xpEarned, isWin: true });
+          dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward);
+
+          let extraLevelText = reward.leveledUp ? `\n\n**LEVEL UP!** Selamat <@${message.author.id}> naik ke **Level ${reward.newLevel}**!` : '';
+
           const winEmbed = new EmbedBuilder()
             .setColor(0x57F287)
-            .setTitle('Tebakan Tepat  •  Pemenang')
+            .setTitle('Tebakan Tepat  •  Pemenang Juara')
             .setDescription(
               `Selamat <@${message.author.id}>, angka rahasianya memang **${res.target}**!\n\n` +
-              `Berhasil ditebak dalam **${res.attempts} percobaan**.\n\n` +
-              `*Klik tombol **Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll.*`
+              `• Berhasil ditebak dalam **${res.attempts} percobaan**\n` +
+              `• Hadiah Juara: **+${bonusCoins} Koin** & **+${xpEarned} XP**` +
+              extraLevelText +
+              `\n\n*Klik tombol **Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll.*`
             )
             .setTimestamp();
           message.channel.send({ embeds: [winEmbed], components: [getNumberGameRow()] }).catch(() => {});
@@ -1013,41 +1101,8 @@ client.on(Events.MessageCreate, async (message) => {
 
   try {
     const result = processMessage(message.guild.id, message.author.id);
-
-
-    const lvlHelper = require('./levelingHelper');
-    const lvlCfg = lvlHelper.getLevelConfig(message.guild.id);
-    const resolveChannel = (id) => {
-      const ch = id ? message.guild.channels.cache.get(id) : null;
-      return ch && ch.isTextBased() ? ch : message.channel;
-    };
-
-    const { buildLevelUpEmbed, buildAchievementEmbed } = require('./levelEmbeds');
-    const ctx = { member: message.member, user: message.author, guild: message.guild };
-
-    // Notifikasi level up (channel khusus level-up)
-    if (result.leveledUp) {
-      const levelUpEmbed = buildLevelUpEmbed(ctx, {
-        oldLevel: result.oldLevel,
-        newLevel: result.newLevel,
-        xp: result.userData.xp,
-        totalMessages: result.userData.totalMessages,
-        position: lvlHelper.getUserRank(message.guild.id, message.author.id),
-      });
-
-      await resolveChannel(lvlCfg.levelUpChannel)
-        .send({ content: `<@${message.author.id}>`, embeds: [levelUpEmbed] })
-        .catch(console.error);
-    }
-
-    // Notifikasi achievement baru (channel khusus achievement)
-    if (result.newAchievements.length > 0) {
-      const achChannel = resolveChannel(lvlCfg.achievementChannel);
-      for (const ach of result.newAchievements) {
-        const achEmbed = buildAchievementEmbed(ctx, ach, result.userData.achievements.length);
-        await achChannel.send({ embeds: [achEmbed] }).catch(console.error);
-      }
-    }
+    const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
+    await dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, result);
   } catch (error) {
     console.error('Error saat memproses XP leveling:', error);
   }

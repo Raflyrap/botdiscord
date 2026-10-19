@@ -180,7 +180,7 @@ async function setupMiniGames(guild) {
     .setTitle('Arena Tebak Koin')
     .setDescription(
       `Selamat datang di Arena Tebak Koin.\n` +
-      `Uji insting dan tebakan kamu di sini.\n\n` +
+      `Uji insting dan tebakan kamu di sini dan menangkan koin serta XP!\n\n` +
       `**Panduan Permainan:**\n` +
       `1. Tentukan pilihan tebakan kamu: **Gambar** atau **Angka**.\n` +
       `2. Klik tombol di bawah untuk langsung melempar koin.\n` +
@@ -190,6 +190,7 @@ async function setupMiniGames(guild) {
     .addFields(
       { name: 'Pilihan Sisi', value: 'Gambar  |  Angka', inline: true },
       { name: 'Peluang', value: '50% : 50%', inline: true },
+      { name: 'Hadiah Kemenangan', value: '+50 Koin & +30 XP', inline: true },
     )
     .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk bermain' })
     .setTimestamp();
@@ -221,7 +222,7 @@ async function setupMiniGames(guild) {
     .setTitle('Arena Tebak Angka (1 - 100)')
     .setDescription(
       `Selamat datang di Arena Tebak Angka.\n` +
-      `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem.\n\n` +
+      `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem dan raih jackpot hadiah!\n\n` +
       `**Panduan Permainan:**\n` +
       `1. Klik tombol **Main Lagi** di bawah untuk memulai ronde baru.\n` +
       `2. Ketik angka tebakan kamu (contoh: 50) langsung di chat channel ini.\n` +
@@ -233,6 +234,7 @@ async function setupMiniGames(guild) {
     .addFields(
       { name: 'Rentang Angka', value: '1 sampai 100', inline: true },
       { name: 'Mode', value: 'Multiplayer Komunitas', inline: true },
+      { name: 'Hadiah Juara', value: 'Hingga +200 Koin & +100 XP', inline: true },
     )
     .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk mulai' })
     .setTimestamp();
@@ -263,7 +265,7 @@ async function setupMiniGames(guild) {
     .setAuthor({ name: 'FlyBot  •  Suit Jepang', iconURL: guild.client.user.displayAvatarURL() })
     .setTitle('Arena Suit (Gunting Batu Kertas)')
     .setDescription(
-      `Tantang FlyBot dalam adu pilihan klasik.\n\n` +
+      `Tantang FlyBot dalam adu pilihan klasik dan dapatkan koin serta XP!\n\n` +
       `**Aturan Permainan:**\n` +
       `• Batu mengalahkan Gunting\n` +
       `• Gunting mengalahkan Kertas\n` +
@@ -273,6 +275,7 @@ async function setupMiniGames(guild) {
     .addFields(
       { name: 'Lawan', value: 'FlyBot AI (Acak)', inline: true },
       { name: 'Sistem', value: 'Respons Instan', inline: true },
+      { name: 'Hadiah', value: 'Menang: +50 Koin | Seri: +20 Koin', inline: false },
     )
     .setFooter({ text: 'Pesan disematkan permanen • Pilih Batu, Kertas, atau Gunting di bawah' })
     .setTimestamp();

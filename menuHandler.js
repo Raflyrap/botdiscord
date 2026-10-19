@@ -52,12 +52,21 @@ function getMainDashboard(guild, member) {
         ].join('\n'),
       },
       {
+        name: 'Level & Ekonomi',
+        value: [
+          line('/profile', 'Lihat kartu profil, level, koin & badge'),
+          line('/daily', 'Klaim hadiah koin & XP harian gratis'),
+          line('/leaderboard', 'Papan peringkat XP & koin tertinggi'),
+          line('/pay', 'Transfer koin ke sesama anggota'),
+        ].join('\n'),
+      },
+      {
         name: 'Anggota & AI',
         value: [
           line('/ai', 'Tanya dan diskusi dengan AI'),
           line('/afk', 'Pasang status sedang tidak di tempat'),
           line('/remind', 'Pasang pengingat jadwal otomatis'),
-          line('/userinfo', 'Lihat profil & detail akun pengguna'),
+          line('/userinfo', 'Lihat detail teknis akun Discord'),
           line('/serverinfo', 'Lihat statistik & info lengkap server'),
           line('/ping', 'Cek kecepatan respons bot'),
         ].join('\n'),
@@ -93,18 +102,18 @@ function getMainDashboard(guild, member) {
     .setTimestamp();
 
   const menuOptions = [
+    { label: 'Kartu Profil Pengguna', description: 'Lihat level, XP, koin, peringkat & badge', value: 'cmd_profile' },
+    { label: 'Klaim Hadiah Harian', description: 'Klaim bonus koin & XP gratis setiap 24 jam', value: 'cmd_daily' },
+    { label: 'Papan Peringkat', description: 'Lihat peringkat XP dan koin server', value: 'cmd_leaderboard' },
     { label: 'Putar Musik', description: 'Putar lagu satuan atau playlist', value: 'cmd_play' },
-    { label: 'Jeda Musik', description: 'Menjeda pemutaran musik yang aktif', value: 'cmd_pause' },
-    { label: 'Lanjutkan Musik', description: 'Melanjutkan musik yang sedang dijeda', value: 'cmd_resume' },
     { label: 'Lewati Lagu', description: 'Melewati lagu ke daftar berikutnya', value: 'cmd_skip' },
-    { label: 'Repeat / Loop Lagu', description: 'Loop 1 lagu yang sedang diputar', value: 'cmd_repeat' },
     { label: 'Antrean Musik', description: 'Melihat daftar antrean lagu saat ini', value: 'cmd_queue' },
     { label: 'Atur Volume Musik', description: 'Ubah tingkat volume (1 - 100%)', value: 'cmd_volume' },
     { label: 'Stop & Keluar Voice', description: 'Hentikan musik / patroli & keluar voice', value: 'cmd_stop' },
     { label: 'Patroli Voice 24 Jam', description: 'Jaga voice channel 24 jam nonstop', value: 'cmd_patroli' },
     { label: 'Tanya AI', description: 'Ajukan pertanyaan ke AI', value: 'cmd_ai' },
     { label: 'AFK', description: 'Pasang status sedang tidak di tempat', value: 'cmd_afk' },
-    { label: 'Info Pengguna', description: 'Lihat profil & detail akun pengguna', value: 'cmd_userinfo' },
+    { label: 'Info Akun Discord', description: 'Lihat tanggal buat akun & role teknis', value: 'cmd_userinfo' },
     { label: 'Info Server', description: 'Lihat statistik & info lengkap server', value: 'cmd_serverinfo' },
     { label: 'Ping', description: 'Cek kecepatan respons bot', value: 'cmd_ping' },
   ];

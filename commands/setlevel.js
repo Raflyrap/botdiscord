@@ -31,7 +31,7 @@ module.exports = {
 
     if (!hasPerm) {
       return interaction.reply({
-        content: '⚠️ Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
+        content: 'Perintah ini hanya bisa dijalankan oleh Administrator atau Pengelola Server.',
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -52,11 +52,11 @@ module.exports = {
     const fmt = (id) => (id ? `<#${id}>` : '*Channel tempat user chat*');
 
     const embed = new EmbedBuilder()
-      .setColor(0x9B59FF)
-      .setTitle('⚙️ Pengaturan Notifikasi Leveling')
+      .setColor(0x5865F2)
+      .setTitle('Pengaturan Notifikasi Leveling')
       .addFields(
-        { name: '🆙 Level Up', value: fmt(cfg.levelUpChannel), inline: true },
-        { name: '🏅 Achievement', value: fmt(cfg.achievementChannel), inline: true },
+        { name: 'Level Up', value: fmt(cfg.levelUpChannel), inline: true },
+        { name: 'Prestasi / Achievement', value: fmt(cfg.achievementChannel), inline: true },
       )
       .setFooter({ text: 'Gunakan /setlevel reset:True untuk mengembalikan ke default' })
       .setTimestamp();

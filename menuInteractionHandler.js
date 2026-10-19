@@ -99,6 +99,24 @@ async function handleMenuInteraction(interaction) {
     }
 
     // --- AKSI COMMAND UMUM ---
+    if (val === 'cmd_profile') {
+      const profileCmd = interaction.client.commands.get('profile');
+      if (profileCmd) return profileCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah profile tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_daily') {
+      const dailyCmd = interaction.client.commands.get('daily');
+      if (dailyCmd) return dailyCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah daily tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_leaderboard') {
+      const lbCmd = interaction.client.commands.get('leaderboard');
+      if (lbCmd) return lbCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah leaderboard tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
     if (val === 'cmd_ai') {
       return interaction.showModal(createAIModal());
     }
