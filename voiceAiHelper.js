@@ -7,188 +7,223 @@ const {
   createAudioResource,
   AudioPlayerStatus,
   EndBehaviorType,
+  StreamType,
 } = require('@discordjs/voice');
-const { EmbedBuilder } = require('discord.js');
 const prism = require('prism-media');
 const { Readable } = require('stream');
-const OpenAI = require('openai');
-const { toFile } = require('openai');
 
-let openaiClient = null;
-function getOpenAI() {
-  if (!openaiClient && process.env.OPENAI_API_KEY) {
-    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return openaiClient;
-}
-
-// Map session aktif: guildId -> SessionData
+// Map sesi aktif per guild: guildId -> SessionData
 const activeSessions = new Map();
 
-// Memory percakapan voice per guild
-const voiceHistories = new Map();
-const MAX_VOICE_HISTORY = 8; // 4 pasang tanya-jawab
-
-// Frasa suara jeda berpikir alami khas tongkrongan
-const FILLER_PHRASES = [
-  'Hmm...',
-  'Bentar bray...',
-  'Emmm...',
-  'Hmm bentar ya...',
-  'Bentar gue mikir...',
-  'Oke bentar...',
-];
-
-// Cache audio filler (voiceType -> Array of Buffers)
-const fillerAudioCache = new Map();
-
 /**
- * Pre-generate audio suara mikir ke memory agar 0ms latency
+ * Konversi 48kHz Stereo 16-bit PCM (Discord) ke 24kHz Mono 16-bit PCM (OpenAI Realtime)
  */
-async function initFillersForVoice(voiceType = 'nova') {
-  if (fillerAudioCache.has(voiceType) && fillerAudioCache.get(voiceType).length > 0) {
-    return fillerAudioCache.get(voiceType);
-  }
+function convert48kStereoTo24kMono(stereo48kBuf) {
+  const numFrames = Math.floor(stereo48kBuf.length / 4);
+  const targetFrames = Math.floor(numFrames / 2);
+  const mono24kBuf = Buffer.alloc(targetFrames * 2);
 
-  const openai = getOpenAI();
-  if (!openai) return [];
-
-  const buffers = [];
-  for (const phrase of FILLER_PHRASES) {
-    try {
-      const res = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice: voiceType,
-        input: phrase,
-        speed: 1.05,
-      });
-      buffers.push(Buffer.from(await res.arrayBuffer()));
-    } catch (e) {
-      console.warn('[FILLER GEN ERROR]', e.message);
-    }
+  let outOffset = 0;
+  for (let i = 0; i < numFrames; i += 2) {
+    const inOffset = i * 4;
+    mono24kBuf[outOffset] = stereo48kBuf[inOffset];
+    mono24kBuf[outOffset + 1] = stereo48kBuf[inOffset + 1];
+    outOffset += 2;
   }
-
-  if (buffers.length > 0) {
-    fillerAudioCache.set(voiceType, buffers);
-    console.log(`[VOICE AI FILLER] ${buffers.length} suara mikir berhasil di-cache untuk voice: ${voiceType}`);
-  }
-  return buffers;
+  return mono24kBuf;
 }
 
 /**
- * Mainkan suara mikir ("Hmm...", "Bentar bray...") secara instan
+ * Konversi 24kHz Mono 16-bit PCM (OpenAI Realtime) ke 48kHz Stereo 16-bit PCM (Discord)
  */
-function playFillerSound(session) {
-  const list = fillerAudioCache.get(session.voiceType) || [];
-  if (list.length === 0) return Promise.resolve();
+function convert24kMonoTo48kStereo(mono24kBuf) {
+  const numSamples = Math.floor(mono24kBuf.length / 2);
+  const stereo48kBuf = Buffer.alloc(numSamples * 8);
 
-  const chosenBuffer = list[Math.floor(Math.random() * list.length)];
+  for (let i = 0; i < numSamples; i++) {
+    const b0 = mono24kBuf[i * 2];
+    const b1 = mono24kBuf[i * 2 + 1];
+    const outOffset = i * 8;
+
+    // Frame 1: Left & Right
+    stereo48kBuf[outOffset] = b0;
+    stereo48kBuf[outOffset + 1] = b1;
+    stereo48kBuf[outOffset + 2] = b0;
+    stereo48kBuf[outOffset + 3] = b1;
+
+    // Frame 2: Left & Right
+    stereo48kBuf[outOffset + 4] = b0;
+    stereo48kBuf[outOffset + 5] = b1;
+    stereo48kBuf[outOffset + 6] = b0;
+    stereo48kBuf[outOffset + 7] = b1;
+  }
+  return stereo48kBuf;
+}
+
+const REALTIME_SYSTEM_PROMPT =
+  'Kamu adalah Fly, teman nongkrong AI yang sedang berbicara LANGSUNG lewat suara di Voice Channel Discord.\n\n' +
+  'ATURAN UTAMA PERCAKAPAN REAL-TIME:\n' +
+  '1. Karaktermu santai, asik, humoris, dan ekspresif layaknya sahabat tongkrongan anak gaul Jakarta / Jaksel.\n' +
+  '2. SELALU gunakan kata "gue" untuk diri sendiri dan "lo" untuk lawan bicara. Panggil bro/bray/sob.\n' +
+  '3. JAWAB SINGKAT DAN TO-THE-POINT (maksimal 1 sampai 2 kalimat saja!). Hindari ceramah atau daftar panjang agar percakapan terus mengalir dua arah.\n' +
+  '4. Bicaralah dengan intonasi hidup, bernapas, rileks, dan ekspresif. DILARANG KERAS menggunakan bahasa formal/kaku seperti "saya", "anda", atau "tentu saja".\n' +
+  '5. Jangan sebut simbol markdown atau emoji apa pun karena ini adalah obrolan suara langsung.';
+
+/**
+ * Hubungkan ke WebSocket OpenAI Realtime API (GA Model gpt-realtime-mini)
+ */
+function connectRealtimeWebSocket(session) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error('[REALTIME] OPENAI_API_KEY belum disetel di .env');
+    return null;
+  }
+
+  const url = 'wss://api.openai.com/v1/realtime?model=gpt-realtime-mini';
+  const ws = new WebSocket(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  let currentAudioDeltas = [];
+  let currentTranscript = '';
+
+  ws.addEventListener('open', () => {
+    console.log(`[REALTIME WS] Terhubung ke OpenAI Realtime API untuk Guild ${session.guildId}`);
+  });
+
+  ws.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      // Konfigurasi session setelah terkoneksi
+      if (data.type === 'session.created') {
+        ws.send(
+          JSON.stringify({
+            type: 'session.update',
+            session: {
+              type: 'realtime',
+              instructions: REALTIME_SYSTEM_PROMPT,
+              output_modalities: ['audio'],
+              audio: {
+                input: {
+                  format: { type: 'audio/pcm', rate: 24000 },
+                  turn_detection: null, // Dikontrol otomatis via Discord silence
+                },
+                output: {
+                  format: { type: 'audio/pcm', rate: 24000 },
+                  voice: session.voiceType || 'alloy',
+                },
+              },
+            },
+          })
+        );
+      }
+
+      // Kumpulkan audio output real-time
+      if (data.type === 'response.output_audio.delta') {
+        if (data.delta) {
+          currentAudioDeltas.push(Buffer.from(data.delta, 'base64'));
+        }
+      }
+
+      // Kumpulkan teks transkrip respon untuk log
+      if (data.type === 'response.output_audio_transcript.delta') {
+        currentTranscript += data.delta || '';
+      }
+
+      // Saat respon audio selesai di-generate dari OpenAI
+      if (data.type === 'response.done') {
+        if (currentAudioDeltas.length > 0) {
+          const mono24kFull = Buffer.concat(currentAudioDeltas);
+          currentAudioDeltas = [];
+
+          if (currentTranscript.trim()) {
+            console.log(`[REALTIME REPLY] Fly AI: "${currentTranscript.trim()}"`);
+            currentTranscript = '';
+          }
+
+          // Mainkan audio langsung ke Discord Voice
+          playRealtimeAudio(session, mono24kFull);
+        } else {
+          session.isProcessing = false;
+          session.isSpeaking = false;
+        }
+      }
+
+      if (data.type === 'error') {
+        console.error('[REALTIME ERROR]', data.error);
+        session.isProcessing = false;
+        session.isSpeaking = false;
+      }
+    } catch (err) {
+      console.error('[REALTIME PARSE ERROR]', err);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    console.log(`[REALTIME WS] Terputus untuk Guild ${session.guildId}`);
+    // Auto-reconnect jika sesi bot masih aktif
+    if (activeSessions.has(session.guildId)) {
+      setTimeout(() => {
+        if (activeSessions.has(session.guildId)) {
+          session.ws = connectRealtimeWebSocket(session);
+        }
+      }, 2000);
+    }
+  });
+
+  ws.addEventListener('error', (err) => {
+    console.error('[REALTIME WS ERROR]', err.message || err);
+  });
+
+  return ws;
+}
+
+/**
+ * Mainkan Buffer audio hasil Realtime (24kHz Mono) langsung ke Discord Voice (48kHz Stereo)
+ */
+function playRealtimeAudio(session, mono24kBuffer) {
   session.isSpeaking = true;
 
   try {
-    const resource = createAudioResource(Readable.from(chosenBuffer));
+    const stereo48kBuffer = convert24kMonoTo48kStereo(mono24kBuffer);
+    const resource = createAudioResource(Readable.from(stereo48kBuffer), {
+      inputType: StreamType.Raw,
+    });
+
     session.player.play(resource);
 
-    return new Promise((resolve) => {
-      const onIdle = () => {
-        session.player.off(AudioPlayerStatus.Idle, onIdle);
-        resolve();
-      };
-      session.player.on(AudioPlayerStatus.Idle, onIdle);
-
-      // Batas waktu pengaman 2.5 detik
+    const onIdle = () => {
+      session.player.off(AudioPlayerStatus.Idle, onIdle);
       setTimeout(() => {
-        session.player.off(AudioPlayerStatus.Idle, onIdle);
-        resolve();
-      }, 2500);
-    });
+        session.isSpeaking = false;
+        session.isProcessing = false;
+      }, 200);
+    };
+
+    session.player.on(AudioPlayerStatus.Idle, onIdle);
+
+    // Timeout pengaman
+    setTimeout(() => {
+      session.player.off(AudioPlayerStatus.Idle, onIdle);
+      session.isSpeaking = false;
+      session.isProcessing = false;
+    }, 20000);
   } catch (err) {
-    console.error('[PLAY FILLER ERROR]', err.message);
-    return Promise.resolve();
-  }
-}
-
-/**
- * Buat WAV Header 44-byte untuk PCM Buffer
- */
-function createWavHeader(dataLength, sampleRate = 48000, numChannels = 2, bitsPerSample = 16) {
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-  const buffer = Buffer.alloc(44);
-
-  buffer.write('RIFF', 0);
-  buffer.writeUInt32LE(36 + dataLength, 4);
-  buffer.write('WAVE', 8);
-  buffer.write('fmt ', 12);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20); // PCM
-  buffer.writeUInt16LE(numChannels, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(byteRate, 28);
-  buffer.writeUInt16LE(blockAlign, 32);
-  buffer.writeUInt16LE(bitsPerSample, 34);
-  buffer.write('data', 36);
-  buffer.writeUInt32LE(dataLength, 40);
-
-  return buffer;
-}
-
-const VOICE_SYSTEM_PROMPT = {
-  role: 'system',
-  content:
-    'Kamu adalah Fly, teman ngobrol AI yang sedang berbicara LANGSUNG lewat suara di Voice Channel Discord.\n\n' +
-    'ATURAN PERCAKAPAN SUARA (MUTLAK):\n' +
-    '1. Gunakan bahasa santai anak gaul tongkrongan / Jaksel. SELALU gunakan kata "gue" untuk diri sendiri dan "lo" untuk lawan bicara. Panggil bro/bray/sob.\n' +
-    '2. JAWABAN HARUS SANGAT SINGKAT DAN PADAT (maksimal 1 sampai 2 kalimat saja!). Ini obrolan suara langsung, jadi jangan pernah berpidato atau memberi daftar panjang.\n' +
-    '3. DILARANG KERAS menggunakan simbol markdown (**tebal**, *miring*, ```code```, bullet point) ataupun emoji sama sekali, karena teks ini langsung dibaca oleh suara Text-to-Speech.\n' +
-    '4. Responsif, seru, asik, dan to-the-point.',
-};
-
-/**
- * Tanya AI khusus untuk respons suara pendek
- */
-async function askVoiceAI(guildId, userId, prompt, userName) {
-  const openai = getOpenAI();
-  if (!openai) return 'Waduh bro, API key OpenAI belum disetel.';
-
-  if (!voiceHistories.has(guildId)) {
-    voiceHistories.set(guildId, []);
-  }
-
-  const history = voiceHistories.get(guildId);
-  history.push({
-    role: 'user',
-    content: `${userName}: ${prompt}`,
-  });
-
-  if (history.length > MAX_VOICE_HISTORY) {
-    history.splice(0, history.length - MAX_VOICE_HISTORY);
-  }
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [VOICE_SYSTEM_PROMPT, ...history],
-      max_tokens: 150,
-      temperature: 0.8,
-    });
-
-    const reply = response.choices?.[0]?.message?.content?.trim() || 'Gue denger lo bro, ada apa?';
-    history.push({ role: 'assistant', content: reply });
-    return reply;
-  } catch (err) {
-    console.error('[VOICE AI COMPLETION ERROR]', err);
-    return 'Sorry bro, koneksi otak gue agak ngelag sebentar.';
+    console.error('[PLAY REALTIME AUDIO ERROR]', err);
+    session.isSpeaking = false;
+    session.isProcessing = false;
   }
 }
 
 /**
  * Mulai sesi Voice AI di voice channel
  */
-async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'nova') {
+async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy') {
   const guildId = voiceChannel.guild.id;
 
-  // Jika sudah ada sesi aktif di guild ini, hentikan dulu
   if (activeSessions.has(guildId)) {
     await stopVoiceAiSession(guildId);
   }
@@ -197,7 +232,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'nova'
     channelId: voiceChannel.id,
     guildId: voiceChannel.guild.id,
     adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-    selfDeaf: false, // Wajib false agar bot bisa mendengarkan mic user
+    selfDeaf: false,
     selfMute: false,
   });
 
@@ -213,6 +248,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'nova'
     voiceType,
     connection,
     player,
+    ws: null,
     isSpeaking: false,
     isProcessing: false,
     activeListeners: new Set(),
@@ -221,38 +257,48 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'nova'
 
   activeSessions.set(guildId, session);
 
-  // Pre-cache audio filler (suara "hmmm...") di background
-  initFillersForVoice(voiceType).catch(console.error);
+  // Buka koneksi streaming OpenAI Realtime
+  session.ws = connectRealtimeWebSocket(session);
 
-  // Sambutan suara pertama saat join
-  playGreeting(session);
+  // Kirim sapaan suara pertama saat join
+  setTimeout(() => {
+    sendRealtimeTextMessage(session, 'Ucapkan salam sapaan santai bahwa lo udah masuk voice channel.');
+  }, 1000);
 
   // Tangkap saat ada user mulai berbicara di voice
   connection.receiver.speaking.on('start', (userId) => {
-    // Abaikan suara bot sendiri
     if (userId === voiceChannel.client.user.id) return;
-    // Jangan dengarkan jika bot sedang berbicara atau sedang memproses jawaban
     if (session.isSpeaking || session.isProcessing) return;
-    // Hindari duplikasi listener pada user yang sama
     if (session.activeListeners.has(userId)) return;
 
     handleUserSpeaking(session, userId);
   });
 
   connection.on(VoiceConnectionStatus.Disconnected, () => {
-    activeSessions.delete(guildId);
-    voiceHistories.delete(guildId);
+    stopVoiceAiSession(guildId);
   });
 
   return session;
 }
 
 /**
- * Putar suara sapaan pertama kali bot join
+ * Kirim instruksi teks langsung ke Realtime API untuk direspons via suara
  */
-async function playGreeting(session) {
-  const greetingText = 'Halo bro, gue Fly udah masuk voice nih. Langsung ngomong aja di mic lo, gue dengerin!';
-  await playSpeech(session, greetingText);
+function sendRealtimeTextMessage(session, text) {
+  if (!session.ws || session.ws.readyState !== 1) return;
+
+  session.isProcessing = true;
+  session.ws.send(
+    JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text }],
+      },
+    })
+  );
+  session.ws.send(JSON.stringify({ type: 'response.create' }));
 }
 
 /**
@@ -262,11 +308,11 @@ function handleUserSpeaking(session, userId) {
   session.activeListeners.add(userId);
 
   try {
-    // Berhenti merekam setelah ada jeda diam 750ms
+    // 500ms jeda diam untuk menandai selesai bicara (super responsif)
     const opusStream = session.connection.receiver.subscribe(userId, {
       end: {
         behavior: EndBehaviorType.AfterSilence,
-        duration: 750,
+        duration: 500,
       },
     });
 
@@ -286,30 +332,36 @@ function handleUserSpeaking(session, userId) {
     pcmStream.on('end', async () => {
       session.activeListeners.delete(userId);
 
-      // Cek apakah sesi masih aktif
       if (!activeSessions.has(session.guildId)) return;
 
       const pcmBuffer = Buffer.concat(pcmChunks);
 
-      // Filter durasi minimal: jika kurang dari ~0.6 detik (115.000 byte), abaikan
-      if (pcmBuffer.length < 115000) {
+      // Filter durasi minimal: abaikan suara < 0.4 detik (batuk/klik)
+      if (pcmBuffer.length < 80000) {
         return;
       }
 
-      // Hindari proses bertumpuk
       if (session.isProcessing || session.isSpeaking) return;
       session.isProcessing = true;
 
-      // Segera bunyikan suara mikir ("Hmm...", "Bentar bray...") secara instan tanpa jeda
-      const fillerPromise = playFillerSound(session);
+      // Konversi Discord 48kHz stereo langsung ke 24kHz mono
+      const mono24k = convert48kStereoTo24kMono(pcmBuffer);
 
-      try {
-        await processVoiceSpeech(session, userId, pcmBuffer, fillerPromise);
-      } catch (err) {
-        console.error('[PROCESS VOICE ERROR]', err);
-      } finally {
+      if (session.ws && session.ws.readyState === 1) {
+        console.log(`[REALTIME STREAM] Mengirim audio mic (${mono24k.length} byte) ke OpenAI...`);
+
+        session.ws.send(
+          JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: mono24k.toString('base64'),
+          })
+        );
+
+        session.ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+        session.ws.send(JSON.stringify({ type: 'response.create' }));
+        session.stats.questionsAnswered++;
+      } else {
         session.isProcessing = false;
-        session.isSpeaking = false;
       }
     });
 
@@ -324,145 +376,6 @@ function handleUserSpeaking(session, userId) {
 }
 
 /**
- * Transkrip mic user via Whisper -> Tanya GPT -> Jawab via Suara
- */
-async function processVoiceSpeech(session, userId, pcmBuffer, fillerPromise) {
-  const openai = getOpenAI();
-  if (!openai) {
-    if (fillerPromise) await fillerPromise;
-    return;
-  }
-
-  // Bungkus PCM Buffer jadi file WAV lengkap
-  const wavHeader = createWavHeader(pcmBuffer.length, 48000, 2, 16);
-  const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
-
-  const audioFile = await toFile(wavBuffer, 'speech.wav');
-
-  let transcriptionText = '';
-  try {
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      language: 'id',
-    });
-    transcriptionText = transcription.text?.trim() || '';
-  } catch (err) {
-    console.warn('[WHISPER ERROR]', err.message);
-    if (fillerPromise) await fillerPromise;
-    return;
-  }
-
-  // Filter teks kosong atau noise halusinasi Whisper
-  if (!transcriptionText || transcriptionText.length < 2) {
-    if (fillerPromise) await fillerPromise;
-    return;
-  }
-  const lower = transcriptionText.toLowerCase();
-  const ignoredHallucinations = [
-    'terima kasih',
-    'terima kasih.',
-    'subtitle oleh',
-    'subs by',
-    'amara.org',
-    'you',
-    '...',
-    'terima kasih sudah menonton',
-  ];
-  if (ignoredHallucinations.includes(lower)) {
-    if (fillerPromise) await fillerPromise;
-    return;
-  }
-
-  const member = await session.textChannel.guild.members.fetch(userId).catch(() => null);
-  const userName = member?.displayName || 'Teman';
-
-  console.log(`[VOICE AI RECOGNIZED] ${userName}: "${transcriptionText}"`);
-
-  try {
-    // Ambil jawaban dari Fly AI
-    const aiReply = await askVoiceAI(session.guildId, userId, transcriptionText, userName);
-    console.log(`[VOICE AI REPLY] Fly AI -> ${userName}: "${aiReply}"`);
-
-    session.stats.questionsAnswered++;
-
-    // Generate audio jawaban
-    const mp3Res = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: session.voiceType || 'nova',
-      input: aiReply,
-    });
-    const mp3Buffer = Buffer.from(await mp3Res.arrayBuffer());
-
-    // Pastikan suara mikir ("Hmm...") selesai diputar sebelum memainkan jawaban utama
-    if (fillerPromise) {
-      await fillerPromise;
-    }
-
-    // Mainkan audio jawaban langsung ke Voice Channel
-    await playAudioBuffer(session, mp3Buffer);
-  } catch (err) {
-    console.error('[VOICE AI FLOW ERROR]', err);
-    if (fillerPromise) await fillerPromise;
-  }
-}
-
-/**
- * Mainkan audio buffer ke Voice Channel
- */
-function playAudioBuffer(session, buffer) {
-  session.isSpeaking = true;
-
-  try {
-    const resource = createAudioResource(Readable.from(buffer));
-    session.player.play(resource);
-
-    return new Promise((resolve) => {
-      const onIdle = () => {
-        session.player.off(AudioPlayerStatus.Idle, onIdle);
-        setTimeout(() => {
-          session.isSpeaking = false;
-          resolve();
-        }, 350);
-      };
-      session.player.on(AudioPlayerStatus.Idle, onIdle);
-
-      // Batas waktu pengaman 25 detik
-      setTimeout(() => {
-        session.player.off(AudioPlayerStatus.Idle, onIdle);
-        session.isSpeaking = false;
-        resolve();
-      }, 25000);
-    });
-  } catch (err) {
-    console.error('[PLAY AUDIO BUFFER ERROR]', err.message);
-    session.isSpeaking = false;
-    return Promise.resolve();
-  }
-}
-
-/**
- * Mainkan audio suara (TTS) teks ke Voice Channel
- */
-async function playSpeech(session, text) {
-  const openai = getOpenAI();
-  if (!openai) return;
-
-  try {
-    const mp3Res = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: session.voiceType || 'nova',
-      input: text,
-    });
-
-    const mp3Buffer = Buffer.from(await mp3Res.arrayBuffer());
-    await playAudioBuffer(session, mp3Buffer);
-  } catch (err) {
-    console.error('[PLAY SPEECH ERROR]', err.message);
-  }
-}
-
-/**
  * Hentikan sesi Voice AI
  */
 async function stopVoiceAiSession(guildId) {
@@ -470,8 +383,9 @@ async function stopVoiceAiSession(guildId) {
   if (!session) return false;
 
   try {
-    // Sapaan perpisahan pendek
-    await playSpeech(session, 'Oke bray, gue cabut dulu ya. Panggil lagi kalau butuh!');
+    if (session.ws) {
+      session.ws.close();
+    }
   } catch {}
 
   try {
@@ -480,7 +394,6 @@ async function stopVoiceAiSession(guildId) {
   } catch {}
 
   activeSessions.delete(guildId);
-  voiceHistories.delete(guildId);
   return true;
 }
 

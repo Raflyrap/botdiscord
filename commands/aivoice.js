@@ -24,15 +24,15 @@ module.exports = {
         .addStringOption((opt) =>
           opt
             .setName('suara')
-            .setDescription('Pilih karakter suara AI (Default: Nova)')
+            .setDescription('Pilih karakter suara AI (Default: Alloy)')
             .setRequired(false)
             .addChoices(
-              { name: 'Nova (Cewek - Enerjik & Natural)', value: 'nova' },
-              { name: 'Alloy (Netral - Seimbang & Jelas)', value: 'alloy' },
+              { name: 'Alloy (Netral - Sangat Natural & Luwes)', value: 'alloy' },
+              { name: 'Coral (Cewek - Ceria & Ekspresif)', value: 'coral' },
               { name: 'Shimmer (Cewek - Santai & Lembut)', value: 'shimmer' },
-              { name: 'Echo (Cowok - Hangat & Asik)', value: 'echo' },
-              { name: 'Onyx (Cowok - Dalam & Berwibawa)', value: 'onyx' },
-              { name: 'Fable (Ekspresif & Ramah)', value: 'fable' }
+              { name: 'Ash (Cowok - Santai & Gaul)', value: 'ash' },
+              { name: 'Echo (Cowok - Hangat & Ramah)', value: 'echo' },
+              { name: 'Sage (Halus & Bersahabat)', value: 'sage' }
             )
         )
     )
@@ -148,7 +148,7 @@ module.exports = {
         });
       }
 
-      const voiceType = interaction.options.getString('suara') || 'nova';
+      const voiceType = interaction.options.getString('suara') || 'alloy';
 
       await interaction.deferReply();
 
@@ -161,19 +161,19 @@ module.exports = {
             name: 'FlyBot  •  Voice AI Assistant',
             iconURL: interaction.client.user.displayAvatarURL(),
           })
-          .setTitle('Voice AI Aktif & Siap Mengobrol')
+          .setTitle('Voice AI Realtime Aktif')
           .setDescription(
-            `Fly AI telah bergabung ke **<#${voiceChannel.id}>** dan siap mendengarkan obrolan kamu langsung lewat mic!\n\n` +
+            `Fly AI telah bergabung ke **<#${voiceChannel.id}>** menggunakan teknologi **Speech-to-Speech Realtime Streaming**!\n\n` +
             `Panduan Singkat:\n` +
-            `• Langsung bicara santai di mic kamu (misal: "Halo Fly, hari ini ada kabar apa?").\n` +
-            `• Bot akan mendengarkan dan menjawab langsung lewat suara di Voice Channel.\n` +
-            `• Mode hening di chat aktif (bot tidak akan mengirim chat/notifikasi teks yang mengganggu).\n` +
+            `• Langsung bicara santai di mic kamu seperti sedang menelepon teman.\n` +
+            `• Suara AI akan langsung menjawab secara ekspresif, luwes, dan tanpa jeda.\n` +
+            `• Mode hening di chat aktif (tanpa notifikasi pesan chat yang mengganggu).\n` +
             `• Ketik \`/aivoice stop\` atau klik tombol di bawah untuk mengakhiri obrolan.`
           )
           .addFields(
             { name: 'Voice Channel', value: `<#${voiceChannel.id}>`, inline: true },
             { name: 'Karakter Suara', value: voiceType.toUpperCase(), inline: true },
-            { name: 'Mode', value: 'Full Mic Realtime', inline: true }
+            { name: 'Mesin Audio', value: 'OpenAI Realtime Streaming', inline: true }
           )
           .setFooter({ text: `Dimulai oleh ${interaction.user.username}  •  Bebas emoji` })
           .setTimestamp();
