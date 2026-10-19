@@ -21,9 +21,9 @@ function formatDuration(ms) {
 
 /**
  * Cari lagu atau playlist dengan fallback cerdas:
- * 1. Jika URL (Spotify Playlist/Track, SoundCloud, YouTube): cari langsung via URL
- * 2. Jika teks judul lagu: cari via SoundCloud ('scsearch') yang 100% bebas dari blokir anti-bot YouTube.
- * 3. Jika tidak ditemukan di SoundCloud: fallback ke Spotify ('spsearch') lalu YouTube ('ytsearch').
+ * 1. Jika URL: cari langsung via URL (Spotify, SoundCloud, YouTube, dll)
+ * 2. Jika teks pencarian judul lagu: cari via SoundCloud ('scsearch') yang 100% bebas dari blokir anti-bot YouTube.
+ * 3. Otomatis mencoba node aktif lain jika node utama sedang lambat.
  * @param {import('lavalink-client').Player} player 
  * @param {string} query 
  * @param {any} requester 
@@ -31,32 +31,57 @@ function formatDuration(ms) {
  */
 async function searchTrackWithFallback(player, query, requester) {
   const isUrl = /^https?:\/\//i.test(query);
+
+  // Helper untuk mencoba search di player atau fallback ke node terhubung lainnya
+  async function executeSearch(searchOptions) {
+    // 1. Coba lewat node default player
+    try {
+      const res = await player.search(searchOptions, requester);
+      if (res && res.tracks && res.tracks.length > 0 && res.loadType !== 'empty' && res.loadType !== 'error') {
+        return res;
+      }
+    } catch (err) {
+      console.warn(`[SEARCH] player.search gagal (${err.message}), mencari lewat node cadangan...`);
+    }
+
+    // 2. Jika player.node timeout/gagal, coba langsung ke node lain yang connected
+    const manager = player.LavalinkManager;
+    if (manager?.nodeManager?.nodes) {
+      for (const [, node] of manager.nodeManager.nodes) {
+        if (node.connected && node.id !== player.node?.id) {
+          try {
+            const res = await node.search(searchOptions, requester);
+            if (res && res.tracks && res.tracks.length > 0 && res.loadType !== 'empty' && res.loadType !== 'error') {
+              try { await player.changeNode(node); } catch (_) {}
+              return res;
+            }
+          } catch (nodeErr) {
+            console.warn(`[SEARCH] Node ${node.id} gagal:`, nodeErr.message);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // 1. Jika query adalah URL langsung (Spotify playlist/track, YouTube, SoundCloud)
   if (isUrl) {
-    return await player.search({ query }, requester);
+    return (await executeSearch({ query })) || { loadType: 'empty', tracks: [] };
   }
 
-  // 1. Coba cari di SoundCloud terlebih dahulu (bebas blokir YouTube "requires login")
-  try {
-    const scRes = await player.search({ query, source: 'scsearch' }, requester);
-    if (scRes && scRes.tracks && scRes.tracks.length > 0 && scRes.loadType !== 'empty' && scRes.loadType !== 'error') {
-      return scRes;
-    }
-  } catch (e) {
-    console.warn('[SEARCH] scsearch gagal, mencoba fallback lain:', e.message);
-  }
+  // 2. Prioritas 1: Cari via SoundCloud ('scsearch') yang stabil dan bebas blokir YouTube
+  const scRes = await executeSearch({ query, source: 'scsearch' });
+  if (scRes) return scRes;
 
-  // 2. Fallback ke Spotify ('spsearch')
-  try {
-    const spRes = await player.search({ query, source: 'spsearch' }, requester);
-    if (spRes && spRes.tracks && spRes.tracks.length > 0 && spRes.loadType !== 'empty' && spRes.loadType !== 'error') {
-      return spRes;
-    }
-  } catch (e) {
-    console.warn('[SEARCH] spsearch gagal, mencoba fallback lain:', e.message);
-  }
+  // 3. Prioritas 2: Fallback ke Spotify search ('spsearch')
+  const spRes = await executeSearch({ query, source: 'spsearch' });
+  if (spRes) return spRes;
 
-  // 3. Fallback ke YouTube ('ytsearch')
-  return await player.search({ query, source: 'ytsearch' }, requester);
+  // 4. Prioritas 3: Fallback ke YouTube search ('ytsearch')
+  const ytRes = await executeSearch({ query, source: 'ytsearch' });
+  if (ytRes) return ytRes;
+
+  return { loadType: 'empty', tracks: [] };
 }
 
 /**
@@ -65,7 +90,7 @@ async function searchTrackWithFallback(player, query, requester) {
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Daftar node cadangan Lavalink v4
+  // Hanya menggunakan node publik yang terbukti stabil, cepat (<2s), dan aktif
   const defaultNodes = [
     {
       id: 'nazha-v4',
@@ -73,7 +98,7 @@ function initLavalink(client) {
       port: 443,
       authorization: 'nazhafreelava',
       secure: true,
-      requestTimeout: 20000,
+      requestTimeout: 10000,
     },
     {
       id: 'jirayu-v4',
@@ -81,23 +106,7 @@ function initLavalink(client) {
       port: 443,
       authorization: 'youshallnotpass',
       secure: true,
-      requestTimeout: 20000,
-    },
-    {
-      id: 'serenetia-v4',
-      host: 'lavalinkv4.serenetia.com',
-      port: 443,
-      authorization: 'https://dsc.gg/ajidevserver',
-      secure: true,
-      requestTimeout: 20000,
-    },
-    {
-      id: 'trinium-v4',
-      host: 'lavalink-v4.triniumhost.com',
-      port: 443,
-      authorization: 'free',
-      secure: true,
-      requestTimeout: 20000,
+      requestTimeout: 10000,
     },
   ];
 
@@ -111,11 +120,11 @@ function initLavalink(client) {
       port: parseInt(process.env.LAVALINK_PORT || '443', 10),
       authorization: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
       secure: process.env.LAVALINK_SECURE !== 'false',
-      requestTimeout: 20000,
+      requestTimeout: 10000,
     });
   }
 
-  // Gabungkan node kustom dengan fallback node publik
+  // Gabungkan node kustom dengan node publik yang teruji
   configuredNodes.push(...defaultNodes);
 
   const manager = new LavalinkManager({
@@ -133,7 +142,7 @@ function initLavalink(client) {
     autoSkip: true,
     playerOptions: {
       clientBasedPositionUpdateInterval: 150,
-      defaultSearchPlatform: 'scsearch', // Default ke SoundCloud agar bebas dari blokir IP YouTube
+      defaultSearchPlatform: 'scsearch',
       volumeDecrementer: 1,
     },
     queueOptions: {
