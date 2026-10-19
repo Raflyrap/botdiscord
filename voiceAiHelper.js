@@ -10,6 +10,7 @@ const {
 } = require('@discordjs/voice');
 const prism = require('prism-media');
 const { Readable } = require('stream');
+const { FLYBOT_KNOWLEDGE } = require('./botFeaturesKnowledge');
 
 // Map sesi aktif per guild: guildId -> SessionData
 const activeSessions = new Map();
@@ -150,11 +151,12 @@ async function buildGuildContext(guild, voiceChannel) {
       `INSTRUKSI PENTING TENTANG SERVER:\n` +
       `1. Kamu tahu persis seluruh isi server ini! Jika ada yang nanya nama grup/server ini apa, sebutkan nama "${guild.name}".\n` +
       `2. Jika disuruh bacakan/sebutkan kategori atau channel apa saja yang ada di grup ini, sebutkan dengan santai dan tepat sesuai data di atas.\n` +
-      `3. Jika ada yang minta setel/putar lagu musik, beri tahu dengan santai bahwa untuk setel musik bisa langsung ketik perintah slash /play di chat!`
+      `3. Jika ada yang minta setel/putar lagu musik, beri tahu dengan santai bahwa untuk setel musik bisa langsung ketik perintah slash /play di chat!\n\n` +
+      FLYBOT_KNOWLEDGE
     );
   } catch (err) {
     console.warn('[BUILD GUILD CONTEXT ERROR]', err.message);
-    return `Server ini bernama "${guild.name}" dengan total ${guild.memberCount} member.`;
+    return `Server ini bernama "${guild.name}" dengan total ${guild.memberCount} member.\n\n` + FLYBOT_KNOWLEDGE;
   }
 }
 

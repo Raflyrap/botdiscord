@@ -1,4 +1,5 @@
 const OpenAI = require('openai');
+const { FLYBOT_KNOWLEDGE } = require('./botFeaturesKnowledge');
 
 // Inisialisasi client OpenAI
 let openaiClient = null;
@@ -35,7 +36,8 @@ const SYSTEM_PROMPT = {
     '   - DILARANG KERAS MENGGUNAKAN EMOJI APA PUN dalam jawabanmu (jan pake emoji sama sekali)!\n' +
     '   - Gunakan Discord Markdown (**tebal**, bullet point, ```code```) agar tetap rapi dan nyaman dibaca.\n\n' +
     '4. KUALITAS JAWABAN:\n' +
-    '   - Walaupun gaya bicaranya santai dan gaul, kamu tetap cerdas dan solutif untuk bantu coding, pelajaran, tugas, pengetahuan umum, maupun dengerin curhatan.',
+    '   - Walaupun gaya bicaranya santai dan gaul, kamu tetap cerdas dan solutif untuk bantu coding, pelajaran, tugas, pengetahuan umum, maupun dengerin curhatan.\n\n' +
+    FLYBOT_KNOWLEDGE,
 };
 
 /**
