@@ -397,7 +397,7 @@ function playRealtimeAudio(session, mono24kBuffer) {
 /**
  * Eksekusi pemutaran musik via Lavalink Engine (otomatis dipanggil setelah AI selesai konfirmasi suara)
  */
-async function executeLavalinkPlay(client, guildId, voiceChannelId, textChannel, query, requester) {
+async function executeLavalinkPlay(client, guildId, voiceChannelId, textChannel, query, requester, voiceType = 'alloy') {
   const lavalink = client?.lavalink;
   if (!lavalink) {
     if (textChannel) textChannel.send('Layanan musik Lavalink belum aktif.').catch(() => {});
@@ -427,11 +427,29 @@ async function executeLavalinkPlay(client, guildId, voiceChannelId, textChannel,
       player.textChannelId = textChannel.id;
     }
 
+    // Tandai player bahwa pemutaran musik berasal dari Voice AI
+    player.setData('fromVoiceAi', true);
+    player.setData('voiceAiChannelId', voiceChannelId);
+    player.setData('voiceAiTextChannelId', textChannel?.id);
+    player.setData('voiceAiType', voiceType || 'alloy');
+
     const res = await searchTrackWithFallback(player, query, requester);
 
     if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
       if (textChannel) {
         textChannel.send(`Tidak ditemukan lagu untuk: **${query}**`).catch(() => {});
+      }
+      try {
+        await player.destroy('TrackNotFound', false);
+      } catch {}
+
+      // Kembalikan Voice AI agar bot tidak macet dan bisa langsung berbicara menjelaskan
+      const guild = client.guilds.cache.get(guildId);
+      const voiceChannel = guild?.channels.cache.get(voiceChannelId);
+      if (voiceChannel) {
+        await startVoiceAiSession(voiceChannel, textChannel, voiceType, {
+          initialGreeting: `Beri tahu santai ke anak tongkrongan bahwa lagu "${query}" tidak ditemukan di database musik, dan tawarkan mau request lagu lain apa mau lanjut ngobrol.`,
+        });
       }
       return false;
     }
@@ -488,11 +506,19 @@ async function executeLavalinkPlay(client, guildId, voiceChannelId, textChannel,
 /**
  * Mulai sesi Voice AI di voice channel
  */
-async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy') {
+async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy', options = {}) {
   const guildId = voiceChannel.guild.id;
 
   if (activeSessions.has(guildId)) {
-    await stopVoiceAiSession(guildId);
+    await stopVoiceAiSession(guildId, false);
+  }
+
+  // Jika ada pemutar Lavalink aktif, hentikan tanpa disconnect dari voice
+  const existingPlayer = voiceChannel.client?.lavalink?.getPlayer(guildId);
+  if (existingPlayer) {
+    try {
+      await existingPlayer.destroy('VoiceAiStart', false);
+    } catch {}
   }
 
   const guildContext = await buildGuildContext(voiceChannel.guild, voiceChannel);
@@ -539,13 +565,14 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
       if (session.pendingMusicPlay) {
         const query = session.pendingMusicPlay;
         const user = session.pendingMusicUser;
+        const usedVoiceType = session.voiceType || 'alloy';
         session.pendingMusicPlay = null;
         session.pendingMusicUser = null;
 
         console.log(`[VOICE AI HANDOVER] Beralih ke Lavalink untuk memutar lagu: "${query}"`);
 
-        // Hentikan Voice AI agar voice connection bebas untuk Lavalink
-        await stopVoiceAiSession(session.guildId);
+        // Hentikan Voice AI TANPA memutus bot dari voice channel Discord!
+        await stopVoiceAiSession(session.guildId, false);
 
         // Putar musik via Lavalink
         await executeLavalinkPlay(
@@ -554,7 +581,8 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
           session.channelId,
           session.textChannel,
           query,
-          user
+          user,
+          usedVoiceType
         );
       }
     }, 250);
@@ -571,9 +599,15 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
   // Buka koneksi streaming OpenAI Realtime
   session.ws = connectRealtimeWebSocket(session);
 
-  // Sapaan suara pertama saat join
+  // Sapaan suara pertama saat join / resume
   setTimeout(() => {
-    sendRealtimeTextMessage(session, 'Ucapkan salam sapaan santai khas tongkrongan dan sebut bahwa lo Bot Fly udah standby di voice channel.');
+    if (options.initialGreeting !== false) {
+      const greetingText =
+        typeof options.initialGreeting === 'string'
+          ? options.initialGreeting
+          : 'Ucapkan salam sapaan santai khas tongkrongan dan sebut bahwa lo Bot Fly udah standby di voice channel.';
+      sendRealtimeTextMessage(session, greetingText);
+    }
   }, 1000);
 
   // Tangkap saat ada user mulai berbicara di voice
@@ -691,8 +725,10 @@ function handleUserSpeaking(session, userId) {
 
 /**
  * Hentikan sesi Voice AI
+ * @param {string} guildId
+ * @param {boolean} disconnectVoice - Jika false, bot tidak akan disconnect dari voice channel Discord
  */
-async function stopVoiceAiSession(guildId) {
+async function stopVoiceAiSession(guildId, disconnectVoice = true) {
   const session = activeSessions.get(guildId);
   if (!session) return false;
 
@@ -704,7 +740,11 @@ async function stopVoiceAiSession(guildId) {
 
   try {
     session.player.stop();
-    session.connection.destroy();
+    if (disconnectVoice) {
+      session.connection.destroy();
+    } else {
+      session.connection.destroy(false);
+    }
   } catch {}
 
   activeSessions.delete(guildId);
@@ -722,4 +762,5 @@ module.exports = {
   startVoiceAiSession,
   stopVoiceAiSession,
   getVoiceAiSession,
+  sendRealtimeTextMessage,
 };

@@ -206,6 +206,36 @@ function initLavalink(client) {
 
     // Saat seluruh antrean lagu telah habis diputar
     .on('queueEnd', async (player) => {
+      // Jika pemutaran musik berasal dari Voice AI, hidupkan kembali Bot Fly tanpa keluar room
+      if (player.getData('fromVoiceAi')) {
+        const voiceChannelId = player.getData('voiceAiChannelId');
+        const textChannelId = player.getData('voiceAiTextChannelId');
+        const voiceType = player.getData('voiceAiType') || 'alloy';
+        const guildId = player.guildId;
+
+        console.log(`[VOICE AI AUTO-RESUME] Antrean musik selesai di Guild ${guildId}. Mengaktifkan kembali Bot Fly...`);
+
+        setTimeout(async () => {
+          try {
+            await player.destroy('VoiceAiResume', false);
+          } catch (e) {
+            console.warn('[LAVALINK DESTROY WARN]', e.message);
+          }
+
+          const guild = client.guilds.cache.get(guildId);
+          const voiceChannel = guild?.channels.cache.get(voiceChannelId);
+          const textChannel = guild?.channels.cache.get(textChannelId);
+
+          if (voiceChannel) {
+            const { startVoiceAiSession } = require('./voiceAiHelper');
+            await startVoiceAiSession(voiceChannel, textChannel, voiceType, {
+              initialGreeting: 'Lagu yang tadi diputar sekarang udah selesai habis. Kasih tahu santai ke anak-anak tongkrongan kalau lagunya udah abis, dan tanya mau request lagu lagi apa mau lanjut ngobrol.',
+            });
+          }
+        }, 600);
+        return;
+      }
+
       // Jangan matikan koneksi jika mode patroli 24 jam masih aktif di guild ini
       if (isPatroliActive(player.guildId)) return;
 
