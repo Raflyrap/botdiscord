@@ -63,7 +63,7 @@ FlyBot only collects and processes minimal data strictly required to deliver its
 ### 2. What Data We DO NOT Collect
 - We **DO NOT** store personal sensitive data (passwords, payment information, personal identity).
 - We **DO NOT** store message logs, chat history, or private direct messages (DMs).
-- We **DO NOT** record or store any voice audio from voice channels. Audio streaming features (such as music playback) only stream content in real-time and are never recorded.
+- We **DO NOT** record, save, or store voice communications. Voice AI audio streams and music playback are processed strictly in temporary volatile memory (RAM) in real-time and are never written to disk or recorded.
 
 ### 3. How We Use Collected Data
 Collected data is used strictly for:
@@ -73,7 +73,7 @@ Collected data is used strictly for:
 
 ### 4. Data Sharing & Third Parties
 FlyBot does not sell, rent, or trade your data with third parties.
-- If AI Chat features are used, prompts sent to the designated AI channel are processed via official AI APIs solely to generate responses, under strict standard API privacy terms.
+- If AI Chat or Voice AI features are used, text prompts and real-time voice buffers sent to the bot are processed via official OpenAI APIs solely to generate responses, under enterprise-grade ephemeral API privacy terms without retention.
 
 ### 5. Data Retention & Deletion
 - Server configurations and leveling stats are retained only for as long as FlyBot remains in the server.
