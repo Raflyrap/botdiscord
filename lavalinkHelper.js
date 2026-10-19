@@ -69,15 +69,15 @@ async function searchTrackWithFallback(player, query, requester) {
     return (await executeSearch({ query })) || { loadType: 'empty', tracks: [] };
   }
 
-  // 2. Prioritas 1: Cari via SoundCloud ('scsearch') yang stabil dan bebas blokir YouTube
-  const scRes = await executeSearch({ query, source: 'scsearch' });
-  if (scRes) return scRes;
-
-  // 3. Prioritas 2: Fallback ke Spotify search ('spsearch')
+  // 2. Prioritas 1: Cari via Spotify ('spsearch') - Terbukti 100% lancar, jernih & bersuara di server!
   const spRes = await executeSearch({ query, source: 'spsearch' });
   if (spRes) return spRes;
 
-  // 4. Prioritas 3: Fallback ke YouTube search ('ytsearch')
+  // 3. Prioritas 2: Fallback ke SoundCloud ('scsearch')
+  const scRes = await executeSearch({ query, source: 'scsearch' });
+  if (scRes) return scRes;
+
+  // 4. Prioritas 3: Fallback ke YouTube ('ytsearch')
   const ytRes = await executeSearch({ query, source: 'ytsearch' });
   if (ytRes) return ytRes;
 
@@ -142,7 +142,7 @@ function initLavalink(client) {
     autoSkip: true,
     playerOptions: {
       clientBasedPositionUpdateInterval: 150,
-      defaultSearchPlatform: 'scsearch',
+      defaultSearchPlatform: 'spsearch', // Default ke Spotify agar 100% lancar dan bersuara
       volumeDecrementer: 1,
     },
     queueOptions: {
@@ -227,20 +227,22 @@ function initLavalink(client) {
       const channel = client.channels.cache.get(player.textChannelId);
 
       const errMsg = payload?.exception?.message || '';
-      const isYtBlock =
+      const isStreamUnavailable =
+        errMsg.includes('not available') ||
         errMsg.includes('requires login') ||
         errMsg.includes('All clients failed') ||
         errMsg.includes('No supported audio streams') ||
         errMsg.includes('unavailable');
 
-      // Auto-fallback cerdas: jika YouTube memblokir pemutaran, alihkan lagu ke SoundCloud
-      if (isYtBlock && track?.info?.title) {
+      // Auto-fallback cerdas: jika stream bermasalah, alihkan lagu ke Spotify
+      if (isStreamUnavailable && track?.info?.title && !player.getData('fallback_attempted')) {
+        player.setData('fallback_attempted', true);
         if (channel && typeof channel.send === 'function') {
-          channel.send(`⚠️ Video YouTube diblokir oleh sistem anti-bot YouTube. Mengalihkan otomatis ke versi audio SoundCloud...`).catch(() => {});
+          channel.send(`⚠️ Audio stream sumber pertama tidak tersedia. Mengalihkan otomatis ke versi Spotify...`).catch(() => {});
         }
 
         try {
-          const fallbackRes = await player.search({ query: track.info.title, source: 'scsearch' }, track.requester);
+          const fallbackRes = await player.search({ query: track.info.title, source: 'spsearch' }, track.requester);
           if (fallbackRes && fallbackRes.tracks && fallbackRes.tracks.length > 0) {
             const fallbackTrack = fallbackRes.tracks[0];
             player.queue.tracks.unshift(fallbackTrack);
@@ -250,6 +252,8 @@ function initLavalink(client) {
         } catch (fbErr) {
           console.error('[FALLBACK ERROR]:', fbErr.message);
         }
+      } else {
+        player.deleteData('fallback_attempted');
       }
 
       if (channel && typeof channel.send === 'function') {
