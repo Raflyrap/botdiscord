@@ -67,6 +67,7 @@ function getMainDashboard(guild, member) {
           line('/ai', 'Tanya dan diskusi dengan AI'),
           line('/afk', 'Pasang status sedang tidak di tempat'),
           line('/remind', 'Pasang pengingat jadwal otomatis'),
+          line('/stalk', 'Lihat profil media sosial Twitter, GitHub, dll'),
           line('/userinfo', 'Lihat detail teknis akun Discord'),
           line('/serverinfo', 'Lihat statistik & info lengkap server'),
           line('/ping', 'Cek kecepatan respons bot'),
