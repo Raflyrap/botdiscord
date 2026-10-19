@@ -150,10 +150,35 @@ module.exports = {
 
       const voiceType = interaction.options.getString('suara') || 'alloy';
 
+      // Cek jika bot sudah ada di voice channel ini, alihkan fokus pendengar ke pengguna yang memanggil
+      const existingSession = getVoiceAiSession(guildId);
+      if (existingSession && existingSession.channelId === voiceChannel.id) {
+        existingSession.callerUserId = interaction.user.id;
+        const embed = new EmbedBuilder()
+          .setColor(0x57F287)
+          .setAuthor({
+            name: 'FlyBot  •  Voice AI Assistant',
+            iconURL: interaction.client.user.displayAvatarURL(),
+          })
+          .setTitle('Fokus Obrolan Voice AI Dialihkan')
+          .setDescription(
+            `Fly AI sekarang **fokus mendengarkan <@${interaction.user.id}>**!\n\n` +
+            `• Suara dari orang lain di voice channel otomatis di-mute pada sisi bot agar tidak bocor atau mengganggu.\n` +
+            `• Langsung bicara lewat mic kamu, AI akan merespons khusus untukmu.\n` +
+            `• Jika teman lain ingin gantian ngobrol, cukup ketik \`/aivoice join\` lagi.`
+          )
+          .setFooter({ text: `Fokus diubah oleh ${interaction.user.username}  •  Bebas emoji` })
+          .setTimestamp();
+
+        return interaction.reply({ embeds: [embed] });
+      }
+
       await interaction.deferReply();
 
       try {
-        await startVoiceAiSession(voiceChannel, interaction.channel, voiceType);
+        await startVoiceAiSession(voiceChannel, interaction.channel, voiceType, {
+          callerUserId: interaction.user.id,
+        });
 
         const embed = new EmbedBuilder()
           .setColor(0x5865F2)
@@ -165,15 +190,16 @@ module.exports = {
           .setDescription(
             `Fly AI telah bergabung ke **<#${voiceChannel.id}>** menggunakan teknologi **Speech-to-Speech Realtime Streaming**!\n\n` +
             `Panduan Singkat:\n` +
+            `• **Fokus Suara Aktif**: AI hanya mendengarkan suara dari <@${interaction.user.id}> (pemanggil perintah) agar obrolan fokus dan suara orang lain tidak bocor/ngaco.\n` +
+            `• Jika teman lain di room ingin gantian ngobrol, cukup ketik \`/aivoice join\` untuk mengalihkan fokus AI.\n` +
             `• Langsung bicara santai di mic kamu seperti sedang menelepon teman.\n` +
             `• Suara AI akan langsung menjawab secara ekspresif, luwes, dan tanpa jeda.\n` +
-            `• Mode hening di chat aktif (tanpa notifikasi pesan chat yang mengganggu).\n` +
             `• Ketik \`/aivoice stop\` atau klik tombol di bawah untuk mengakhiri obrolan.`
           )
           .addFields(
             { name: 'Voice Channel', value: `<#${voiceChannel.id}>`, inline: true },
-            { name: 'Karakter Suara', value: voiceType.toUpperCase(), inline: true },
-            { name: 'Mesin Audio', value: 'OpenAI Realtime Streaming', inline: true }
+            { name: 'Fokus Penanya', value: `<@${interaction.user.id}>`, inline: true },
+            { name: 'Karakter Suara', value: voiceType.toUpperCase(), inline: true }
           )
           .setFooter({ text: `Dimulai oleh ${interaction.user.username}  •  Bebas emoji` })
           .setTimestamp();

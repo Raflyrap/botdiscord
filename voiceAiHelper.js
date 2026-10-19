@@ -1,6 +1,5 @@
 const {
   joinVoiceChannel,
-  getVoiceConnection,
   VoiceConnectionStatus,
   entersState,
   createAudioPlayer,
@@ -8,10 +7,8 @@ const {
   AudioPlayerStatus,
   EndBehaviorType,
 } = require('@discordjs/voice');
-const { EmbedBuilder } = require('discord.js');
 const prism = require('prism-media');
 const { Readable } = require('stream');
-const { formatDuration, searchTrackWithFallback } = require('./lavalinkHelper');
 
 // Map sesi aktif per guild: guildId -> SessionData
 const activeSessions = new Map();
@@ -57,6 +54,20 @@ function convert48kStereoTo24kMono(stereo48kBuf) {
     outOffset += 2;
   }
   return mono24kBuf;
+}
+
+/**
+ * Hitung RMS volume audio untuk mendeteksi suara manusia vs noise/angin
+ */
+function calculateRms(pcmBuffer) {
+  const numSamples = Math.floor(pcmBuffer.length / 2);
+  if (numSamples === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < numSamples; i++) {
+    const sample = pcmBuffer.readInt16LE(i * 2);
+    sum += sample * sample;
+  }
+  return Math.sqrt(sum / numSamples);
 }
 
 /**
@@ -121,55 +132,16 @@ async function buildGuildContext(guild, voiceChannel) {
       `- Teman di Voice Channel Saat Ini: ${voiceMembers}\n` +
       `- Struktur Kategori dan Channel Lengkap di Server Ini:\n${structureLines.join('\n')}\n` +
       `- Role Utama Server: ${topRoles || 'Role Standar'}\n\n` +
-      `INSTRUKSI PENTING TENTANG SERVER & KEMAMPUAN KAMU:\n` +
+      `INSTRUKSI PENTING TENTANG SERVER:\n` +
       `1. Kamu tahu persis seluruh isi server ini! Jika ada yang nanya nama grup/server ini apa, sebutkan nama "${guild.name}".\n` +
       `2. Jika disuruh bacakan/sebutkan kategori atau channel apa saja yang ada di grup ini, sebutkan dengan santai dan tepat sesuai data di atas.\n` +
-      `3. KEMAMPUAN MEMUTAR MUSIK: Kamu bisa memutar musik! Jika pengguna meminta kamu memutar lagu (misal "setel lagu...", "play lagu...", "coba puter lagu..."), PANGGIL tool "play_music" dengan judul lagunya. Setelah itu beri tahu pengguna dengan santai bahwa lagu tersebut langsung kamu putarkan!`
+      `3. Jika ada yang minta setel/putar lagu musik, beri tahu dengan santai bahwa untuk setel musik bisa langsung ketik perintah slash /play di chat!`
     );
   } catch (err) {
     console.warn('[BUILD GUILD CONTEXT ERROR]', err.message);
     return `Server ini bernama "${guild.name}" dengan total ${guild.memberCount} member.`;
   }
 }
-
-// Daftar Tools untuk OpenAI Realtime
-const REALTIME_TOOLS = [
-  {
-    type: 'function',
-    name: 'play_music',
-    description: 'Putar atau setel lagu musik di voice channel saat pengguna meminta memutar lagu',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Judul lagu dan nama artis/penyanyi yang diminta oleh pengguna',
-        },
-      },
-      required: ['query'],
-    },
-  },
-  {
-    type: 'function',
-    name: 'stop_music',
-    description: 'Hentikan pemutaran musik di voice channel',
-  },
-  {
-    type: 'function',
-    name: 'skip_music',
-    description: 'Lewati atau skip lagu yang sedang diputar ke lagu berikutnya',
-  },
-  {
-    type: 'function',
-    name: 'pause_music',
-    description: 'Jeda atau pause lagu yang sedang diputar',
-  },
-  {
-    type: 'function',
-    name: 'resume_music',
-    description: 'Lanjutkan pemutaran musik yang sedang dijeda',
-  },
-];
 
 /**
  * Hubungkan ke WebSocket OpenAI Realtime API (GA Model gpt-realtime-mini)
@@ -219,7 +191,6 @@ function connectRealtimeWebSocket(session) {
               type: 'realtime',
               instructions: fullInstructions,
               output_modalities: ['audio'],
-              tools: REALTIME_TOOLS,
               audio: {
                 input: {
                   format: { type: 'audio/pcm', rate: 24000 },
@@ -233,11 +204,6 @@ function connectRealtimeWebSocket(session) {
             },
           })
         );
-      }
-
-      // Deteksi panggilan fungsi (Tool Call / Function Calling)
-      if (data.type === 'response.function_call_arguments.done') {
-        await handleRealtimeToolCall(session, data);
       }
 
       // Kumpulkan audio output real-time
@@ -300,100 +266,6 @@ function connectRealtimeWebSocket(session) {
 }
 
 /**
- * Handle eksekusi perintah fungsi dari suara AI (Putar Musik, Skip, Stop, Pause, Resume)
- */
-async function handleRealtimeToolCall(session, toolData) {
-  const { name, call_id } = toolData;
-  let args = {};
-  try {
-    args = JSON.parse(toolData.arguments || '{}');
-  } catch (e) {}
-
-  console.log(`[REALTIME TOOL CALL] Eksekusi ${name}:`, args);
-
-  let result = { success: false, message: 'Fungsi tidak dikenali.' };
-
-  if (name === 'play_music') {
-    const query = args.query || '';
-    session.pendingMusicPlay = query;
-    session.pendingMusicUser = session.lastSpeakerMember;
-
-    // Mulai pre-search lagu di background saat AI sedang mengucapkan konfirmasi suara
-    const lavalink = session.client?.lavalink;
-    let prePlayer = lavalink?.getPlayer(session.guildId);
-    if (!prePlayer && lavalink) {
-      prePlayer = lavalink.createPlayer({
-        guildId: session.guildId,
-        voiceChannelId: session.channelId,
-        textChannelId: session.textChannel?.id,
-        selfDeaf: true,
-        selfMute: false,
-        volume: 100,
-      });
-    }
-    if (prePlayer) {
-      session.preloadedSearchPromise = searchTrackWithFallback(prePlayer, query, session.lastSpeakerMember).catch(() => null);
-    }
-
-    result = {
-      success: true,
-      message: `Lagu "${query}" telah dijadwalkan dan akan langsung diputar setelah ucapan konfirmasimu selesai.`,
-    };
-  } else if (name === 'stop_music') {
-    const lavalink = session.client?.lavalink;
-    const player = lavalink?.getPlayer(session.guildId);
-    if (player) {
-      await player.destroy('VoiceAIStop').catch(() => {});
-      result = { success: true, message: 'Musik telah berhasil dihentikan.' };
-    } else {
-      result = { success: false, message: 'Saat ini tidak ada musik yang sedang diputar.' };
-    }
-  } else if (name === 'skip_music') {
-    const lavalink = session.client?.lavalink;
-    const player = lavalink?.getPlayer(session.guildId);
-    if (player && (player.queue?.current || player.playing)) {
-      await player.skip().catch(() => {});
-      result = { success: true, message: 'Lagu berhasil di-skip ke lagu berikutnya.' };
-    } else {
-      result = { success: false, message: 'Tidak ada lagu berikutnya di dalam antrean.' };
-    }
-  } else if (name === 'pause_music') {
-    const lavalink = session.client?.lavalink;
-    const player = lavalink?.getPlayer(session.guildId);
-    if (player && !player.paused) {
-      await player.pause().catch(() => {});
-      result = { success: true, message: 'Lagu berhasil dijeda.' };
-    } else {
-      result = { success: false, message: 'Musik sedang tidak aktif atau sudah dijeda.' };
-    }
-  } else if (name === 'resume_music') {
-    const lavalink = session.client?.lavalink;
-    const player = lavalink?.getPlayer(session.guildId);
-    if (player && player.paused) {
-      await player.resume().catch(() => {});
-      result = { success: true, message: 'Lagu berhasil dilanjutkan.' };
-    } else {
-      result = { success: false, message: 'Musik sudah berjalan.' };
-    }
-  }
-
-  // Kirim balik output tool call ke OpenAI Realtime agar AI berbicara mengonfirmasi
-  if (session.ws && session.ws.readyState === 1) {
-    session.ws.send(
-      JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'function_call_output',
-          call_id,
-          output: JSON.stringify(result),
-        },
-      })
-    );
-    session.ws.send(JSON.stringify({ type: 'response.create' }));
-  }
-}
-
-/**
  * Mainkan Buffer audio hasil Realtime (24kHz Mono) dengan WAV Header resmi
  */
 function playRealtimeAudio(session, mono24kBuffer) {
@@ -413,154 +285,13 @@ function playRealtimeAudio(session, mono24kBuffer) {
 }
 
 /**
- * Eksekusi pemutaran musik via Lavalink Engine (otomatis dipanggil setelah AI selesai konfirmasi suara)
- */
-async function executeLavalinkPlay(
-  client,
-  guildId,
-  voiceChannelId,
-  textChannel,
-  query,
-  requester,
-  voiceType = 'alloy',
-  preloadedPromise = null
-) {
-  const lavalink = client?.lavalink;
-  if (!lavalink) {
-    if (textChannel) textChannel.send('Layanan musik Lavalink belum aktif.').catch(() => {});
-    return false;
-  }
-
-  try {
-    let player = lavalink.getPlayer(guildId);
-    if (!player) {
-      player = lavalink.createPlayer({
-        guildId,
-        voiceChannelId,
-        textChannelId: textChannel?.id,
-        selfDeaf: true,
-        selfMute: false,
-        volume: 100,
-      });
-    }
-
-    if (textChannel?.id) {
-      player.textChannelId = textChannel.id;
-    }
-
-    // Tandai player bahwa pemutaran musik berasal dari Voice AI
-    player.setData('fromVoiceAi', true);
-    player.setData('voiceAiChannelId', voiceChannelId);
-    player.setData('voiceAiTextChannelId', textChannel?.id);
-    player.setData('voiceAiType', voiceType || 'alloy');
-
-    // Hubungkan player ke voice channel Discord
-    await player.connect();
-
-    // Tunggu hingga token voice server diterima dari Discord Gateway agar suara 100% keluar
-    for (let i = 0; i < 25; i++) {
-      if (player.voice?.token && player.voice?.endpoint) {
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 100));
-    }
-
-    // Ambil hasil search (gunakan preloaded jika ada)
-    let res = null;
-    if (preloadedPromise) {
-      try {
-        res = await preloadedPromise;
-      } catch {}
-    }
-    if (!res || !res.tracks || res.tracks.length === 0) {
-      res = await searchTrackWithFallback(player, query, requester);
-    }
-
-    if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
-      if (textChannel) {
-        textChannel.send(`Tidak ditemukan lagu untuk: **${query}**`).catch(() => {});
-      }
-      try {
-        await player.destroy('TrackNotFound', true);
-      } catch {}
-
-      // Kembalikan Voice AI agar bot tidak macet dan bisa langsung berbicara menjelaskan
-      const guild = client.guilds.cache.get(guildId);
-      const voiceChannel = guild?.channels.cache.get(voiceChannelId);
-      if (voiceChannel) {
-        await startVoiceAiSession(voiceChannel, textChannel, voiceType, {
-          initialGreeting: `Beri tahu santai ke anak tongkrongan bahwa lagu "${query}" tidak ditemukan di database musik, dan tawarkan mau request lagu lain apa mau lanjut ngobrol.`,
-        });
-      }
-      return false;
-    }
-
-    if (res.loadType === 'playlist') {
-      await player.queue.add(res.tracks);
-      if (!player.playing && !player.paused) {
-        await player.play();
-      }
-
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setAuthor({ name: 'PLAYLIST ADDED  •  Diminta via Voice AI' })
-        .setTitle(res.playlist?.name || 'Playlist')
-        .setDescription(`Berhasil menambahkan **${res.tracks.length} lagu** ke dalam antrean.`)
-        .setFooter({ text: 'FlyBot HD Music' })
-        .setTimestamp();
-
-      if (textChannel) textChannel.send({ embeds: [embed] }).catch(() => {});
-      return true;
-    }
-
-    const track = res.tracks[0];
-    await player.queue.add(track);
-
-    if (!player.playing && !player.paused) {
-      await player.play();
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setAuthor({ name: 'NOW PLAYING  •  Diminta via Voice AI' })
-      .setTitle(track.info.title)
-      .setDescription(`Memutar lagu **${track.info.title}** karya **${track.info.author}**`)
-      .addFields(
-        { name: 'Durasi', value: `\`${formatDuration(track.info.duration)}\``, inline: true },
-        { name: 'Pemohon', value: requester?.displayName ? `<@${requester.id}>` : 'Voice AI', inline: true }
-      )
-      .setFooter({ text: 'FlyBot HD Music' })
-      .setTimestamp();
-
-    if (track.info.artworkUrl) {
-      embed.setThumbnail(track.info.artworkUrl);
-    }
-
-    if (textChannel) textChannel.send({ embeds: [embed] }).catch(() => {});
-    return true;
-  } catch (err) {
-    console.error('[EXECUTE LAVALINK PLAY ERROR]', err);
-    return false;
-  }
-}
-
-/**
  * Mulai sesi Voice AI di voice channel
  */
 async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy', options = {}) {
   const guildId = voiceChannel.guild.id;
 
   if (activeSessions.has(guildId)) {
-    await stopVoiceAiSession(guildId, false);
-  }
-
-  // Jika ada pemutar Lavalink aktif, hentikan
-  const existingPlayer = voiceChannel.client?.lavalink?.getPlayer(guildId);
-  if (existingPlayer) {
-    try {
-      await existingPlayer.destroy('VoiceAiStart', true);
-    } catch {}
-    await new Promise((r) => setTimeout(r, 150));
+    await stopVoiceAiSession(guildId);
   }
 
   const guildContext = await buildGuildContext(voiceChannel.guild, voiceChannel);
@@ -584,57 +315,23 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     textChannel,
     client: voiceChannel.client,
     voiceType,
+    callerUserId: options.callerUserId || null,
     connection,
     player,
     ws: null,
     guildContext,
     isSpeaking: false,
     isProcessing: false,
-    pendingMusicPlay: null,
-    pendingMusicUser: null,
-    preloadedSearchPromise: null,
-    lastSpeakerMember: null,
     activeListeners: new Set(),
     stats: { questionsAnswered: 0, startTime: Date.now() },
   };
 
-  // Listener Idle tunggal untuk reset state & trigger handover musik jika ada
+  // Reset status saat audio selesai diputar
   player.on(AudioPlayerStatus.Idle, () => {
-    setTimeout(async () => {
+    setTimeout(() => {
       session.isSpeaking = false;
       session.isProcessing = false;
-
-      // Jika ada permintaan putar musik, lakukan handover ke Lavalink setelah AI selesai bicara!
-      if (session.pendingMusicPlay) {
-        const query = session.pendingMusicPlay;
-        const user = session.pendingMusicUser;
-        const usedVoiceType = session.voiceType || 'alloy';
-        const preloadedPromise = session.preloadedSearchPromise;
-        session.pendingMusicPlay = null;
-        session.pendingMusicUser = null;
-        session.preloadedSearchPromise = null;
-
-        console.log(`[VOICE AI HANDOVER] Beralih ke Lavalink untuk memutar lagu: "${query}"`);
-
-        // Hentikan Voice AI dengan disconnect agar Discord Gateway me-refresh token voice untuk Lavalink
-        await stopVoiceAiSession(session.guildId, true);
-
-        // Jeda singkat 100ms agar Discord Gateway memproses disconnect
-        await new Promise((r) => setTimeout(r, 100));
-
-        // Putar musik via Lavalink
-        await executeLavalinkPlay(
-          session.client,
-          session.guildId,
-          session.channelId,
-          session.textChannel,
-          query,
-          user,
-          usedVoiceType,
-          preloadedPromise
-        );
-      }
-    }, 250);
+    }, 200);
   });
 
   player.on('error', (err) => {
@@ -648,7 +345,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
   // Buka koneksi streaming OpenAI Realtime
   session.ws = connectRealtimeWebSocket(session);
 
-  // Sapaan suara pertama saat join / resume
+  // Sapaan suara pertama saat join
   setTimeout(() => {
     if (options.initialGreeting !== false) {
       const greetingText =
@@ -661,8 +358,18 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
 
   // Tangkap saat ada user mulai berbicara di voice
   connection.receiver.speaking.on('start', (userId) => {
+    // 1. Abaikan suara bot
     if (userId === voiceChannel.client.user.id) return;
+
+    // 2. Abaikan jika bot sedang berbicara atau sedang memproses
     if (session.isSpeaking || session.isProcessing) return;
+
+    // 3. FOKUS HANYA PADA YANG MEMANGGIL AI (Orang lain di-mute pada sisi bot)
+    if (session.callerUserId && userId !== session.callerUserId) {
+      return;
+    }
+
+    // 4. Cegah double listener pada user yang sama
     if (session.activeListeners.has(userId)) return;
 
     handleUserSpeaking(session, userId);
@@ -734,18 +441,20 @@ function handleUserSpeaking(session, userId) {
         return;
       }
 
+      // Filter volume minimal (RMS): abaikan desisan/angin tanpa suara vokal manusia
+      const rms = calculateRms(pcmBuffer);
+      if (rms < 300) {
+        return;
+      }
+
       if (session.isProcessing || session.isSpeaking) return;
       session.isProcessing = true;
-
-      // Simpan member yang sedang berbicara
-      const member = await session.textChannel.guild.members.fetch(userId).catch(() => null);
-      session.lastSpeakerMember = member;
 
       // Konversi Discord 48kHz stereo langsung ke 24kHz mono
       const mono24k = convert48kStereoTo24kMono(pcmBuffer);
 
       if (session.ws && session.ws.readyState === 1) {
-        console.log(`[REALTIME STREAM] Mengirim audio mic (${mono24k.length} byte) ke OpenAI...`);
+        console.log(`[REALTIME STREAM] Mengirim audio mic caller ${userId} (${mono24k.length} byte, RMS: ${Math.round(rms)}) ke OpenAI...`);
 
         session.ws.send(
           JSON.stringify({
@@ -774,10 +483,8 @@ function handleUserSpeaking(session, userId) {
 
 /**
  * Hentikan sesi Voice AI
- * @param {string} guildId
- * @param {boolean} disconnectVoice - Jika false, bot tidak akan disconnect dari voice channel Discord
  */
-async function stopVoiceAiSession(guildId, disconnectVoice = true) {
+async function stopVoiceAiSession(guildId) {
   const session = activeSessions.get(guildId);
   if (!session) return false;
 
@@ -789,11 +496,7 @@ async function stopVoiceAiSession(guildId, disconnectVoice = true) {
 
   try {
     session.player.stop();
-    if (disconnectVoice) {
-      session.connection.destroy();
-    } else {
-      session.connection.destroy(false);
-    }
+    session.connection.destroy();
   } catch {}
 
   activeSessions.delete(guildId);
