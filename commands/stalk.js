@@ -4,59 +4,55 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('stalk')
-    .setDescription('Lihat informasi dan statistik akun profil media sosial (bebas emoji)')
+    .setDescription('Lihat informasi profil akun (hasil bersifat privat & hanya terlihat oleh kamu)')
     .addStringOption((opt) =>
       opt
         .setName('platform')
-        .setDescription('Pilih platform media sosial')
+        .setDescription('Pilih platform yang ingin di-stalk')
         .setRequired(true)
         .addChoices(
-          { name: 'Twitter / X', value: 'twitter' },
-          { name: 'GitHub', value: 'github' },
-          { name: 'Roblox', value: 'roblox' },
-          { name: 'YouTube', value: 'youtube' },
-          { name: 'TikTok', value: 'tiktok' },
-          { name: 'Instagram', value: 'instagram' }
+          { name: 'Roblox (Follower, Teman, ID & Avatar)', value: 'roblox' },
+          { name: 'GitHub (Follower, Repo, Bio & Org)', value: 'github' },
+          { name: 'Twitter / X (Follower, Tweet, Like & Bio)', value: 'twitter' },
+          { name: 'Minecraft (UUID, Skin 3D & NameMC)', value: 'minecraft' }
         )
     )
     .addStringOption((opt) =>
       opt
         .setName('username')
-        .setDescription('Username atau handle akun target (tanpa tanda @)')
+        .setDescription('Username atau link profil target')
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // Balasan bersifat privat (ephemeral) agar hanya pengguna yang menjalankan yang bisa melihat
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const platform = interaction.options.getString('platform');
-    const rawUsername = interaction.options.getString('username').trim();
-    const username = rawUsername.replace(/^@+/, '');
+    const rawInput = interaction.options.getString('username').trim();
+    const cleanUser = cleanInput(rawInput);
 
-    if (!username) {
+    if (!cleanUser) {
       return interaction.editReply({
-        content: '[ERROR] Masukkan username yang valid.',
+        content: '[ERROR] Masukkan username atau link profil yang valid.',
       });
     }
 
     try {
-      if (platform === 'twitter') {
-        return await handleTwitter(interaction, username);
+      if (platform === 'roblox') {
+        return await handleRoblox(interaction, rawInput, cleanUser);
       } else if (platform === 'github') {
-        return await handleGitHub(interaction, username);
-      } else if (platform === 'roblox') {
-        return await handleRoblox(interaction, username);
-      } else if (platform === 'youtube') {
-        return await handleYouTube(interaction, username);
-      } else if (platform === 'tiktok') {
-        return await handleTikTok(interaction, username);
-      } else if (platform === 'instagram') {
-        return await handleInstagram(interaction, username);
+        return await handleGitHub(interaction, cleanUser);
+      } else if (platform === 'twitter') {
+        return await handleTwitter(interaction, cleanUser);
+      } else if (platform === 'minecraft') {
+        return await handleMinecraft(interaction, cleanUser);
       }
     } catch (err) {
       console.error(`[STALK ERROR] [${platform}]`, err);
@@ -67,63 +63,97 @@ module.exports = {
   },
 };
 
+// ================= HELPER PEMBERSIH INPUT ================= //
+
+function cleanInput(input) {
+  let str = input.trim().replace(/\/+$/, '');
+  // Jika pengguna menempelkan link lengkap, ambil bagian akhir URL
+  if (str.includes('/')) {
+    const parts = str.split('/').filter(Boolean);
+    str = parts.pop() || '';
+  }
+  // Hapus tanda @ di awal jika ada
+  return str.replace(/^@+/, '');
+}
+
 // ================= HANDLERS ================= //
 
-async function handleTwitter(interaction, username) {
-  const url = `https://api.fxtwitter.com/${encodeURIComponent(username)}`;
-  const res = await fetch(url);
+async function handleRoblox(interaction, rawInput, username) {
+  let userId = null;
 
-  if (!res.ok) {
-    return interaction.editReply({
-      content: `[TIDAK DITEMUKAN] Akun Twitter/X dengan username "${username}" tidak ditemukan atau berstatus privat.`,
+  // Cek apakah pengguna menempelkan link profil dengan User ID langsung (/users/12345/profile)
+  const urlIdMatch = rawInput.match(/\/users\/(\d+)/);
+  if (urlIdMatch) {
+    userId = urlIdMatch[1];
+  } else {
+    // Cari user ID berdasarkan username
+    const searchRes = await fetch('https://users.roblox.com/v1/usernames/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
     });
+
+    if (!searchRes.ok) {
+      return interaction.editReply({
+        content: `[ERROR] Gagal menghubungi server Roblox (Status: ${searchRes.status}).`,
+      });
+    }
+
+    const searchData = await searchRes.json();
+    const userFound = searchData?.data?.[0];
+    if (!userFound) {
+      return interaction.editReply({
+        content: `[TIDAK DITEMUKAN] Pengguna Roblox dengan username "${username}" tidak ditemukan.`,
+      });
+    }
+    userId = userFound.id;
   }
 
-  const data = await res.json();
-  const user = data?.user;
+  // Tarik detail lengkap & statistik follower/following/teman secara paralel
+  const [detailRes, avatarRes, followerRes, followingRes, friendRes] = await Promise.all([
+    fetch(`https://users.roblox.com/v1/users/${userId}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    fetch(
+      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
+    ).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`).then((r) => (r.ok ? r.json() : { count: 0 })).catch(() => ({ count: 0 })),
+    fetch(`https://friends.roblox.com/v1/users/${userId}/followings/count`).then((r) => (r.ok ? r.json() : { count: 0 })).catch(() => ({ count: 0 })),
+    fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`).then((r) => (r.ok ? r.json() : { count: 0 })).catch(() => ({ count: 0 })),
+  ]);
 
-  if (!user || !user.screen_name) {
-    return interaction.editReply({
-      content: `[TIDAK DITEMUKAN] Akun Twitter/X dengan username "${username}" tidak ditemukan.`,
-    });
-  }
-
-  const profileUrl = `https://x.com/${user.screen_name}`;
-  const verifiedText = user.verification?.verified
-    ? `Terverifikasi (${user.verification?.type || 'Centang'})`
-    : 'Belum Terverifikasi';
+  const profileUrl = `https://www.roblox.com/users/${userId}/profile`;
+  const displayName = detailRes.displayName || username;
+  const realName = detailRes.name || username;
+  const avatarUrl = avatarRes?.data?.[0]?.imageUrl || null;
+  const createdDate = detailRes.created ? detailRes.created.slice(0, 10) : '-';
 
   const embed = new EmbedBuilder()
-    .setColor(0x1DA1F2)
+    .setColor(0xE2231A)
     .setAuthor({
-      name: `FlyBot  •  Profil Twitter / X`,
+      name: 'FlyBot  •  Profil Roblox (Privat)',
       iconURL: interaction.client.user.displayAvatarURL(),
     })
-    .setTitle(`${user.name} (@${user.screen_name})`)
+    .setTitle(`${displayName} (@${realName})`)
     .setURL(profileUrl)
-    .setDescription(user.description || '*Tidak ada bio.*')
-    .setThumbnail(user.avatar_url)
+    .setDescription(detailRes.description || '*Tidak ada bio/deskripsi profil.*')
     .addFields(
-      { name: 'Followers', value: (user.followers ?? 0).toLocaleString('id-ID'), inline: true },
-      { name: 'Following', value: (user.following ?? 0).toLocaleString('id-ID'), inline: true },
-      { name: 'Total Tweet/Post', value: (user.tweets ?? 0).toLocaleString('id-ID'), inline: true },
-      { name: 'Total Disukai', value: (user.likes ?? 0).toLocaleString('id-ID'), inline: true },
-      { name: 'Media Terunggah', value: (user.media_count ?? 0).toLocaleString('id-ID'), inline: true },
-      { name: 'Verifikasi Akun', value: verifiedText, inline: true },
-      { name: 'Bergabung Sejak', value: user.joined ? user.joined.slice(0, 10) : '-', inline: true },
-      { name: 'Tipe Akun', value: user.protected ? 'Privat / Terkunci' : 'Publik', inline: true },
-      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: true }
+      { name: 'Followers', value: (followerRes.count ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Following', value: (followingRes.count ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Total Teman', value: (friendRes.count ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'User ID', value: `\`${userId}\``, inline: true },
+      { name: 'Status Akun', value: detailRes.isBanned ? 'Banned' : 'Aktif', inline: true },
+      { name: 'Bergabung Sejak', value: createdDate, inline: true },
+      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: false }
     )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
+    .setFooter({ text: 'Informasi ini hanya terlihat oleh kamu (Privat)' })
     .setTimestamp();
 
-  if (user.banner_url) {
-    embed.setImage(user.banner_url);
+  if (avatarUrl) {
+    embed.setThumbnail(avatarUrl);
   }
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('Buka Profil Twitter / X')
+      .setLabel('Buka Profil Roblox')
       .setStyle(ButtonStyle.Link)
       .setURL(profileUrl)
   );
@@ -156,7 +186,7 @@ async function handleGitHub(interaction, username) {
   const embed = new EmbedBuilder()
     .setColor(0x24292E)
     .setAuthor({
-      name: `FlyBot  •  Profil GitHub`,
+      name: 'FlyBot  •  Profil GitHub (Privat)',
       iconURL: interaction.client.user.displayAvatarURL(),
     })
     .setTitle(`${data.name || data.login} (@${data.login})`)
@@ -172,9 +202,9 @@ async function handleGitHub(interaction, username) {
       { name: 'Lokasi', value: data.location || '-', inline: true },
       { name: 'Dibuat Pada', value: createdDate, inline: true },
       { name: 'Tipe Akun', value: data.type || 'User', inline: true },
-      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: true }
+      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: false }
     )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
+    .setFooter({ text: 'Informasi ini hanya terlihat oleh kamu (Privat)' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
@@ -187,172 +217,66 @@ async function handleGitHub(interaction, username) {
   return interaction.editReply({ embeds: [embed], components: [row] });
 }
 
-async function handleRoblox(interaction, username) {
-  const searchRes = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-
-  if (!searchRes.ok) {
-    return interaction.editReply({
-      content: `[ERROR] Gagal mencari pengguna Roblox (Status: ${searchRes.status}).`,
-    });
-  }
-
-  const searchData = await searchRes.json();
-  const userBasic = searchData?.data?.[0];
-
-  if (!userBasic) {
-    return interaction.editReply({
-      content: `[TIDAK DITEMUKAN] Pengguna Roblox dengan username "${username}" tidak ditemukan.`,
-    });
-  }
-
-  const userId = userBasic.id;
-  const detailRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
-  const details = detailRes.ok ? await detailRes.json() : {};
-
-  const avatarRes = await fetch(
-    `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
-  );
-  const avatarData = avatarRes.ok ? await avatarRes.json() : {};
-  const avatarUrl = avatarData?.data?.[0]?.imageUrl || null;
-
-  const profileUrl = `https://www.roblox.com/users/${userId}/profile`;
-  const createdDate = details.created ? details.created.slice(0, 10) : '-';
-
-  const embed = new EmbedBuilder()
-    .setColor(0xE2231A)
-    .setAuthor({
-      name: `FlyBot  •  Profil Roblox`,
-      iconURL: interaction.client.user.displayAvatarURL(),
-    })
-    .setTitle(`${details.displayName || userBasic.displayName} (@${details.name || userBasic.name})`)
-    .setURL(profileUrl)
-    .setDescription(details.description || '*Tidak ada deskripsi profil.*')
-    .addFields(
-      { name: 'User ID', value: `\`${userId}\``, inline: true },
-      { name: 'Display Name', value: details.displayName || '-', inline: true },
-      { name: 'Status Akun', value: details.isBanned ? 'Banned' : 'Aktif', inline: true },
-      { name: 'Dibuat Pada', value: createdDate, inline: true },
-      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: true }
-    )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
-    .setTimestamp();
-
-  if (avatarUrl) {
-    embed.setThumbnail(avatarUrl);
-  }
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel('Buka Profil Roblox')
-      .setStyle(ButtonStyle.Link)
-      .setURL(profileUrl)
-  );
-
-  return interaction.editReply({ embeds: [embed], components: [row] });
-}
-
-async function handleYouTube(interaction, username) {
-  const channelUrl = `https://www.youtube.com/@${encodeURIComponent(username)}`;
-  const res = await fetch(channelUrl, {
+async function handleTwitter(interaction, username) {
+  const url = `https://api.fxtwitter.com/${encodeURIComponent(username)}`;
+  const res = await fetch(url, {
     headers: {
       'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     },
   });
 
-  if (res.status === 404) {
-    return interaction.editReply({
-      content: `[TIDAK DITEMUKAN] Channel YouTube dengan handle "@${username}" tidak ditemukan.`,
-    });
-  }
-
-  const html = await res.text();
-  const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-  const descMatch = html.match(/<meta property="og:description" content="([^"]+)"/);
-  const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-  const subsMatch = html.match(
-    /"subscriberCountText":\{"accessibility":\{"accessibilityData":\{"label":"([^"]+)"/
-  );
-
-  const title = titleMatch?.[1] || `@${username}`;
-  const desc = descMatch?.[1] || '*Tidak ada deskripsi channel.*';
-  const avatar = imgMatch?.[1] || null;
-  const subs = subsMatch?.[1] || 'Disembunyikan / Tidak tersedia';
-
-  const embed = new EmbedBuilder()
-    .setColor(0xFF0000)
-    .setAuthor({
-      name: `FlyBot  •  Profil YouTube`,
-      iconURL: interaction.client.user.displayAvatarURL(),
-    })
-    .setTitle(title)
-    .setURL(channelUrl)
-    .setDescription(desc.length > 300 ? desc.slice(0, 297) + '...' : desc)
-    .addFields(
-      { name: 'Handle Channel', value: `@${username}`, inline: true },
-      { name: 'Jumlah Subscriber', value: subs, inline: true },
-      { name: 'Link Channel', value: `[Buka di Browser](${channelUrl})`, inline: true }
-    )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
-    .setTimestamp();
-
-  if (avatar) {
-    embed.setThumbnail(avatar);
-  }
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel('Buka Channel YouTube')
-      .setStyle(ButtonStyle.Link)
-      .setURL(channelUrl)
-  );
-
-  return interaction.editReply({ embeds: [embed], components: [row] });
-}
-
-async function handleTikTok(interaction, username) {
-  const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/@${encodeURIComponent(username)}`;
-  const res = await fetch(oembedUrl);
-
-  const profileUrl = `https://www.tiktok.com/@${username}`;
-
   if (!res.ok) {
     return interaction.editReply({
-      content: `[TIDAK DITEMUKAN] Akun TikTok dengan username "@${username}" tidak ditemukan atau berstatus privat.`,
+      content: `[TIDAK DITEMUKAN] Akun Twitter/X dengan username "${username}" tidak ditemukan atau berstatus privat.`,
     });
   }
 
   const data = await res.json();
-  const creatorName = data.author_name || username;
+  const user = data?.user;
+
+  if (!user || !user.screen_name) {
+    return interaction.editReply({
+      content: `[TIDAK DITEMUKAN] Akun Twitter/X dengan username "${username}" tidak ditemukan.`,
+    });
+  }
+
+  const profileUrl = `https://x.com/${user.screen_name}`;
+  const verifiedText = user.verification?.verified
+    ? `Terverifikasi (${user.verification?.type || 'Centang'})`
+    : 'Belum Terverifikasi';
 
   const embed = new EmbedBuilder()
-    .setColor(0x000000)
+    .setColor(0x1DA1F2)
     .setAuthor({
-      name: `FlyBot  •  Profil TikTok`,
+      name: 'FlyBot  •  Profil Twitter / X (Privat)',
       iconURL: interaction.client.user.displayAvatarURL(),
     })
-    .setTitle(`${creatorName} (@${username})`)
+    .setTitle(`${user.name} (@${user.screen_name})`)
     .setURL(profileUrl)
-    .setDescription(
-      `Akun TikTok resmi ditemukan.\n` +
-      `Untuk detail video, follower realtime dan postingan lengkap, silakan akses langsung melalui tombol profil di bawah.`
-    )
+    .setDescription(user.description || '*Tidak ada bio.*')
+    .setThumbnail(user.avatar_url)
     .addFields(
-      { name: 'Username', value: `@${username}`, inline: true },
-      { name: 'Nama Kreator', value: creatorName, inline: true },
-      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: true }
+      { name: 'Followers', value: (user.followers ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Following', value: (user.following ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Total Tweet/Post', value: (user.tweets ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Total Disukai', value: (user.likes ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Media Terunggah', value: (user.media_count ?? 0).toLocaleString('id-ID'), inline: true },
+      { name: 'Verifikasi Akun', value: verifiedText, inline: true },
+      { name: 'Bergabung Sejak', value: user.joined ? user.joined.slice(0, 10) : '-', inline: true },
+      { name: 'Tipe Akun', value: user.protected ? 'Privat / Terkunci' : 'Publik', inline: true },
+      { name: 'Link Profil', value: `[Buka di Browser](${profileUrl})`, inline: false }
     )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
+    .setFooter({ text: 'Informasi ini hanya terlihat oleh kamu (Privat)' })
     .setTimestamp();
+
+  if (user.banner_url) {
+    embed.setImage(user.banner_url);
+  }
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('Buka Profil TikTok')
+      .setLabel('Buka Profil Twitter / X')
       .setStyle(ButtonStyle.Link)
       .setURL(profileUrl)
   );
@@ -360,34 +284,51 @@ async function handleTikTok(interaction, username) {
   return interaction.editReply({ embeds: [embed], components: [row] });
 }
 
-async function handleInstagram(interaction, username) {
-  const profileUrl = `https://www.instagram.com/${encodeURIComponent(username)}/`;
+async function handleMinecraft(interaction, username) {
+  const url = `https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`;
+  const res = await fetch(url);
+
+  if (res.status === 404 || res.status === 204) {
+    return interaction.editReply({
+      content: `[TIDAK DITEMUKAN] Akun Minecraft dengan nama "${username}" tidak ditemukan.`,
+    });
+  }
+
+  if (!res.ok) {
+    return interaction.editReply({
+      content: `[ERROR] Gagal menghubungi server Mojang (Status: ${res.status}).`,
+    });
+  }
+
+  const data = await res.json();
+  const uuid = data.id;
+  const realName = data.name;
+  const avatarUrl = `https://mc-heads.net/avatar/${uuid}/150`;
+  const namemcUrl = `https://namemc.com/profile/${uuid}`;
 
   const embed = new EmbedBuilder()
-    .setColor(0xC13584)
+    .setColor(0x55FF55)
     .setAuthor({
-      name: `FlyBot  •  Profil Instagram`,
+      name: 'FlyBot  •  Profil Minecraft (Privat)',
       iconURL: interaction.client.user.displayAvatarURL(),
     })
-    .setTitle(`Instagram: @${username}`)
-    .setURL(profileUrl)
-    .setDescription(
-      `Profil Instagram untuk pengguna **@${username}**.\n` +
-      `Catatan: Meta menerapkan proteksi privasi dan batas akses ketat terhadap data follower/postingan anonim. Gunakan tombol di bawah untuk membuka profil secara langsung.`
-    )
+    .setTitle(`Minecraft: ${realName}`)
+    .setURL(namemcUrl)
+    .setDescription(`Detail akun Minecraft Java Edition untuk **${realName}**.`)
+    .setThumbnail(avatarUrl)
     .addFields(
-      { name: 'Username Target', value: `@${username}`, inline: true },
-      { name: 'Platform', value: 'Instagram', inline: true },
-      { name: 'Akses Cepat', value: `[Buka Halaman Profil](${profileUrl})`, inline: true }
+      { name: 'Username Resmi', value: realName, inline: true },
+      { name: 'UUID Akun', value: `\`${uuid}\``, inline: true },
+      { name: 'Profile NameMC', value: `[Buka di NameMC](${namemcUrl})`, inline: false }
     )
-    .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
+    .setFooter({ text: 'Informasi ini hanya terlihat oleh kamu (Privat)' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('Buka Profil Instagram')
+      .setLabel('Buka di NameMC')
       .setStyle(ButtonStyle.Link)
-      .setURL(profileUrl)
+      .setURL(namemcUrl)
   );
 
   return interaction.editReply({ embeds: [embed], components: [row] });
