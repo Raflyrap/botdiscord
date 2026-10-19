@@ -18,6 +18,13 @@ module.exports = {
     const wasPatroli = removePatroliActive(interaction.guildId);
     leavePatroliChannel(interaction.guildId);
 
+    // Hentikan Voice AI jika aktif
+    const { stopVoiceAiSession, getVoiceAiSession } = require('../voiceAiHelper');
+    const wasVoiceAi = !!getVoiceAiSession(interaction.guildId);
+    if (wasVoiceAi) {
+      await stopVoiceAiSession(interaction.guildId);
+    }
+
     // Hentikan player Lavalink jika ada
     const player = interaction.client.lavalink?.getPlayer(interaction.guildId);
     let wasMusic = false;
@@ -36,15 +43,17 @@ module.exports = {
       meVoice.disconnect().catch(() => {});
     }
 
-    if (!wasPatroli && !wasMusic) {
+    if (!wasPatroli && !wasMusic && !wasVoiceAi) {
       return interaction.reply({
-        content: 'Tidak ada musik atau sesi patroli yang sedang aktif saat ini.',
+        content: 'Tidak ada musik, sesi patroli, atau Voice AI yang sedang aktif saat ini.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
     let descriptionText = '';
-    if (wasPatroli && wasMusic) {
+    if (wasVoiceAi) {
+      descriptionText = 'Sesi Voice AI telah dihentikan dan bot telah keluar dari voice channel.';
+    } else if (wasPatroli && wasMusic) {
       descriptionText = 'Mode patroli dan pemutaran musik telah dihentikan. Seluruh antrean dibersihkan dan bot telah keluar dari voice channel.';
     } else if (wasPatroli) {
       descriptionText = 'Mode patroli 24 jam telah dinonaktifkan dan bot telah keluar dari voice channel.';

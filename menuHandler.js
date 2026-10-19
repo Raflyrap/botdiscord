@@ -48,8 +48,9 @@ function getMainDashboard(guild, member) {
       {
         name: 'Voice & Patroli',
         value: [
+          line('/aivoice', 'Ngobrol suara dengan Fly AI via mic voice'),
           line('/patroli', 'Jaga voice channel 24 jam nonstop'),
-          line('/stop', 'Hentikan patroli & keluar dari voice'),
+          line('/stop', 'Hentikan voice AI / patroli & keluar voice'),
         ].join('\n'),
       },
       {

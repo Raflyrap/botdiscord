@@ -652,6 +652,23 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // Tombol Hentikan Obrolan Voice AI
+    if (interaction.customId === 'btn_aivoice_stop') {
+      const { stopVoiceAiSession, getVoiceAiSession } = require('./voiceAiHelper');
+      const session = getVoiceAiSession(interaction.guildId);
+      if (!session) {
+        return interaction.reply({
+          content: 'Sesi Voice AI sudah tidak aktif.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+      await interaction.deferReply();
+      await stopVoiceAiSession(interaction.guildId);
+      return interaction.editReply({
+        content: `Sesi Voice AI telah dihentikan oleh <@${interaction.user.id}>. Bot telah keluar dari voice channel.`,
+      });
+    }
+
   }
 
   // Handler untuk pengiriman form modal (Custom Embed)
