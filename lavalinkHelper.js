@@ -217,10 +217,13 @@ function initLavalink(client) {
 
         setTimeout(async () => {
           try {
-            await player.destroy('VoiceAiResume', false);
+            await player.destroy('VoiceAiResume', true);
           } catch (e) {
             console.warn('[LAVALINK DESTROY WARN]', e.message);
           }
+
+          // Beri jeda 150ms agar Discord Gateway bersih sebelum Voice AI reconnect
+          await new Promise((r) => setTimeout(r, 150));
 
           const guild = client.guilds.cache.get(guildId);
           const voiceChannel = guild?.channels.cache.get(voiceChannelId);
