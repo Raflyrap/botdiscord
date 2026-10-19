@@ -24,6 +24,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  AttachmentBuilder,
 } = require('discord.js');
 const { initLavalink } = require('./lavalinkHelper');
 // Hook Module loader agar setiap panggilan ke @discordjs/voice selalu join dengan selfDeaf: false sejak awal.
@@ -68,6 +69,7 @@ const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHel
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
 const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel } = require('./patroliHelper');
+const { enhanceImage, extractImageUrlFromMessage } = require('./imageHdHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -1047,6 +1049,67 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     } catch (err) {
       console.error('Error saat menghapus pesan toxic:', err);
+    }
+  }
+
+  // === FITUR HD GAMBAR (CAPTION /hd ATAU REPLY FOTO /hd) ===
+  const cleanContent = message.content.trim().toLowerCase();
+  const isHdCommand =
+    cleanContent === '/hd' ||
+    cleanContent.startsWith('/hd ') ||
+    cleanContent === '!hd' ||
+    cleanContent.startsWith('!hd ');
+
+  if (isHdCommand) {
+    try {
+      let targetImageUrl = extractImageUrlFromMessage(message);
+
+      // Jika pesan sendiri tidak ada attachment gambar, periksa apakah me-reply pesan lain
+      if (!targetImageUrl && message.reference && message.reference.messageId) {
+        const repliedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+        if (repliedMessage) {
+          targetImageUrl = extractImageUrlFromMessage(repliedMessage);
+        }
+      }
+
+      if (targetImageUrl) {
+        const scale = cleanContent.includes('4x') || cleanContent.includes(' 4') ? 4 : 2;
+        const processingMsg = await message.reply('Sedang memproses dan meningkatkan kualitas gambar kamu bray, tunggu sebentar...');
+
+        const result = await enhanceImage(targetImageUrl, { scale });
+        if (result.success) {
+          const file = new AttachmentBuilder(result.buffer, { name: result.fileName });
+          const embed = new EmbedBuilder()
+            .setColor(0x5865f2)
+            .setTitle('Peningkatan Kualitas Gambar Selesai')
+            .setDescription(
+              `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
+              `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
+              `• Waktu Proses: **${result.processTimeMs} ms**\n` +
+              `• Algoritma: Lanczos3 Interpolator + Adaptive Unsharp Mask (Studio 4:4:4)`
+            )
+            .setImage(`attachment://${result.fileName}`)
+            .setFooter({ text: `FlyBot Image Enhancer • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            files: [file],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal memproses gambar: ${result.error}`,
+          });
+        }
+        return;
+      } else {
+        await message.reply('Tidak ditemukan gambar untuk di-HD-in bray. Kirim gambar langsung dengan caption `/hd`, atau reply foto orang lain lalu ketik `/hd`.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error saat memproses HD gambar di chat:', err);
     }
   }
 
