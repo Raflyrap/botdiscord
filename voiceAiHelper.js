@@ -4,6 +4,7 @@ const {
   entersState,
   createAudioPlayer,
   createAudioResource,
+  StreamType,
   AudioPlayerStatus,
   EndBehaviorType,
 } = require('@discordjs/voice');
@@ -14,32 +15,36 @@ const { Readable } = require('stream');
 const activeSessions = new Map();
 
 /**
- * Buat WAV Header 44-byte untuk PCM Buffer
+ * Konversi audio 24kHz Mono 16-bit PCM (OpenAI Realtime) langsung ke 48kHz Stereo 16-bit PCM (Format Asli Discord)
+ * Menggunakan linear interpolation untuk rekonstruksi kurva audio yang halus bebas distorsi dan bebas noise kaset rusak
  */
-function createWavHeader(dataLength, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-  const buffer = Buffer.alloc(44);
+function convert24kMonoTo48kStereo(mono24kBuf) {
+  const numInputSamples = Math.floor(mono24kBuf.length / 2);
+  const outBuf = Buffer.alloc(numInputSamples * 8);
 
-  buffer.write('RIFF', 0);
-  buffer.writeUInt32LE(36 + dataLength, 4);
-  buffer.write('WAVE', 8);
-  buffer.write('fmt ', 12);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20); // PCM
-  buffer.writeUInt16LE(numChannels, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(byteRate, 28);
-  buffer.writeUInt16LE(blockAlign, 32);
-  buffer.writeUInt16LE(bitsPerSample, 34);
-  buffer.write('data', 36);
-  buffer.writeUInt32LE(dataLength, 40);
+  let outOffset = 0;
+  for (let i = 0; i < numInputSamples; i++) {
+    const sample = mono24kBuf.readInt16LE(i * 2);
 
-  return buffer;
+    // Titik sampel 1 (Channel Kiri & Kanan)
+    outBuf.writeInt16LE(sample, outOffset);
+    outBuf.writeInt16LE(sample, outOffset + 2);
+
+    // Titik sampel 2 (Interpolasi halus dengan sampel berikutnya)
+    const nextSample = (i + 1 < numInputSamples) ? mono24kBuf.readInt16LE((i + 1) * 2) : sample;
+    const midSample = Math.round((sample + nextSample) / 2);
+
+    outBuf.writeInt16LE(midSample, outOffset + 4);
+    outBuf.writeInt16LE(midSample, outOffset + 6);
+
+    outOffset += 8;
+  }
+  return outBuf;
 }
 
 /**
  * Konversi 48kHz Stereo 16-bit PCM (Discord) ke 24kHz Mono 16-bit PCM (OpenAI Realtime)
+ * dengan perataan channel kiri-kanan dan anti-aliasing filter
  */
 function convert48kStereoTo24kMono(stereo48kBuf) {
   const numFrames = Math.floor(stereo48kBuf.length / 4);
@@ -47,17 +52,27 @@ function convert48kStereoTo24kMono(stereo48kBuf) {
   const mono24kBuf = Buffer.alloc(targetFrames * 2);
 
   let outOffset = 0;
-  for (let i = 0; i < numFrames; i += 2) {
-    const inOffset = i * 4;
-    mono24kBuf[outOffset] = stereo48kBuf[inOffset];
-    mono24kBuf[outOffset + 1] = stereo48kBuf[inOffset + 1];
+  for (let i = 0; i < numFrames - 1; i += 2) {
+    const inOffset1 = i * 4;
+    const inOffset2 = (i + 1) * 4;
+
+    const left1 = stereo48kBuf.readInt16LE(inOffset1);
+    const right1 = stereo48kBuf.readInt16LE(inOffset1 + 2);
+    const sample1 = Math.round((left1 + right1) / 2);
+
+    const left2 = stereo48kBuf.readInt16LE(inOffset2);
+    const right2 = stereo48kBuf.readInt16LE(inOffset2 + 2);
+    const sample2 = Math.round((left2 + right2) / 2);
+
+    const filteredMono = Math.round((sample1 + sample2) / 2);
+    mono24kBuf.writeInt16LE(filteredMono, outOffset);
     outOffset += 2;
   }
-  return mono24kBuf;
+  return mono24kBuf.subarray(0, outOffset);
 }
 
 /**
- * Hitung RMS volume audio untuk mendeteksi suara manusia vs noise/angin
+ * Hitung RMS volume audio untuk memfilter hembusan angin/noise latar belakang
  */
 function calculateRms(pcmBuffer) {
   const numSamples = Math.floor(pcmBuffer.length / 2);
@@ -206,6 +221,25 @@ function connectRealtimeWebSocket(session) {
         );
       }
 
+      // KONTROL MEMORI AUDIO: Hapus item audio lama agar konteks tidak menumpuk
+      // Ini mencegah degradasi suara ("suara kaset rusak") dan menjaga latency tetap sub-detik!
+      if (data.type === 'conversation.item.created' && data.item?.id) {
+        if (!session.historyItemIds) session.historyItemIds = [];
+        session.historyItemIds.push(data.item.id);
+
+        while (session.historyItemIds.length > 6) {
+          const oldItemId = session.historyItemIds.shift();
+          try {
+            ws.send(
+              JSON.stringify({
+                type: 'conversation.item.delete',
+                item_id: oldItemId,
+              })
+            );
+          } catch {}
+        }
+      }
+
       // Kumpulkan audio output real-time
       if (data.type === 'response.output_audio.delta') {
         if (data.delta) {
@@ -229,7 +263,7 @@ function connectRealtimeWebSocket(session) {
             currentTranscript = '';
           }
 
-          // Mainkan audio dengan WAV container berkualitas tinggi & bebas lag
+          // Mainkan langsung dengan konversi native 48kHz Stereo Raw PCM
           playRealtimeAudio(session, mono24kFull);
         } else {
           session.isProcessing = false;
@@ -266,16 +300,17 @@ function connectRealtimeWebSocket(session) {
 }
 
 /**
- * Mainkan Buffer audio hasil Realtime (24kHz Mono) dengan WAV Header resmi
+ * Mainkan Buffer audio hasil Realtime langsung ke Discord native format (48kHz Stereo 16-bit PCM)
+ * Tanpa melalui proses FFmpeg eksternal, bebas lag, bebas distorsi kaset rusak, dan suara sejernih kristal
  */
 function playRealtimeAudio(session, mono24kBuffer) {
   session.isSpeaking = true;
 
   try {
-    const wavHeader = createWavHeader(mono24kBuffer.length, 24000, 1, 16);
-    const wavBuffer = Buffer.concat([wavHeader, mono24kBuffer]);
-
-    const resource = createAudioResource(Readable.from(wavBuffer));
+    const stereo48kBuffer = convert24kMonoTo48kStereo(mono24kBuffer);
+    const resource = createAudioResource(Readable.from(stereo48kBuffer), {
+      inputType: StreamType.Raw,
+    });
     session.player.play(resource);
   } catch (err) {
     console.error('[PLAY REALTIME AUDIO ERROR]', err);
@@ -322,6 +357,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     guildContext,
     isSpeaking: false,
     isProcessing: false,
+    historyItemIds: [],
     activeListeners: new Set(),
     stats: { questionsAnswered: 0, startTime: Date.now() },
   };
@@ -450,7 +486,7 @@ function handleUserSpeaking(session, userId) {
       if (session.isProcessing || session.isSpeaking) return;
       session.isProcessing = true;
 
-      // Konversi Discord 48kHz stereo langsung ke 24kHz mono
+      // Konversi Discord 48kHz stereo ke 24kHz mono dengan filtering
       const mono24k = convert48kStereoTo24kMono(pcmBuffer);
 
       if (session.ws && session.ws.readyState === 1) {
