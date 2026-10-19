@@ -12,7 +12,7 @@ const {
 const { setAfk } = require('./afkHelper');
 const { askAI } = require('./aiHelper');
 const { getServerConfig, getAllBadwords } = require('./autoModHelper');
-const { formatDuration } = require('./lavalinkHelper');
+const { formatDuration, searchTrackWithFallback } = require('./lavalinkHelper');
 
 async function handleMenuInteraction(interaction) {
   // 1. SELECT MENU (Langsung aksi perintah)
@@ -388,9 +388,7 @@ async function handleMenuInteraction(interaction) {
         }
         player.textChannelId = interaction.channel.id;
 
-        const isUrl = /^https?:\/\//i.test(query);
-        const searchOptions = isUrl ? { query } : { query, source: 'ytsearch' };
-        const res = await player.search(searchOptions, interaction.user);
+        const res = await searchTrackWithFallback(player, query, interaction.user);
 
         if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
           return interaction.editReply(`❌ Tidak ditemukan lagu untuk: **${query}**`);

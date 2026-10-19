@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags, PermissionsBitField, EmbedBuilder } = require('discord.js');
-const { formatDuration } = require('../lavalinkHelper');
+const { formatDuration, searchTrackWithFallback } = require('../lavalinkHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -96,12 +96,8 @@ module.exports = {
       // Update text channel untuk notifikasi
       player.textChannelId = interaction.channel.id;
 
-      // Cek apakah input berupa link/URL atau teks pencarian judul lagu
-      const isUrl = /^https?:\/\//i.test(query);
-      const searchOptions = isUrl ? { query } : { query, source: 'ytsearch' };
-
-      // Cari lagu / playlist di Lavalink node
-      const res = await player.search(searchOptions, interaction.user);
+      // Cari lagu / playlist di Lavalink node (otomatis fallback cerdas bebas blokir YouTube)
+      const res = await searchTrackWithFallback(player, query, interaction.user);
 
       if (!res || !res.tracks || res.tracks.length === 0 || res.loadType === 'empty') {
         return interaction.editReply(`❌ Tidak ditemukan lagu atau playlist untuk: **${query}**`);

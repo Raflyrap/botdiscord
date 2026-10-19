@@ -20,13 +20,69 @@ function formatDuration(ms) {
 }
 
 /**
+ * Cari lagu atau playlist dengan fallback cerdas:
+ * 1. Jika URL (Spotify Playlist/Track, SoundCloud, YouTube): cari langsung via URL
+ * 2. Jika teks judul lagu: cari via SoundCloud ('scsearch') yang 100% bebas dari blokir anti-bot YouTube.
+ * 3. Jika tidak ditemukan di SoundCloud: fallback ke Spotify ('spsearch') lalu YouTube ('ytsearch').
+ * @param {import('lavalink-client').Player} player 
+ * @param {string} query 
+ * @param {any} requester 
+ * @returns {Promise<any>}
+ */
+async function searchTrackWithFallback(player, query, requester) {
+  const isUrl = /^https?:\/\//i.test(query);
+  if (isUrl) {
+    return await player.search({ query }, requester);
+  }
+
+  // 1. Coba cari di SoundCloud terlebih dahulu (bebas blokir YouTube "requires login")
+  try {
+    const scRes = await player.search({ query, source: 'scsearch' }, requester);
+    if (scRes && scRes.tracks && scRes.tracks.length > 0 && scRes.loadType !== 'empty' && scRes.loadType !== 'error') {
+      return scRes;
+    }
+  } catch (e) {
+    console.warn('[SEARCH] scsearch gagal, mencoba fallback lain:', e.message);
+  }
+
+  // 2. Fallback ke Spotify ('spsearch')
+  try {
+    const spRes = await player.search({ query, source: 'spsearch' }, requester);
+    if (spRes && spRes.tracks && spRes.tracks.length > 0 && spRes.loadType !== 'empty' && spRes.loadType !== 'error') {
+      return spRes;
+    }
+  } catch (e) {
+    console.warn('[SEARCH] spsearch gagal, mencoba fallback lain:', e.message);
+  }
+
+  // 3. Fallback ke YouTube ('ytsearch')
+  return await player.search({ query, source: 'ytsearch' }, requester);
+}
+
+/**
  * Inisialisasi LavalinkManager v4
  * @param {import('discord.js').Client} client 
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Daftar node cadangan (public Lavalink v4 nodes yang mendukung YouTube & Spotify plugin LavaSrc)
+  // Daftar node cadangan Lavalink v4
   const defaultNodes = [
+    {
+      id: 'nazha-v4',
+      host: 'lavalink.nazha.online',
+      port: 443,
+      authorization: 'nazhafreelava',
+      secure: true,
+      requestTimeout: 20000,
+    },
+    {
+      id: 'jirayu-v4',
+      host: 'lavalink.jirayu.net',
+      port: 443,
+      authorization: 'youshallnotpass',
+      secure: true,
+      requestTimeout: 20000,
+    },
     {
       id: 'serenetia-v4',
       host: 'lavalinkv4.serenetia.com',
@@ -40,14 +96,6 @@ function initLavalink(client) {
       host: 'lavalink-v4.triniumhost.com',
       port: 443,
       authorization: 'free',
-      secure: true,
-      requestTimeout: 20000,
-    },
-    {
-      id: 'nazha-v4',
-      host: 'lavalink.nazha.online',
-      port: 443,
-      authorization: 'nazhafreelava',
       secure: true,
       requestTimeout: 20000,
     },
@@ -85,7 +133,7 @@ function initLavalink(client) {
     autoSkip: true,
     playerOptions: {
       clientBasedPositionUpdateInterval: 150,
-      defaultSearchPlatform: 'ytsearch',
+      defaultSearchPlatform: 'scsearch', // Default ke SoundCloud agar bebas dari blokir IP YouTube
       volumeDecrementer: 1,
     },
     queueOptions: {
@@ -130,7 +178,7 @@ function initLavalink(client) {
           { name: '👤 Diminta Oleh', value: `${requesterStr}`, inline: true },
           { name: '🔊 Volume', value: `\`${player.volume}%\``, inline: true }
         )
-        .setFooter({ text: 'Lavalink v4 Audio Engine • High Fidelity' })
+        .setFooter({ text: `Lavalink v4 • Sumber: ${track.info.sourceName || 'Audio'}` })
         .setTimestamp();
 
       if (track.info.artworkUrl) {
@@ -166,10 +214,37 @@ function initLavalink(client) {
 
     // Saat terjadi error pemutaran audio
     .on('trackError', async (player, track, payload) => {
-      console.error(`[LAVALINK TRACK ERROR] Guild: ${player.guildId} | Lagu: ${track?.info?.title}:`, payload);
+      console.error(`[LAVALINK TRACK ERROR] Guild: ${player.guildId} | Lagu: ${track?.info?.title}:`, payload?.exception?.message || payload);
       const channel = client.channels.cache.get(player.textChannelId);
+
+      const errMsg = payload?.exception?.message || '';
+      const isYtBlock =
+        errMsg.includes('requires login') ||
+        errMsg.includes('All clients failed') ||
+        errMsg.includes('No supported audio streams') ||
+        errMsg.includes('unavailable');
+
+      // Auto-fallback cerdas: jika YouTube memblokir pemutaran, alihkan lagu ke SoundCloud
+      if (isYtBlock && track?.info?.title) {
+        if (channel && typeof channel.send === 'function') {
+          channel.send(`⚠️ Video YouTube diblokir oleh sistem anti-bot YouTube. Mengalihkan otomatis ke versi audio SoundCloud...`).catch(() => {});
+        }
+
+        try {
+          const fallbackRes = await player.search({ query: track.info.title, source: 'scsearch' }, track.requester);
+          if (fallbackRes && fallbackRes.tracks && fallbackRes.tracks.length > 0) {
+            const fallbackTrack = fallbackRes.tracks[0];
+            player.queue.tracks.unshift(fallbackTrack);
+            await player.play();
+            return;
+          }
+        } catch (fbErr) {
+          console.error('[FALLBACK ERROR]:', fbErr.message);
+        }
+      }
+
       if (channel && typeof channel.send === 'function') {
-        channel.send(`⚠️ Gagal memutar lagu **${track?.info?.title || 'tidak diketahui'}**: ${payload?.exception?.message || 'Sumber audio tidak dapat diakses'}`).catch(() => {});
+        channel.send(`❌ Gagal memutar lagu **${track?.info?.title || 'tidak diketahui'}**: ${payload?.exception?.message || 'Sumber audio tidak dapat diakses'}`).catch(() => {});
       }
     });
 
@@ -179,4 +254,5 @@ function initLavalink(client) {
 module.exports = {
   initLavalink,
   formatDuration,
+  searchTrackWithFallback,
 };
