@@ -596,6 +596,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.update(payload);
     }
 
+    if (interaction.customId === 'btn_music_shuffle') {
+      const shuffleCmd = interaction.client.commands.get('shuffle');
+      if (shuffleCmd) return shuffleCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah shuffle tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.customId === 'btn_music_skip') {
+      const skipCmd = interaction.client.commands.get('skip');
+      if (skipCmd) return skipCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah skip tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
     // Tombol Self-Role (Ambil / Cabut Role)
     if (
       interaction.customId === 'selfrole_announcement' ||

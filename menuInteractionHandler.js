@@ -70,6 +70,12 @@ async function handleMenuInteraction(interaction) {
       return interaction.reply({ content: 'Perintah skip tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
+    if (val === 'cmd_shuffle') {
+      const shuffleCmd = interaction.client.commands.get('shuffle');
+      if (shuffleCmd) return shuffleCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah shuffle tidak ditemukan.', flags: MessageFlags.Ephemeral });
+    }
+
     if (val === 'cmd_repeat') {
       const repeatCmd = interaction.client.commands.get('repeat');
       if (repeatCmd) return repeatCmd.execute(interaction);

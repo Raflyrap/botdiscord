@@ -56,6 +56,23 @@ module.exports = {
       embed.setThumbnail(currentSong.info.artworkUrl);
     }
 
-    await interaction.reply({ embeds: [embed] });
+    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+    const components = [];
+
+    if (player.queue.tracks.length > 1) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('btn_music_shuffle')
+          .setLabel('Acak Antrean (Shuffle)')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('btn_music_skip')
+          .setLabel('Lewati Lagu (Skip)')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      components.push(row);
+    }
+
+    await interaction.reply({ embeds: [embed], components });
   },
 };
