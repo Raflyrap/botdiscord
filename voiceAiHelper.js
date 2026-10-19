@@ -285,42 +285,14 @@ async function processVoiceSpeech(session, userId, pcmBuffer) {
 
   console.log(`[VOICE AI RECOGNIZED] ${userName}: "${transcriptionText}"`);
 
-  // Log teks ke channel chat
   try {
-    const chatEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setAuthor({
-        name: `Voice AI  •  ${userName}`,
-        iconURL: member?.displayAvatarURL() || undefined,
-      })
-      .setDescription(`"${transcriptionText}"`)
-      .setFooter({ text: 'Sedang memikirkan jawaban...' });
-
-    const logMsg = await session.textChannel.send({ embeds: [chatEmbed] }).catch(() => null);
-
-    // Ambil jawaban dari Fly AI
+    // Ambil jawaban dari Fly AI langsung untuk disuarakan
     const aiReply = await askVoiceAI(session.guildId, userId, transcriptionText, userName);
-
-    if (logMsg) {
-      const replyEmbed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setAuthor({
-          name: `Fly AI  •  Menjawab ${userName}`,
-          iconURL: session.textChannel.client.user.displayAvatarURL(),
-        })
-        .addFields(
-          { name: 'Pertanyaan', value: `\`${transcriptionText}\`` },
-          { name: 'Jawaban Suara', value: aiReply }
-        )
-        .setFooter({ text: 'Voice AI aktif mendengarkan mic...' })
-        .setTimestamp();
-
-      await logMsg.edit({ embeds: [replyEmbed] }).catch(() => null);
-    }
+    console.log(`[VOICE AI REPLY] Fly AI -> ${userName}: "${aiReply}"`);
 
     session.stats.questionsAnswered++;
 
-    // Keluarkan suara jawaban ke Voice Channel
+    // Keluarkan suara jawaban langsung ke Voice Channel (tanpa spam notifikasi di chat)
     await playSpeech(session, aiReply);
   } catch (err) {
     console.error('[VOICE AI FLOW ERROR]', err);

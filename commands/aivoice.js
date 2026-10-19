@@ -165,10 +165,10 @@ module.exports = {
           .setDescription(
             `Fly AI telah bergabung ke **<#${voiceChannel.id}>** dan siap mendengarkan obrolan kamu langsung lewat mic!\n\n` +
             `Panduan Singkat:\n` +
-            `• Langsung bicara di mic kamu (misal: "Halo Fly, cerita dong hari ini kenapa seru?").\n` +
-            `• Bot akan mentranskripsi suara kamu secara realtime dan menjawab dengan suara AI langsung di voice channel.\n` +
-            `• Transkrip teks dan jawaban juga akan dicatat di channel chat ini.\n` +
-            `• Ketik \`/aivoice stop\` jika ingin mengakhiri sesi obrolan.`
+            `• Langsung bicara santai di mic kamu (misal: "Halo Fly, hari ini ada kabar apa?").\n` +
+            `• Bot akan mendengarkan dan menjawab langsung lewat suara di Voice Channel.\n` +
+            `• Mode hening di chat aktif (bot tidak akan mengirim chat/notifikasi teks yang mengganggu).\n` +
+            `• Ketik \`/aivoice stop\` atau klik tombol di bawah untuk mengakhiri obrolan.`
           )
           .addFields(
             { name: 'Voice Channel', value: `<#${voiceChannel.id}>`, inline: true },
