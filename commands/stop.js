@@ -14,15 +14,17 @@ module.exports = {
       });
     }
 
+    await interaction.deferReply();
+
     // Cabut status patroli jika aktif
     const wasPatroli = removePatroliActive(interaction.guildId);
     leavePatroliChannel(interaction.guildId);
 
-    // Hentikan Voice AI jika aktif
+    // Hentikan Voice AI jika aktif (beserta salam pamit suara)
     const { stopVoiceAiSession, getVoiceAiSession } = require('../voiceAiHelper');
     const wasVoiceAi = !!getVoiceAiSession(interaction.guildId);
     if (wasVoiceAi) {
-      await stopVoiceAiSession(interaction.guildId);
+      await stopVoiceAiSession(interaction.guildId, true);
     }
 
     // Hentikan player Lavalink jika ada
@@ -44,9 +46,8 @@ module.exports = {
     }
 
     if (!wasPatroli && !wasMusic && !wasVoiceAi) {
-      return interaction.reply({
+      return interaction.editReply({
         content: 'Tidak ada musik, sesi patroli, atau Voice AI yang sedang aktif saat ini.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -68,6 +69,6 @@ module.exports = {
       .setFooter({ text: 'Sesi dihentikan • FlyBot HD Music' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   },
 };

@@ -387,7 +387,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
       const greetingText =
         typeof options.initialGreeting === 'string'
           ? options.initialGreeting
-          : 'Ucapkan salam sapaan santai khas tongkrongan dan sebut bahwa lo Bot Fly udah standby di voice channel.';
+          : 'Ucapkan salam sapaan santai dan akrab khas tongkrongan (misalnya: "Halo bro! Gua Bot Fly udah standby nih di voice, ada yang mau diobrolin?"). Sapa dengan asik!';
       sendRealtimeTextMessage(session, greetingText);
     }
   }, 1000);
@@ -397,8 +397,8 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     // 1. Abaikan suara bot
     if (userId === voiceChannel.client.user.id) return;
 
-    // 2. Abaikan jika bot sedang berbicara atau sedang memproses
-    if (session.isSpeaking || session.isProcessing) return;
+    // 2. Abaikan jika bot sedang berbicara, memproses, atau sedang dalam proses keluar
+    if (session.isSpeaking || session.isProcessing || session.isLeaving) return;
 
     // 3. FOKUS HANYA PADA YANG MEMANGGIL AI (Orang lain di-mute pada sisi bot)
     if (session.callerUserId && userId !== session.callerUserId) {
@@ -412,7 +412,7 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
   });
 
   connection.on(VoiceConnectionStatus.Disconnected, () => {
-    stopVoiceAiSession(guildId);
+    stopVoiceAiSession(guildId, false);
   });
 
   return session;
@@ -518,11 +518,56 @@ function handleUserSpeaking(session, userId) {
 }
 
 /**
- * Hentikan sesi Voice AI
+ * Hentikan sesi Voice AI dengan kata pamit suara sebelum keluar
+ * @param {string} guildId
+ * @param {boolean} withFarewell - Ucapkan salam pamit suara sebelum bot keluar
  */
-async function stopVoiceAiSession(guildId) {
+async function stopVoiceAiSession(guildId, withFarewell = true) {
   const session = activeSessions.get(guildId);
   if (!session) return false;
+
+  if (session.isLeaving) return false;
+  session.isLeaving = true;
+
+  // Jika diminta berpamitan lewat suara dan koneksi WebSocket serta player masih aktif
+  if (withFarewell && session.ws && session.ws.readyState === 1 && session.connection) {
+    session.callerUserId = null; // Mute input mic agar tidak ada input audio baru yang masuk
+
+    try {
+      sendRealtimeTextMessage(
+        session,
+        'Katakan persis dengan gaya santai khas tongkrongan: "Gua out dulu yaa, kalo mau ngobrol panggil gua lagi, tengs bray!"'
+      );
+
+      // Tunggu hingga AI selesai mengucapkan salam pamit (maksimal 5.5 detik)
+      await new Promise((resolve) => {
+        let isDone = false;
+        const finish = () => {
+          if (!isDone) {
+            isDone = true;
+            resolve();
+          }
+        };
+
+        const timeout = setTimeout(finish, 5500);
+
+        const onIdle = () => {
+          setTimeout(() => {
+            clearTimeout(timeout);
+            session.player.off(AudioPlayerStatus.Idle, onIdle);
+            finish();
+          }, 350);
+        };
+
+        // Tunggu player mulai bersuara lalu selesai (Idle)
+        session.player.once(AudioPlayerStatus.Playing, () => {
+          session.player.once(AudioPlayerStatus.Idle, onIdle);
+        });
+      });
+    } catch (farewellErr) {
+      console.warn('[FAREWELL ERROR]', farewellErr.message);
+    }
+  }
 
   try {
     if (session.ws) {
