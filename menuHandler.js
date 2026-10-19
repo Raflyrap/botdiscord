@@ -86,6 +86,7 @@ function getMainDashboard(guild, member) {
               line('/stats', 'Channel statistik realtime (on / off)'),
               line('/game', 'Setup otomatis 3 channel mini games interaktif'),
               line('/setlevel', 'Channel notifikasi level & achievement'),
+              line('/sethd', 'Setup kategori & channel khusus Auto-HD foto'),
               line('/verif', 'Pasang panel verifikasi ber-tombol'),
               line('/autorole', 'Role otomatis untuk member baru'),
               line('/antitoxic', 'Kelola kata terlarang'),

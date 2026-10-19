@@ -69,7 +69,7 @@ const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHel
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
 const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel } = require('./patroliHelper');
-const { enhanceImage, extractImageUrlFromMessage } = require('./imageHdHelper');
+const { enhanceImage, extractImageUrlFromMessage, isHdChannel, setupHdChannel } = require('./imageHdHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -155,6 +155,14 @@ client.once(Events.ClientReady, async (readyClient) => {
     initReminders(readyClient);
   } catch (err) {
     console.error('[REMINDER INIT] Error:', err.message);
+  }
+
+  // Auto-setup channel khusus HD foto untuk server utama jika belum ada
+  if (process.env.GUILD_ID) {
+    const mainGuild = readyClient.guilds.cache.get(process.env.GUILD_ID);
+    if (mainGuild) {
+      setupHdChannel(mainGuild).catch((e) => console.warn('[AUTO-HD SETUP]:', e.message));
+    }
   }
 
   // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
@@ -1049,6 +1057,49 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     } catch (err) {
       console.error('Error saat menghapus pesan toxic:', err);
+    }
+  }
+
+  // === FITUR AUTO-HD DI CHANNEL KHUSUS HD FOTO ===
+  if (message.guild && isHdChannel(message.guild.id, message.channel.id)) {
+    const targetImageUrl = extractImageUrlFromMessage(message);
+    if (targetImageUrl) {
+      try {
+        const cleanContent = message.content.trim().toLowerCase();
+        const scale = cleanContent.includes('4x') || cleanContent.includes(' 4') ? 4 : 2;
+        const processingMsg = await message.reply('Sedang memproses dan meningkatkan kualitas gambar kamu bray, tunggu sebentar...');
+
+        const result = await enhanceImage(targetImageUrl, { scale });
+        if (result.success) {
+          const file = new AttachmentBuilder(result.buffer, { name: result.fileName });
+          const embed = new EmbedBuilder()
+            .setColor(0x5865f2)
+            .setTitle('Peningkatan Kualitas Gambar Selesai')
+            .setDescription(
+              `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
+              `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
+              `• Waktu Proses: **${result.processTimeMs} ms**\n` +
+              `• Algoritma: Lanczos3 Interpolator + Adaptive Unsharp Mask (Studio 4:4:4)`
+            )
+            .setImage(`attachment://${result.fileName}`)
+            .setFooter({ text: `FlyBot Auto-HD • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            files: [file],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal memproses gambar: ${result.error}`,
+          });
+        }
+        return;
+      } catch (err) {
+        console.error('Error saat Auto-HD di channel khusus:', err);
+      }
     }
   }
 

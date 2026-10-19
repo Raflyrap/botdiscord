@@ -1,12 +1,166 @@
+const fs = require('fs');
+const path = require('path');
 const sharp = require('sharp');
+const { ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 /**
  * Helper untuk meningkatkan kualitas gambar secara lokal (Upscale & Sharpening)
- * Menggunakan algoritma Lanczos3, Unsharp Mask Filter, dan Subsampling 4:4:4
+ * dan manajemen kategori & channel khusus Auto-HD
  */
 
+const CONFIG_PATH = path.join(__dirname, 'hdChannelConfig.json');
 const MAX_INPUT_BYTES = 15 * 1024 * 1024; // Maksimal input 15MB
 const MAX_DIMENSION = 4096; // Maksimal lebar/tinggi output 4096px agar hemat memori & aman di Discord
+
+function loadHdConfig() {
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify({}, null, 2), 'utf-8');
+      return {};
+    }
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8') || '{}');
+  } catch (err) {
+    console.error('[HD CONFIG ERROR]:', err.message);
+    return {};
+  }
+}
+
+function saveHdConfig(data) {
+  try {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[HD CONFIG SAVE ERROR]:', err.message);
+  }
+}
+
+function getHdConfig(guildId) {
+  const configs = loadHdConfig();
+  return configs[guildId] || null;
+}
+
+function setHdConfig(guildId, data) {
+  const configs = loadHdConfig();
+  configs[guildId] = { ...(configs[guildId] || {}), ...data };
+  saveHdConfig(configs);
+  return configs[guildId];
+}
+
+function isHdChannel(guildId, channelId) {
+  if (!guildId || !channelId) return false;
+  const cfg = getHdConfig(guildId);
+  return !!(cfg && cfg.enabled && cfg.channelId === channelId);
+}
+
+/**
+ * Setup otomatis kategori dan channel khusus HD foto
+ * @param {import('discord.js').Guild} guild
+ * @returns {Promise<{category: import('discord.js').CategoryChannel, hdChannel: import('discord.js').TextChannel}>}
+ */
+async function setupHdChannel(guild) {
+  const cfg = getHdConfig(guild.id) || {};
+
+  // 1. Cek atau buat Kategori "UPGRADE FOTO HD"
+  let category = cfg.categoryId ? guild.channels.cache.get(cfg.categoryId) : null;
+  if (!category) {
+    category = guild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'upgrade foto hd'
+    );
+  }
+
+  if (!category) {
+    category = await guild.channels.create({
+      name: 'UPGRADE FOTO HD',
+      type: ChannelType.GuildCategory,
+      reason: 'Setup Kategori Khusus HD Foto',
+    });
+  }
+
+  // 2. Cek atau buat Channel Teks "hd-foto"
+  let hdChannel = cfg.channelId ? guild.channels.cache.get(cfg.channelId) : null;
+  if (!hdChannel) {
+    hdChannel = guild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildText && c.parentId === category.id && c.name === 'hd-foto'
+    );
+  }
+
+  const guideEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({
+      name: 'FlyBot  •  Studio HD Foto',
+      iconURL: guild.client.user.displayAvatarURL(),
+    })
+    .setTitle('Channel Khusus Peningkatan Kualitas Foto')
+    .setDescription(
+      `Selamat datang di channel khusus Auto-HD!\n\n` +
+      `**Cara Pakai (Otomatis & Sangat Mudah):**\n` +
+      `• Cukup **kirim foto apa saja** ke channel ini, bot akan langsung otomatis meningkatkan resolusi dan ketajamannya (Auto-HD 2x) tanpa perlu mengetik perintah apa pun.\n` +
+      `• Ingin hasil lebih besar? Ketik \`/hd 4x\` pada caption foto untuk pembesaran 4x Ultra HD.\n` +
+      `• Kamu juga bisa me-reply foto di channel ini lalu ketik \`/hd\` atau \`!hd\`.\n\n` +
+      `**Teknologi Studio:**\n` +
+      `• Interpolasi Piksel Lanczos3\n` +
+      `• Adaptive Unsharp Masking\n` +
+      `• Chroma Subsampling 4:4:4 (Warna Asli Terjaga)`
+    )
+    .setFooter({ text: 'Pesan disematkan permanen • Kirim foto kamu langsung di bawah' })
+    .setTimestamp();
+
+  if (!hdChannel) {
+    hdChannel = await guild.channels.create({
+      name: 'hd-foto',
+      type: ChannelType.GuildText,
+      parent: category.id,
+      topic: 'Kirim foto apa saja di sini untuk langsung di-HD-in otomatis oleh FlyBot',
+      reason: 'Setup Channel Khusus HD Foto',
+    });
+
+    const sent = await hdChannel.send({ embeds: [guideEmbed] });
+    await sent.pin().catch(() => {});
+  } else {
+    const pins = await hdChannel.messages.fetchPinned().catch(() => null);
+    if (!pins || pins.size === 0) {
+      const sent = await hdChannel.send({ embeds: [guideEmbed] });
+      await sent.pin().catch(() => {});
+    }
+  }
+
+  setHdConfig(guild.id, {
+    categoryId: category.id,
+    channelId: hdChannel.id,
+    enabled: true,
+  });
+
+  return { category, hdChannel };
+}
+
+/**
+ * Menghapus kategori dan channel khusus HD foto
+ * @param {import('discord.js').Guild} guild
+ * @returns {Promise<boolean>}
+ */
+async function removeHdChannel(guild) {
+  const cfg = getHdConfig(guild.id);
+  if (!cfg) return false;
+
+  if (cfg.channelId) {
+    const ch = guild.channels.cache.get(cfg.channelId) || (await guild.channels.fetch(cfg.channelId).catch(() => null));
+    if (ch) await ch.delete('Hapus channel HD foto').catch(() => {});
+  }
+
+  if (cfg.categoryId) {
+    const cat = guild.channels.cache.get(cfg.categoryId) || (await guild.channels.fetch(cfg.categoryId).catch(() => null));
+    if (cat && cat.children?.cache?.size === 0) {
+      await cat.delete('Hapus kategori HD foto').catch(() => {});
+    }
+  }
+
+  setHdConfig(guild.id, {
+    categoryId: null,
+    channelId: null,
+    enabled: false,
+  });
+
+  return true;
+}
 
 /**
  * Mengambil Buffer gambar dari URL atau Buffer
@@ -195,4 +349,9 @@ function extractImageUrlFromMessage(message) {
 module.exports = {
   enhanceImage,
   extractImageUrlFromMessage,
+  getHdConfig,
+  setHdConfig,
+  setupHdChannel,
+  removeHdChannel,
+  isHdChannel,
 };
