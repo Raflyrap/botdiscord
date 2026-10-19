@@ -64,8 +64,8 @@ module.exports = {
         `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
         `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
         `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
-        `• Waktu Proses: **${result.processTimeMs} ms**\n` +
-        `• Algoritma: Lanczos3 Interpolator + Adaptive Unsharp Mask (Studio 4:4:4)`
+        `• Mesin: **${result.engine || 'Real-ESRGAN AI (Hugging Face GPU)'}**\n` +
+        `• Waktu Proses: **${result.processTimeMs} ms**`
       )
       .setImage(`attachment://${result.fileName}`)
       .setFooter({

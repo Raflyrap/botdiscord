@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const { Client: GradioClient } = require('@gradio/client');
 const { ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 /**
@@ -218,7 +219,53 @@ async function enhanceImage(input, options = {}) {
       };
     }
 
-    // Hitung dimensi target baru
+    // 1. Prioritaskan Deep Learning Super-Resolution AI (Real-ESRGAN / CUGAN) jika HF_TOKEN tersedia
+    const hfToken = process.env.HF_TOKEN;
+    if (hfToken) {
+      try {
+        const aiModel = scale === 4 ? '4xRealWebPhoto_v4_dat2' : '2xHFA2kReal-CUGAN';
+        const mime = metadata.format === 'png' ? 'image/png' : 'image/jpeg';
+        const imageBlob = new Blob([rawBuffer], { type: mime });
+
+        const app = await GradioClient.connect('Phips/Upscaler', { token: hfToken });
+        const res = await app.predict('/upscale_image', [imageBlob, aiModel]);
+
+        const downloadUrl = res?.data?.[1]?.url;
+        if (downloadUrl) {
+          const downloadRes = await fetch(downloadUrl);
+          if (downloadRes.ok) {
+            let aiBuffer = Buffer.from(await downloadRes.arrayBuffer());
+            let finalMeta = await sharp(aiBuffer).metadata();
+            let ext = finalMeta.format || 'png';
+
+            // Jika hasil melebihi 8MB (batas Discord free), konversi efisien ke JPEG kualitas tinggi
+            if (aiBuffer.length > 8 * 1024 * 1024) {
+              aiBuffer = await sharp(aiBuffer).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+              ext = 'jpg';
+              finalMeta = await sharp(aiBuffer).metadata();
+            }
+
+            const elapsed = Date.now() - startTime;
+            return {
+              success: true,
+              buffer: aiBuffer,
+              fileName: `ai_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
+              originalWidth: metadata.width,
+              originalHeight: metadata.height,
+              newWidth: finalMeta.width,
+              newHeight: finalMeta.height,
+              scale: scale,
+              engine: 'Real-ESRGAN AI (Hugging Face GPU)',
+              processTimeMs: elapsed,
+            };
+          }
+        }
+      } catch (hfErr) {
+        console.warn('[HF AI UPSCALE FAILED, FALLBACK TO LOCAL]:', hfErr.message);
+      }
+    }
+
+    // 2. Fallback Lokal Studio menggunakan Sharp (Lanczos3 + Unsharp Mask) jika AI offline
     let targetWidth = Math.round(metadata.width * scale);
     let targetHeight = Math.round(metadata.height * scale);
 
@@ -303,6 +350,7 @@ async function enhanceImage(input, options = {}) {
       newWidth: finalMeta.width,
       newHeight: finalMeta.height,
       scale: scale,
+      engine: 'Lanczos3 + Unsharp Mask (Local Studio)',
       processTimeMs: elapsed,
     };
   } catch (err) {
