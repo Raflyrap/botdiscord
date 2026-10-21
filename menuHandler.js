@@ -79,6 +79,7 @@ function getMainDashboard(guild, member) {
         ? {
             name: 'Pengelola Server',
             value: [
+              line('/setup', 'Setup lengkap server (1 per 1 atau langsung all)'),
               line('/setwelcome', 'Channel sambutan & member keluar'),
               line('/setverif', 'Setup role & kunci channel sebelum verif'),
               line('/log', 'Setup otomatis kategori AUDIT LOG & channel'),
@@ -91,7 +92,6 @@ function getMainDashboard(guild, member) {
               line('/autorole', 'Role otomatis untuk member baru'),
               line('/antitoxic', 'Kelola kata terlarang'),
               line('/buatembed', 'Buat pesan informasi berbingkai'),
-              line('/leveltest', 'Preview tampilan level up'),
             ].join('\n'),
           }
         : {
@@ -125,13 +125,12 @@ function getMainDashboard(guild, member) {
   ];
   if (isAdmin) {
     menuOptions.push(
+      { label: 'Setup Server Lengkap (All-in-One)', description: '[Admin] Auto setup verifikasi, welcome, game, voice, tiket, dll', value: 'cmd_setup' },
       { label: 'Setup Kunci Channel & Verif', description: '[Admin] Setup role & sembunyikan channel', value: 'cmd_setverif' },
       { label: 'Audit Log Server', description: '[Admin] Status & kelola channel audit log', value: 'cmd_log' },
-      { label: 'Panel Verifikasi', description: '[Admin] Status & panduan pasang panel verifikasi', value: 'cmd_verif' },
       { label: 'Panel Tiket Bantuan', description: '[Admin] Status & panduan pasang panel tiket bantuan', value: 'cmd_ticket' },
       { label: 'Statistik Server Real-time', description: '[Admin] Aktifkan / matikan counter statistik server', value: 'cmd_stats' },
       { label: 'Arena Mini Games', description: '[Admin] Kategori & 3 channel game interaktif', value: 'cmd_game' },
-      { label: 'Test Level Up & Achievement', description: '[Admin] Preview tampilan notifikasi level up', value: 'cmd_leveltest' },
       { label: 'Setting Channel Leveling', description: '[Admin] Status & info channel level up & achievement', value: 'cmd_setlevel' },
       { label: 'Autorole', description: '[Admin] Atur role otomatis member baru', value: 'cmd_autorole' },
       { label: 'Antitoxic', description: '[Admin] Lihat daftar kata terlarang', value: 'cmd_antitoxic' },

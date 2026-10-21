@@ -28,6 +28,7 @@ async function handleMenuInteraction(interaction) {
 
     // Proteksi Fitur Admin
     const adminCommands = [
+      'cmd_setup',
       'cmd_autorole',
       'cmd_antitoxic',
       'cmd_setverif',
@@ -248,6 +249,12 @@ async function handleMenuInteraction(interaction) {
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    if (val === 'cmd_setup') {
+      const setupCmd = interaction.client.commands.get('setup');
+      if (setupCmd) return setupCmd.execute(interaction);
+      return interaction.reply({ content: 'Perintah setup tidak ditemukan.', flags: MessageFlags.Ephemeral });
     }
 
     if (val === 'cmd_game') {

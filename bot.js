@@ -195,8 +195,58 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Handler untuk Menu Dashboard interaktif
   await handleMenuInteraction(interaction).catch(console.error);
 
+  // Handler dropdown menu setup
+  if (interaction.isStringSelectMenu() && interaction.customId === 'menu_setup_select') {
+    const hasPerm =
+      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+      interaction.guild?.ownerId === interaction.user.id;
+
+    if (!hasPerm) {
+      return interaction.reply({
+        content: 'Perintah ini hanya bisa dijalankan oleh Administrator.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    const chosen = interaction.values[0] || 'all';
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    try {
+      const { executeSetupAction, createResultEmbed } = require('./commands/setup');
+      const result = await executeSetupAction(chosen, interaction.guild);
+      const embed = createResultEmbed(chosen, result, interaction.guild);
+      return interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      return interaction.editReply({ content: `Gagal menjalankan setup: ${err.message}` });
+    }
+  }
+
   // Handler untuk klik tombol (Button)
   if (interaction.isButton()) {
+    if (interaction.customId === 'btn_setup_run_all') {
+      const hasPerm =
+        interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+        interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+        interaction.guild?.ownerId === interaction.user.id;
+
+      if (!hasPerm) {
+        return interaction.reply({
+          content: 'Perintah ini hanya bisa dijalankan oleh Administrator.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      try {
+        const { executeSetupAction, createResultEmbed } = require('./commands/setup');
+        const result = await executeSetupAction('all', interaction.guild);
+        const embed = createResultEmbed('all', result, interaction.guild);
+        return interaction.editReply({ embeds: [embed] });
+      } catch (err) {
+        return interaction.editReply({ content: `Gagal menjalankan setup: ${err.message}` });
+      }
+    }
+
     if (interaction.customId === 'rule_agree_btn') {
       return interaction.reply({
         content: `Terima kasih <@${interaction.user.id}>! Kamu telah membaca dan menyetujui seluruh tata tertib server ${interaction.guild.name}. Selamat berinteraksi!`,
