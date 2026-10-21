@@ -7,126 +7,133 @@ const {
   StringSelectMenuBuilder,
   EmbedBuilder,
   MessageFlags,
-  ComponentType,
 } = require('discord.js');
 
 const {
-  setupWelcomeAndLeave,
-  setupVerification,
-  setupGames,
-  setupSupportTicket,
-  setupServerStats,
-  setupVoiceHub,
-  setupAuditLogServer,
-  setupHdStudio,
   setupAll,
+  setupGetStartedCategory,
+  setupOfficialCategory,
+  setupNotifyCategory,
+  setupCommunityCategory,
+  setupCinematographyCategory,
+  setupEntertainmentCategory,
+  setupMiniGamesCategory,
+  setupVoiceLoungesCategory,
 } = require('../setupHelper');
 
 // Helper untuk membangun Embed hasil setup
 function createResultEmbed(featureKey, result, guild) {
   const embed = new EmbedBuilder()
     .setColor(0x57f287)
-    .setAuthor({ name: `${guild.name} • Setup Server`, iconURL: guild.iconURL() || undefined })
+    .setAuthor({ name: `${guild.name} • Template Setup Server`, iconURL: guild.iconURL() || undefined })
     .setTimestamp();
 
-  if (featureKey === 'welcome') {
+  if (featureKey === 'get_started') {
     embed
-      .setTitle('Setup Welcome & Leave Selesai')
+      .setTitle('Setup Get Started Selesai')
       .setDescription(
-        `Kategori **${result.category.name}** dan channel notifikasi telah berhasil disiapkan:\n\n` +
-        `• Channel Welcome: <#${result.welcomeChannel.id}>\n` +
-        `• Channel Leave: <#${result.leaveChannel.id}>\n\n` +
-        `Bot akan otomatis mengirimkan kartu sambutan visual setiap ada member baru yang bergabung dan log saat member keluar.`
+        `Kategori **${result.category.name}** dan channel panduan/verifikasi telah siap:\n\n` +
+        `• <#${result.rulesChannel.id}> — Peraturan resmi server (Bahasa Indonesia)\n` +
+        `• <#${result.startHereChannel.id}> — Panel tombol verifikasi server\n` +
+        `• <#${result.selectRolesChannel.id}> — Panel pemilihan role gender (👦 Laki-laki / 👧 Perempuan)\n\n` +
+        `*Member baru hanya bisa melihat kategori ini sampai mereka memverifikasi akun dan memilih role gender!*`
       );
-  } else if (featureKey === 'verif') {
+  } else if (featureKey === 'official') {
     embed
-      .setTitle('Setup Verifikasi Server Selesai')
+      .setTitle('Setup Official Selesai')
       .setDescription(
-        `Kategori **${result.category.name}** dan panel verifikasi telah siap digunakan:\n\n` +
-        `• Channel Verifikasi: <#${result.channel.id}>\n` +
-        `• Role Member: ${result.role ? `<@&${result.role.id}>` : '@Member'}\n` +
-        `• Status Kunci: ${result.lockedCount} channel telah disembunyikan dari member belum verifikasi.\n\n` +
-        `Member baru hanya perlu menekan tombol hijau di <#${result.channel.id}> untuk otomatis membuka seluruh channel server.`
+        `Kategori **${result.category.name}** dan channel resmi telah siap:\n\n` +
+        `• <#${result.announcement.id}> — Pengumuman resmi server\n` +
+        `• <#${result.officialEvent.id}> — Event dan kegiatan komunitas\n` +
+        `• <#${result.socialMedia.id}> — Tautan sosial media server\n` +
+        `• <#${result.helpCenter.id}> — Pusat bantuan & tiket support\n\n` +
+        `*Channel ini hanya bisa diketik oleh Owner/Bot, member hanya bisa membaca dan memberi reaksi (react).*`
       );
-  } else if (featureKey === 'game') {
+  } else if (featureKey === 'notify') {
     embed
-      .setTitle('Setup Arena Mini Games Selesai')
+      .setTitle('Setup Notify Selesai')
       .setDescription(
-        `Kategori **${result.category.name}** dan 3 arena permainan interaktif telah siap:\n\n` +
+        `Kategori **${result.category.name}** dan notifikasi telah aktif:\n\n` +
+        `• <#${result.welcome.id}> — Pesan sambutan member baru (terhubung ke Welcome Banner)\n` +
+        `• <#${result.leave.id}> — Log riwayat member keluar\n\n` +
+        `*Bot akan otomatis mengirimkan kartu visual saat ada member yang bergabung.*`
+      );
+  } else if (featureKey === 'community') {
+    embed
+      .setTitle('Setup Community Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** dan channel obrolan komunitas telah siap:\n\n` +
+        `• <#${result.newcomerChat.id}> — Obrolan khusus member baru\n` +
+        `• <#${result.ngobrol.id}> — Ruang obrolan umum 1\n` +
+        `• <#${result.ngobrol2.id}> — Ruang obrolan umum 2\n` +
+        `• <#${result.media.id}> — Galeri berbagi media\n` +
+        `• <#${result.levels.id}> — Notifikasi naik level XP\n` +
+        `• <#${result.achievements.id}> — Notifikasi penghargaan & badge prestasi\n` +
+        `• <#${result.report.id}> — Ruang pelaporan kendala/pelanggaran`
+      );
+  } else if (featureKey === 'cinematography') {
+    embed
+      .setTitle('Setup Cinematography Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** telah siap:\n\n` +
+        `• <#${result.fotografi.id}> — Galeri fotografi karya anggota (Auto-HD support)\n` +
+        `• <#${result.videografi.id}> — Berbagi video cinematik & klip seru`
+      );
+  } else if (featureKey === 'entertainment') {
+    embed
+      .setTitle('Setup Entertainment Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** telah siap:\n\n` +
+        `• <#${result.meme.id}> — Berbagi meme lucu (Auto-react)\n` +
+        `• <#${result.fanart.id}> — Galeri seni & fanart\n` +
+        `• <#${result.aiFanart.id}> — Karya seni AI\n` +
+        `• <#${result.aiGenerating.id}> — Obrolan cerdas bareng ChatGPT AI\n` +
+        `• <#${result.aiPrompt.id}> — Berbagi prompt kreatif AI\n` +
+        `• <#${result.gamingSetup.id}> — Pamer setup gaming & battlestation`
+      );
+  } else if (featureKey === 'games') {
+    embed
+      .setTitle('Setup Mini Games Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** telah siap:\n\n` +
         `• <#${result.coinChannel.id}> — Tebak Koin (Gambar / Angka)\n` +
         `• <#${result.numberChannel.id}> — Tebak Angka (1 - 100)\n` +
-        `• <#${result.rpsChannel.id}> — Suit (Gunting Batu Kertas)\n\n` +
-        `Setiap channel sudah dilengkapi petunjuk permanen dan tombol bermain berhadiah Koin & XP.`
-      );
-  } else if (featureKey === 'ticket') {
-    embed
-      .setTitle('Setup Tiket Bantuan / Support Selesai')
-      .setDescription(
-        `Kategori **${result.category.name}** dan channel panel telah siap:\n\n` +
-        `• Channel Panel: <#${result.channel.id}>\n\n` +
-        `Member tinggal mengklik tombol **Buat Tiket** di <#${result.channel.id}> untuk membuka channel privat bersama staff.`
-      );
-  } else if (featureKey === 'stats') {
-    embed
-      .setTitle('Setup Statistik Server Realtime Selesai')
-      .setDescription(
-        `Kategori **${result.category.name}** dan 3 voice channel counter realtime telah dibuat di posisi teratas:\n\n` +
-        `• <#${result.memberChannel.id}>\n` +
-        `• <#${result.adminChannel.id}>\n` +
-        `• <#${result.activeChannel.id}>\n\n` +
-        `Channel counter terkunci otomatis (hanya baca) dan angkanya diperbarui secara realtime.`
+        `• <#${result.rpsChannel.id}> — Suit (Gunting Batu Kertas)`
       );
   } else if (featureKey === 'voice') {
     embed
-      .setTitle('Setup Voice Hub (Join-to-Create) Selesai')
+      .setTitle('Setup Voice Lounges Selesai (Posisi Terbawah)')
       .setDescription(
-        `Kategori **${result.category.name}** dan voice hub telah aktif:\n\n` +
-        `• Voice Trigger: <#${result.hubChannel.id}>\n` +
-        (result.textChat ? `• Companion Text: <#${result.textChat.id}>\n\n` : '\n') +
-        `Setiap member yang masuk ke <#${result.hubChannel.id}> akan **otomatis dibuatkan voice room pribadi**, dan channel akan otomatis terhapus saat sudah kosong.`
-      );
-  } else if (featureKey === 'log') {
-    embed
-      .setTitle('Setup Audit Log Server Selesai')
-      .setDescription(
-        `Kategori **${result.category.name}** dan channel rahasia <#${result.channel.id}> telah siap.\n\n` +
-        `Channel dikunci otomatis hanya untuk Administrator, mencatat:\n` +
-        `• Pesan terhapus & diedit\n` +
-        `• Riwayat member keluar\n` +
-        `• Perubahan role member`
-      );
-  } else if (featureKey === 'hd') {
-    embed
-      .setTitle('Setup Studio Auto-HD Foto Selesai')
-      .setDescription(
-        `Kategori **${result.category.name}** dan channel <#${result.hdChannel.id}> telah siap.\n\n` +
-        `Setiap foto yang dikirimkan di channel tersebut akan **otomatis di-HD-kan** (2x / 4x HD) oleh bot tanpa perlu perintah manual.`
+        `Kategori **${result.category.name}** telah siap di urutan paling bawah:\n\n` +
+        `• <#${result.hubChannel.id}> — Voice trigger (Join-to-Create room mandiri)\n` +
+        `• <#${result.productionRoom.id}> — Voice room untuk produksi & stream\n` +
+        `• <#${result.generalVoice.id}> — Obrolan suara santai\n` +
+        `• <#${result.musicLounge.id}> — Mendengarkan musik HD bareng FlyBot\n` +
+        `• <#${result.voiceChat.id}> — Obrolan teks pendamping voice`
       );
   } else if (featureKey === 'all') {
-    const lines = [];
-    if (result.welcome) lines.push(`• **Welcome & Leave**: <#${result.welcome.welcomeChannel.id}> & <#${result.welcome.leaveChannel.id}>`);
-    if (result.verif) lines.push(`• **Verifikasi**: <#${result.verif.channel.id}> (${result.verif.role ? `<@&${result.verif.role.id}>` : '@Member'})`);
-    if (result.game) lines.push(`• **Mini Games**: <#${result.game.coinChannel.id}>, <#${result.game.numberChannel.id}>, <#${result.game.rpsChannel.id}>`);
-    if (result.ticket) lines.push(`• **Tiket Support**: <#${result.ticket.channel.id}>`);
-    if (result.stats) lines.push(`• **Server Stats**: <#${result.stats.memberChannel.id}>, <#${result.stats.adminChannel.id}>, <#${result.stats.activeChannel.id}>`);
-    if (result.voice) lines.push(`• **Voice Hub**: <#${result.voice.hubChannel.id}>`);
-    if (result.log) lines.push(`• **Audit Log**: <#${result.log.channel.id}>`);
-    if (result.hd) lines.push(`• **Studio HD**: <#${result.hd.hdChannel.id}>`);
-
     embed
-      .setTitle('🚀 Seluruh Setup Server Berhasil Dijalankan (All-in-One)')
+      .setTitle('🚀 Seluruh Template Server Berhasil Dibuat (All-in-One)')
       .setDescription(
-        `Semua kategori, channel teks, channel suara (voice), role, permission, dan panel otomatis telah selesai dibuat dan langsung aktif:\n\n` +
-        lines.join('\n') +
-        `\n\n✅ Seluruh fitur sudah terhubung dan berfungsi normal 100%! Server kamu sekarang siap digunakan secara profesional.`
+        `Seluruh struktur server sesuai layout profesional telah selesai dibuat dan langsung aktif:\n\n` +
+        `**1. Get Started** (Akses Awal Sebelum Verifikasi)\n` +
+        `└ <#${result.getStarted.rulesChannel.id}>, <#${result.getStarted.startHereChannel.id}>, <#${result.getStarted.selectRolesChannel.id}>\n\n` +
+        `**2. Official** (Hanya Owner & Bot Chat, Member React)\n` +
+        `└ <#${result.official.announcement.id}>, <#${result.official.officialEvent.id}>, <#${result.official.socialMedia.id}>, <#${result.official.helpCenter.id}>\n\n` +
+        `**3. Notify** (Notifikasi Selamat Datang & Keluar)\n` +
+        `└ <#${result.notify.welcome.id}> & <#${result.notify.leave.id}>\n\n` +
+        `**4. Community** (Obrolan, Levels & Achievements)\n` +
+        `└ <#${result.community.newcomerChat.id}>, <#${result.community.ngobrol.id}>, <#${result.community.ngobrol2.id}>, <#${result.community.media.id}>, <#${result.community.levels.id}>, <#${result.community.achievements.id}>, <#${result.community.report.id}>\n\n` +
+        `**5. Cinematography**\n` +
+        `└ <#${result.cinematography.fotografi.id}> & <#${result.cinematography.videografi.id}>\n\n` +
+        `**6. Entertainment & AI**\n` +
+        `└ <#${result.entertainment.meme.id}>, <#${result.entertainment.fanart.id}>, <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>, <#${result.entertainment.gamingSetup.id}>\n\n` +
+        `**7. Mini Games**\n` +
+        `└ <#${result.miniGames.coinChannel.id}>, <#${result.miniGames.numberChannel.id}>, <#${result.miniGames.rpsChannel.id}>\n\n` +
+        `**8. Voice Lounges (Paling Bawah)**\n` +
+        `└ <#${result.voiceLounges.hubChannel.id}>, <#${result.voiceLounges.productionRoom.id}>, <#${result.voiceLounges.generalVoice.id}>, <#${result.voiceLounges.musicLounge.id}>, <#${result.voiceLounges.voiceChat.id}>\n\n` +
+        `✅ **Sistem Keamanan Aktif**: Member baru yang bergabung hanya akan melihat kategori **Get Started** sampai mereka menekan tombol verifikasi dan memilih role gender (**👦 Laki-laki** / **👧 Perempuan**). Setelah itu, seluruh server akan otomatis terbuka penuh!`
       );
-
-    if (result.errors && result.errors.length > 0) {
-      embed.addFields({
-        name: 'Catatan Kendala',
-        value: result.errors.join('\n'),
-      });
-    }
   }
 
   return embed;
@@ -135,22 +142,22 @@ function createResultEmbed(featureKey, result, guild) {
 // Fungsi eksekutor setup
 async function executeSetupAction(featureKey, guild) {
   switch (featureKey) {
-    case 'welcome':
-      return await setupWelcomeAndLeave(guild);
-    case 'verif':
-      return await setupVerification(guild);
-    case 'game':
-      return await setupGames(guild);
-    case 'ticket':
-      return await setupSupportTicket(guild);
-    case 'stats':
-      return await setupServerStats(guild);
+    case 'get_started':
+      return await setupGetStartedCategory(guild);
+    case 'official':
+      return await setupOfficialCategory(guild);
+    case 'notify':
+      return await setupNotifyCategory(guild);
+    case 'community':
+      return await setupCommunityCategory(guild);
+    case 'cinematography':
+      return await setupCinematographyCategory(guild);
+    case 'entertainment':
+      return await setupEntertainmentCategory(guild);
+    case 'games':
+      return await setupMiniGamesCategory(guild);
     case 'voice':
-      return await setupVoiceHub(guild);
-    case 'log':
-      return await setupAuditLogServer(guild);
-    case 'hd':
-      return await setupHdStudio(guild);
+      return await setupVoiceLoungesCategory(guild);
     case 'all':
     default:
       return await setupAll(guild);
@@ -161,21 +168,31 @@ async function executeSetupAction(featureKey, guild) {
 function getSetupDashboard(guild) {
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
-    .setAuthor({ name: 'FlyBot • Pusat Setup Otomatis', iconURL: guild.client.user.displayAvatarURL() })
-    .setTitle(`Pusat Setup Server  •  ${guild.name}`)
+    .setAuthor({ name: 'FlyBot • Template Server Manager', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle(`Pusat Setup Template Server  •  ${guild.name}`)
     .setDescription(
-      `Pilih setup fitur yang kamu inginkan di bawah ini.\n` +
-      `Kamu bisa memilih **Setup 1 per 1** atau langsung **Setup Semua Sekaligus** (All-in-One).\n\n` +
-      `**Daftar Fitur Yang Akan Dibuat Otomatis:**\n` +
-      `• **Welcome & Leave** — Kategori & 2 channel sambutan/keluar\n` +
-      `• **Verifikasi Server** — Kategori, channel verif, role @Member, panel tombol & lockdown\n` +
-      `• **Arena Mini Games** — Kategori & 3 channel game (Koin, Angka, Suit)\n` +
-      `• **Tiket Support** — Kategori SUPPORT & channel panel tiket bantuan privat\n` +
-      `• **Statistik Server** — Kategori & 3 voice channel counter realtime teratas\n` +
-      `• **Voice Hub** — Kategori & voice channel Join-to-Create room otomatis\n` +
-      `• **Audit Log Server** — Kategori & channel log rahasia admin\n` +
-      `• **Studio HD Foto** — Kategori & channel auto upscale gambar ke HD\n\n` +
-      `*Pilih tombol hijau untuk langsung membuat semua, atau gunakan dropdown untuk memilih satu per satu:*`
+      `Pilih setup layout server yang kamu inginkan di bawah ini.\n` +
+      `Kamu bisa memilih **Setup 1 per 1 per kategori** atau langsung **Setup Semua Sekaligus** (All-in-One).\n\n` +
+      `**Struktur Kategori & Channel:**\n` +
+      `1. **───────Get Started───────**\n` +
+      `   • 📜 rules (Peraturan Bahasa Indonesia, member hanya bisa baca & react)\n` +
+      `   • 🌟 start-here (Panel verifikasi akses server)\n` +
+      `   • 👑 select-roles (Panel pilihan role gender 👦 Pria / 👧 Wanita)\n` +
+      `2. **───────Official───────** (Khusus Owner & Bot, Member React)\n` +
+      `   • announcement, official-event, social-media, help-center (tiket)\n` +
+      `3. **───────Notify───────**\n` +
+      `   • welcome & leave (Notifikasi sambutan & log keluar)\n` +
+      `4. **───────Community───────**\n` +
+      `   • newcomer-chat, ngobrol, ngobrol-2, media, levels, achievements, report\n` +
+      `5. **───────Cinematography───────**\n` +
+      `   • fotografi & videografi\n` +
+      `6. **───────Entertainment───────**\n` +
+      `   • meme, fanart, ai-fanart, ai-generating, ai-prompt, showcase-gaming-setup\n` +
+      `7. **───────Mini Games───────**\n` +
+      `   • tebak-koin, tebak-angka, suit-jepang\n` +
+      `8. **───────Voice Lounges───────** (Paling Bawah)\n` +
+      `   • Buat Room Voice (Join-to-Create), Production Room, General Voice, Music Lounge\n\n` +
+      `*Pilih tombol hijau untuk membuat semua sekaligus, atau gunakan dropdown untuk memilih satu per satu:*`
     )
     .setThumbnail(guild.iconURL({ size: 256 }) || guild.client.user.displayAvatarURL())
     .setFooter({ text: `${guild.name} • Pengelola Server FlyBot` })
@@ -183,59 +200,59 @@ function getSetupDashboard(guild) {
 
   const allBtn = new ButtonBuilder()
     .setCustomId('btn_setup_run_all')
-    .setLabel('Setup Semua Sekarang (All-in-One)')
+    .setLabel('🚀 Setup Semua Sekarang (All-in-One)')
     .setStyle(ButtonStyle.Success);
 
   const buttonRow = new ActionRowBuilder().addComponents(allBtn);
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('menu_setup_select')
-    .setPlaceholder('Pilih fitur setup (1 per 1 atau Semua)...')
+    .setPlaceholder('Pilih kategori setup (1 per 1 atau Semua)...')
     .addOptions([
       {
-        label: 'Setup Semua Fitur (All-in-One)',
-        description: 'Buat seluruh kategori, channel text/voice, role & panel sekaligus',
+        label: '🌟 Setup Semua Template (All-in-One)',
+        description: 'Buat seluruh 8 kategori & channel teks/suara secara instan',
         value: 'all',
       },
       {
-        label: 'Welcome & Leave',
-        description: 'Kategori & channel sambutan member baru serta log keluar',
-        value: 'welcome',
+        label: 'Get Started (Rules, Verif, Gender Role)',
+        description: 'Rules Bahasa Indonesia, start-here verif, select-roles gender',
+        value: 'get_started',
       },
       {
-        label: 'Verifikasi Server',
-        description: 'Kategori, channel verifikasi, role @Member & tombol verif',
-        value: 'verif',
+        label: 'Official (Pengumuman, Event, Help Center)',
+        description: 'Channel resmi hanya chat Owner & Bot, member hanya react',
+        value: 'official',
       },
       {
-        label: 'Arena Mini Games',
-        description: 'Kategori & 3 channel tebak koin, angka & suit jepang',
-        value: 'game',
+        label: 'Notify (Welcome & Leave)',
+        description: 'Kategori terpisah untuk notifikasi selamat datang & keluar',
+        value: 'notify',
       },
       {
-        label: 'Tiket Support / Bantuan',
-        description: 'Kategori SUPPORT & channel panel tombol tiket bantuan privat',
-        value: 'ticket',
+        label: 'Community (Ngobrol, Levels & Achievements)',
+        description: 'Newcomer, obrolan, media, level up, achievement, report',
+        value: 'community',
       },
       {
-        label: 'Statistik Server (Voice Counter)',
-        description: 'Kategori teratas & 3 voice channel counter realtime',
-        value: 'stats',
+        label: 'Cinematography (Fotografi & Videografi)',
+        description: 'Galeri karya foto dan video',
+        value: 'cinematography',
       },
       {
-        label: 'Voice Hub (Join-to-Create)',
-        description: 'Kategori & voice channel room mandiri otomatis',
+        label: 'Entertainment & AI (Meme, Fanart, AI Rooms)',
+        description: 'Meme, fanart, ai-fanart, ai-generating, ai-prompt, gaming-setup',
+        value: 'entertainment',
+      },
+      {
+        label: 'Mini Games (Koin, Angka, Suit)',
+        description: '3 channel permainan interaktif berhadiah koin & XP',
+        value: 'games',
+      },
+      {
+        label: 'Voice Lounges (Paling Bawah - Room Suara)',
+        description: 'Kategori suara di posisi terbawah: Hub mandiri, Production, Musik',
         value: 'voice',
-      },
-      {
-        label: 'Audit Log Server',
-        description: 'Kategori & channel rahasia catatan aktivitas server',
-        value: 'log',
-      },
-      {
-        label: 'Studio Foto Auto-HD',
-        description: 'Kategori & channel auto-HD gambar resolusi tinggi',
-        value: 'hd',
       },
     ]);
 
@@ -247,23 +264,23 @@ function getSetupDashboard(guild) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('Setup otomatis server lengkap (Verifikasi, Welcome, Games, Tiket, Voice Hub, Stats, dll)')
+    .setDescription('Setup otomatis template server (Rules, Verif, Role Gender, Community, Voice di bawah)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt
         .setName('fitur')
-        .setDescription('Pilih fitur yang ingin disetup (atau biarkan kosong untuk menu interaktif)')
+        .setDescription('Pilih kategori yang ingin disetup (atau biarkan kosong untuk menu interaktif)')
         .setRequired(false)
         .addChoices(
-          { name: '🌟 Setup Semua Fitur (All-in-One Langsung)', value: 'all' },
-          { name: '👋 Welcome & Leave (Sambutan & Keluar)', value: 'welcome' },
-          { name: '🔐 Verifikasi Server (Panel & Role)', value: 'verif' },
-          { name: '🎮 Arena Mini Games (3 Channel Game)', value: 'game' },
-          { name: '🎫 Tiket Support / Bantuan Privat', value: 'ticket' },
-          { name: '📊 Statistik Server (Voice Counter)', value: 'stats' },
-          { name: '🔊 Voice Hub (Join-to-Create Voice Room)', value: 'voice' },
-          { name: '🛡️ Audit Log Server (Catatan Admin)', value: 'log' },
-          { name: '🎨 Studio Foto Auto-HD', value: 'hd' }
+          { name: '🌟 Setup Semua Template (All-in-One)', value: 'all' },
+          { name: '🚪 Get Started (Rules, Verif, Gender Role)', value: 'get_started' },
+          { name: '📢 Official (Pengumuman, Event, Tiket)', value: 'official' },
+          { name: '👋 Notify (Welcome & Leave)', value: 'notify' },
+          { name: '💬 Community (Ngobrol, Levels, Achievements)', value: 'community' },
+          { name: '📷 Cinematography (Fotografi & Videografi)', value: 'cinematography' },
+          { name: '🎨 Entertainment & AI (Meme, Fanart, AI Rooms)', value: 'entertainment' },
+          { name: '🎮 Mini Games (Koin, Angka, Suit)', value: 'games' },
+          { name: '🔊 Voice Lounges (Paling Bawah - Room Mandiri)', value: 'voice' }
         )
     ),
 
@@ -323,7 +340,7 @@ module.exports = {
 
       // Berikan indikator sedang memproses
       await interaction.editReply({
-        content: `⏳ **Sedang memproses setup [${chosen.toUpperCase()}]...** Mohon tunggu beberapa detik, bot sedang membuat kategori, channel & permission...`,
+        content: `⏳ **Sedang memproses setup [${chosen.toUpperCase()}]...** Mohon tunggu beberapa detik, bot sedang menyusun kategori, channel teks & suara, permission, dan panel otomatis...`,
         components: [],
       });
 
@@ -343,15 +360,8 @@ module.exports = {
         });
       }
     });
-
-    collector.on('end', async (_, reason) => {
-      if (reason === 'time') {
-        // Biarkan pesan tetap ada
-      }
-    });
   },
 
-  // Export helper untuk dipakai oleh interaction handler global jika diperlukan
   executeSetupAction,
   createResultEmbed,
   getSetupDashboard,

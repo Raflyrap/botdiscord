@@ -58,7 +58,7 @@ Kamu adalah Bot Fly (atau FlyBot). Kamu memiliki total 50 FITUR PERINTAH SLASH y
 - /ping: Mengecek latensi WebSocket dan kecepatan respons bot.
 
 8. PENGELOLAAN SERVER & MODERASI ADMIN (21 Fitur):
-- /setup [fitur]: [Admin] Pusat setup otomatis lengkap server (All-in-One). Cukup ketik /setup untuk memilih setup 1 per 1 atau langsung ALL (Semua) sekaligus, otomatis membuat kategori, channel teks & suara (voice counter, voice hub), role verifikasi, panel tiket, arena mini games, audit log, welcome & leave, dan studio HD foto.
+- /setup [fitur]: [Admin] Pusat setup template server otomatis (All-in-One). Cukup ketik /setup untuk memilih per kategori atau langsung ALL (Semua). Menyusun 8 kategori rapi: 1) Get Started (rules bahasa Indonesia, start-here verif, select-roles gender pria/wanita dengan sistem lockdown sebelum verif & pilih role), 2) Official (hanya owner & bot chat, member react), 3) Notify (welcome & leave terpisah), 4) Community (ngobrol, levels & achievements), 5) Cinematography (fotografi & videografi), 6) Entertainment (meme, fanart, ai-generating auto chat, prompt, gaming setup), 7) Mini Games, dan 8) Voice Lounges (paling bawah: trigger buat room mandiri, production room, music lounge).
 - /sethd [aksi]: [Admin] Setup otomatis kategori UPGRADE FOTO HD dan channel teks #hd-foto. Di channel ini, semua foto yang dikirim member otomatis langsung di-HD-in (Auto-HD) tanpa perlu ngetik perintah apa pun.
 - /setwelcome: Mengatur channel pesan sambutan selamat datang dan ucapan selamat tinggal member keluar.
 - /welcometest: Menguji preview tampilan kartu sambutan member baru.

@@ -72,6 +72,7 @@ async function checkForUpdates() {
         'gameConfig.json',
         'logConfig.json',
         'reminderData.json',
+        'serverTemplateConfig.json',
         'music/music.mp3',
         '.env',
       ];

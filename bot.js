@@ -254,72 +254,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
 
+    // Tombol Pemilihan Role Gender (Laki-laki / Perempuan)
+    if (interaction.customId === 'role_gender_male') {
+      const { handleGenderRoleSelection } = require('./templateSetupHelper');
+      return await handleGenderRoleSelection(interaction, 'male');
+    }
+    if (interaction.customId === 'role_gender_female') {
+      const { handleGenderRoleSelection } = require('./templateSetupHelper');
+      return await handleGenderRoleSelection(interaction, 'female');
+    }
+
     // Tombol Verifikasi Member
     if (interaction.customId === 'btn_do_verify') {
-      try {
-        const { getVerifConfig } = require('./verifHelper');
-        const verifCfg = getVerifConfig(interaction.guildId);
-
-        let targetRole = null;
-        if (verifCfg.roleId) {
-          targetRole =
-            interaction.guild.roles.cache.get(verifCfg.roleId) ||
-            (await interaction.guild.roles.fetch(verifCfg.roleId).catch(() => null));
-        }
-
-        // Fallback jika belum diatur atau role terhapus: cari role bernama 'member'
-        if (!targetRole) {
-          targetRole = interaction.guild.roles.cache.find((r) => r.name.toLowerCase() === 'member');
-        }
-
-        if (!targetRole) {
-          targetRole = await interaction.guild.roles.create({
-            name: 'Member',
-            color: 0x57F287,
-            reason: 'Role otomatis verifikasi',
-          });
-        }
-
-        const botMember = interaction.guild.members.me;
-        if (targetRole.position >= botMember.roles.highest.position) {
-          return interaction.reply({
-            content: 'Gagal verifikasi: Posisi role bot lebih rendah dari role verifikasi. Harap hubungi Admin server untuk memindahkan role bot ke posisi lebih atas.',
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        if (interaction.member.roles.cache.has(targetRole.id)) {
-          return interaction.reply({
-            content: 'Kamu sudah terverifikasi sebelumnya.',
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-
-        await interaction.member.roles.add(targetRole);
-
-        // Cabut role belum verifikasi jika ada
-        if (verifCfg.unverifiedRoleId && interaction.member.roles.cache.has(verifCfg.unverifiedRoleId)) {
-          await interaction.member.roles.remove(verifCfg.unverifiedRoleId).catch(console.error);
-        }
-
-        // Sembunyikan channel verifikasi dari user ini secara langsung
-        if (interaction.channel?.permissionOverwrites) {
-          await interaction.channel.permissionOverwrites.edit(interaction.user.id, {
-            ViewChannel: false,
-          }).catch(() => null);
-        }
-
-        return interaction.reply({
-          content: 'Verifikasi berhasil! Seluruh channel telah terbuka. Selamat beraktivitas!',
-          flags: MessageFlags.Ephemeral,
-        });
-      } catch (err) {
-        console.error('Error saat verifikasi member:', err);
-        return interaction.reply({
-          content: `Gagal melakukan verifikasi: ${err.message}`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
+      const { handleVerificationButton } = require('./templateSetupHelper');
+      return await handleVerificationButton(interaction);
     }
 
     // Tombol Pembuatan Tiket Baru
@@ -1107,6 +1055,48 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     } catch (err) {
       console.error('Error saat menghapus pesan toxic:', err);
+    }
+  }
+
+  // === FITUR KHUSUS CHANNEL TEMPLATE KOMUNITAS & ENTERTAINMENT ===
+  if (message.guild && message.channel?.name) {
+    const chName = message.channel.name.toLowerCase();
+
+    // 1. Channel AI Generating / AI Prompt: Otomatis diskusi bareng ChatGPT AI
+    if (chName.includes('ai-generating') || chName.includes('ai-prompt')) {
+      if (!message.content.startsWith('/') && !message.content.startsWith('!')) {
+        try {
+          await message.channel.sendTyping().catch(() => {});
+          const aiRes = await askAI(message.author.id, message.content);
+          if (aiRes.success) {
+            if (aiRes.reply.length <= 1900) {
+              await message.reply(aiRes.reply).catch(console.error);
+            } else {
+              const aiEmbed = new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setDescription(aiRes.reply.substring(0, 3900))
+                .setFooter({ text: `Fly AI • ${aiRes.model}` });
+              await message.reply({ embeds: [aiEmbed] }).catch(console.error);
+            }
+          }
+          return;
+        } catch (e) {
+          console.error('Error auto AI generating:', e);
+        }
+      }
+    }
+
+    // 2. Auto-Reactions untuk Galeri Kreatif & Hiburan
+    if (chName.includes('meme')) {
+      message.react('🗿').then(() => message.react('😂')).catch(() => {});
+    } else if (chName.includes('fanart') || chName.includes('ai-fanart')) {
+      message.react('🎨').then(() => message.react('❤️')).catch(() => {});
+    } else if (chName.includes('fotografi')) {
+      message.react('📸').then(() => message.react('✨')).catch(() => {});
+    } else if (chName.includes('videografi')) {
+      message.react('🎥').then(() => message.react('🔥')).catch(() => {});
+    } else if (chName.includes('showcase-gaming') || chName.includes('gaming-setup')) {
+      message.react('🖥️').then(() => message.react('🔥')).catch(() => {});
     }
   }
 
