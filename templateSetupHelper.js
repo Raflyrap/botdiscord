@@ -13,7 +13,13 @@ const { setGuildConfig } = require('./welcomeHelper');
 const { setLevelConfig } = require('./levelingHelper');
 const { setTempVoiceConfig } = require('./tempVoiceHelper');
 const { setVerifConfig } = require('./verifHelper');
-const { setGameConfig } = require('./gameHelper');
+const {
+  setGameConfig,
+  getCoinGameRow,
+  getRpsGameRow,
+  getNumberGameRow,
+  startNumberGuessing,
+} = require('./gameHelper');
 const { setGuildTicketConfig } = require('./ticketHelper');
 
 const CONFIG_FILE = path.join(__dirname, 'serverTemplateConfig.json');
@@ -81,18 +87,35 @@ async function getOrCreateChannel(guild, { name, type, parentId, permissionOverw
     }
     const cleanSearch = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanActual = c.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return c.type === type && (c.name === name || (cleanActual && cleanActual === cleanSearch) || cleanActual.includes(cleanSearch));
+    const isMatchingType = c.type === type || (type === ChannelType.GuildForum && c.type === ChannelType.GuildText);
+    return isMatchingType && (c.name === name || (cleanActual && cleanActual === cleanSearch) || cleanActual.includes(cleanSearch));
   });
 
   if (!channel) {
-    channel = await guild.channels.create({
-      name,
-      type,
-      parent: parentId || undefined,
-      permissionOverwrites: permissionOverwrites || undefined,
-      position: position !== undefined ? position : undefined,
-      reason: `Auto-setup channel ${name}`,
-    });
+    try {
+      channel = await guild.channels.create({
+        name,
+        type,
+        parent: parentId || undefined,
+        permissionOverwrites: permissionOverwrites || undefined,
+        position: position !== undefined ? position : undefined,
+        reason: `Auto-setup channel ${name}`,
+      });
+    } catch (createErr) {
+      if (type === ChannelType.GuildForum) {
+        console.warn(`Server ${guild.name} belum mengaktifkan Community, fallback channel ${name} ke Text:`, createErr.message);
+        channel = await guild.channels.create({
+          name,
+          type: ChannelType.GuildText,
+          parent: parentId || undefined,
+          permissionOverwrites: permissionOverwrites || undefined,
+          position: position !== undefined ? position : undefined,
+          reason: `Auto-setup channel ${name} (Fallback Text Channel)`,
+        });
+      } else {
+        throw createErr;
+      }
+    }
   } else {
     // Update parent dan permissions jika diperlukan
     if (parentId && channel.parentId !== parentId) {
@@ -439,7 +462,7 @@ async function setupOfficial(guild, roles) {
 
 /**
  * Setup 3: Notify
- * Welcome & Leave
+ * Welcome, Leave, Levels, Achievements
  */
 async function setupNotify(guild, roles) {
   const readOnlyOverwrites = [
@@ -484,18 +507,69 @@ async function setupNotify(guild, roles) {
     permissionOverwrites: readOnlyOverwrites,
   });
 
+  const levels = await getOrCreateChannel(guild, {
+    name: '🔝︱levels',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: readOnlyOverwrites,
+  });
+
+  const achievements = await getOrCreateChannel(guild, {
+    name: '🏆︱achievements',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: readOnlyOverwrites,
+  });
+
   // Sambungkan ke welcomeHelper
   setGuildConfig(guild.id, {
     welcomeChannel: welcome.id,
     leaveChannel: leave.id,
   });
 
-  return { category, welcome, leave };
+  // Sambungkan channel notifikasi leveling & achievements
+  setLevelConfig(guild.id, {
+    levelUpChannel: levels.id,
+    achievementChannel: achievements.id,
+  });
+
+  // Kirim panduan awal di levels jika belum ada
+  const lvlMsgs = await levels.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!lvlMsgs || lvlMsgs.size === 0) {
+    const lvlEmbed = new EmbedBuilder()
+      .setColor(0x57f287)
+      .setTitle('🔝 Papan Notifikasi Naik Level (Level Up)')
+      .setDescription(
+        'Setiap pesan dan aktivitas kamu di server menghasilkan XP!\n' +
+        'Notifikasi kenaikan level member akan disiarkan secara otomatis di channel ini.\n\n' +
+        '• Cek profil & statistik level kamu: `/profile`\n' +
+        '• Lihat peringkat leaderboard server: `/leaderboard`'
+      )
+      .setFooter({ text: 'Notifikasi Otomatis Leveling Server' });
+    await levels.send({ embeds: [lvlEmbed] }).catch(() => {});
+  }
+
+  // Kirim panduan awal di achievements jika belum ada
+  const achMsgs = await achievements.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!achMsgs || achMsgs.size === 0) {
+    const achEmbed = new EmbedBuilder()
+      .setColor(0xfee75c)
+      .setTitle('🏆 Papan Notifikasi Pencapaian (Achievements)')
+      .setDescription(
+        'Raih berbagai badge dan prestasi unik dengan aktif mengobrol dan bermain mini games!\n' +
+        'Setiap pencapaian baru yang kamu raih akan diumumkan di channel ini.\n\n' +
+        'Koleksi seluruh achievement dan tunjukkan prestasimu!'
+      )
+      .setFooter({ text: 'Notifikasi Otomatis Achievements Server' });
+    await achievements.send({ embeds: [achEmbed] }).catch(() => {});
+  }
+
+  return { category, welcome, leave, levels, achievements };
 }
 
 /**
  * Setup 4: Community
- * Newcomer chat, Ngobrol, Ngobrol 2, Media, Levels, Achievements, Report
+ * Newcomer chat, Ngobrol, Ngobrol 2, Media, Stalk, Report
  */
 async function setupCommunity(guild, roles) {
   const standardOverwrites = [
@@ -521,27 +595,6 @@ async function setupCommunity(guild, roles) {
         PermissionFlagsBits.EmbedLinks,
         PermissionFlagsBits.AttachFiles,
         PermissionFlagsBits.ManageMessages,
-      ],
-    },
-  ];
-
-  const botOnlyPostOverwrites = [
-    {
-      id: guild.roles.everyone.id,
-      deny: [PermissionFlagsBits.ViewChannel],
-    },
-    {
-      id: roles.member.id,
-      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory],
-      deny: [PermissionFlagsBits.SendMessages],
-    },
-    {
-      id: guild.client.user.id,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.EmbedLinks,
-        PermissionFlagsBits.AttachFiles,
       ],
     },
   ];
@@ -581,18 +634,11 @@ async function setupCommunity(guild, roles) {
     permissionOverwrites: standardOverwrites,
   });
 
-  const levels = await getOrCreateChannel(guild, {
-    name: '🔝︱levels',
+  const stalk = await getOrCreateChannel(guild, {
+    name: '🔍︱stalk',
     type: ChannelType.GuildText,
     parentId: category.id,
-    permissionOverwrites: botOnlyPostOverwrites,
-  });
-
-  const achievements = await getOrCreateChannel(guild, {
-    name: '🏆︱achievements',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: botOnlyPostOverwrites,
+    permissionOverwrites: standardOverwrites,
   });
 
   const report = await getOrCreateChannel(guild, {
@@ -602,11 +648,24 @@ async function setupCommunity(guild, roles) {
     permissionOverwrites: standardOverwrites,
   });
 
-  // Sambungkan channel notifikasi leveling & achievements
-  setLevelConfig(guild.id, {
-    levelUpChannel: levels.id,
-    achievementChannel: achievements.id,
-  });
+  // Kirim info penggunaan /stalk jika channel stalk masih kosong
+  const stalkMsgs = await stalk.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!stalkMsgs || stalkMsgs.size === 0) {
+    const stalkEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle('🔍 Arena Khusus Stalk Profil Akun')
+      .setDescription(
+        'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
+        '**Platform yang Didukung:**\n' +
+        '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
+        '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
+        '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
+        '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
+        '*Hasil stalk bersifat privat (ephemeral) dan hanya bisa dilihat oleh kamu.*'
+      )
+      .setFooter({ text: 'Ketik /stalk untuk mulai mencari profil' });
+    await stalk.send({ embeds: [stalkEmbed] }).catch(() => {});
+  }
 
   return {
     category,
@@ -614,8 +673,7 @@ async function setupCommunity(guild, roles) {
     ngobrol,
     ngobrol2,
     media,
-    levels,
-    achievements,
+    stalk,
     report,
   };
 }
@@ -677,7 +735,7 @@ async function setupCinematography(guild, roles) {
 
 /**
  * Setup 6: Entertainment
- * Meme, Fanart, AI Fanart, AI Generating, AI Prompt, Showcase Gaming Setup
+ * Meme, Fanart, AI Fanart, AI Generating, AI Prompt, Showcase Gaming Setup, Playlist Music (Forum)
  */
 async function setupEntertainment(guild, roles) {
   const memberOverwrites = [
@@ -755,12 +813,58 @@ async function setupEntertainment(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  return { category, meme, fanart, aiFanart, aiGenerating, aiPrompt, gamingSetup };
+  const playlistMusic = await getOrCreateChannel(guild, {
+    name: '🎵︱playlist-music',
+    type: ChannelType.GuildForum,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  // Sambutan di forum playlist-music
+  if (playlistMusic.type === ChannelType.GuildForum) {
+    const activeThreads = await playlistMusic.threads.fetchActive().catch(() => null);
+    if (!activeThreads || activeThreads.threads.size === 0) {
+      await playlistMusic.threads.create({
+        name: '🎧 Rekomendasi & Diskusi Playlist Musik',
+        message: {
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x5865f2)
+              .setTitle('🎵 Forum Playlist Musik Komunitas')
+              .setDescription(
+                `Selamat datang di Forum Musik **${guild.name}**!\n\n` +
+                `Di sini kamu bisa membuat thread/postingan baru untuk:\n` +
+                `• Berbagi link playlist Spotify, YouTube, Soundcloud, dsb\n` +
+                `• Rekomendasi lagu favorit berdasarkan genre atau mood\n` +
+                `• Diskusi rilisan album baru, musisi, dan instrumen\n\n` +
+                `Klik **New Post** di atas untuk mulai membuat thread playlist kamu!`
+              )
+              .setTimestamp(),
+          ],
+        },
+      }).catch(() => {});
+    }
+  } else {
+    const musicMsgs = await playlistMusic.messages.fetch({ limit: 5 }).catch(() => null);
+    if (!musicMsgs || musicMsgs.size === 0) {
+      const musicEmbed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle('🎵 Playlist Musik Komunitas')
+        .setDescription(
+          `Selamat datang di channel musik **${guild.name}**!\n` +
+          `Bagikan playlist Spotify, YouTube, atau rekomendasi lagu favorit kamu di sini!`
+        )
+        .setTimestamp();
+      await playlistMusic.send({ embeds: [musicEmbed] }).catch(() => {});
+    }
+  }
+
+  return { category, meme, fanart, aiFanart, aiGenerating, aiPrompt, gamingSetup, playlistMusic };
 }
 
 /**
  * Setup 7: Mini Games
- * Tebak Koin, Tebak Angka, Suit Jepang
+ * Tebak Koin, Tebak Angka, Suit Jepang (Lengkap dengan Tombol & Game Langsung Aktif)
  */
 async function setupMiniGamesTemplate(guild, roles) {
   const memberOverwrites = [
@@ -782,6 +886,7 @@ async function setupMiniGamesTemplate(guild, roles) {
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.ManageMessages,
       ],
     },
   ];
@@ -814,23 +919,92 @@ async function setupMiniGamesTemplate(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  // Kirim panel game jika belum ada
-  const msgs = await coinChannel.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!msgs || msgs.size === 0) {
+  // 1. Panel & Tombol Tebak Koin
+  const coinPins = await coinChannel.messages.fetchPinned().catch(() => null);
+  if (!coinPins || coinPins.size === 0) {
     const coinEmbed = new EmbedBuilder()
-      .setColor(0xf1c40f)
-      .setTitle('🪙 Tebak Koin (Gambar / Angka)')
+      .setColor(0x5865F2)
+      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('🪙 Arena Tebak Koin')
       .setDescription(
-        'Tebak sisi koin yang akan keluar saat bot melempar koin virtual!\n\n' +
-        '• **Gambar (Heads)**\n' +
-        '• **Angka (Tails)**\n\n' +
-        'Setiap tebakan benar akan memberikan koin dan XP ke akun kamu.'
-      );
-    const coinRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('game_coin_heads').setLabel('Gambar (Heads)').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('game_coin_tails').setLabel('Angka (Tails)').setStyle(ButtonStyle.Secondary)
-    );
-    await coinChannel.send({ embeds: [coinEmbed], components: [coinRow] }).catch(() => {});
+        `Selamat datang di Arena Tebak Koin.\n` +
+        `Uji insting dan tebakan kamu di sini dan menangkan koin serta XP!\n\n` +
+        `**Panduan Permainan:**\n` +
+        `1. Tentukan pilihan tebakan kamu: **Gambar** atau **Angka**.\n` +
+        `2. Klik tombol di bawah untuk langsung melempar koin.\n` +
+        `3. Bot akan mengocok koin dan mengumumkan hasilnya.\n` +
+        `4. Kamu juga bisa klik tombol **Lempar Acak** untuk sekadar mengocok koin.`
+      )
+      .addFields(
+        { name: 'Pilihan Sisi', value: 'Gambar  |  Angka', inline: true },
+        { name: 'Peluang', value: '50% : 50%', inline: true },
+        { name: 'Hadiah Kemenangan', value: '+50 Koin & +30 XP', inline: true }
+      )
+      .setFooter({ text: 'Klik tombol di bawah untuk langsung bermain!' })
+      .setTimestamp();
+
+    const sentCoin = await coinChannel.send({ embeds: [coinEmbed], components: [getCoinGameRow()] }).catch(() => null);
+    if (sentCoin) await sentCoin.pin().catch(() => {});
+  }
+
+  // 2. Panel & Tombol Tebak Angka
+  const numberPins = await numberChannel.messages.fetchPinned().catch(() => null);
+  if (!numberPins || numberPins.size === 0) {
+    const numberEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('🔢 Arena Tebak Angka (1 - 100)')
+      .setDescription(
+        `Selamat datang di Arena Tebak Angka.\n` +
+        `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem dan raih jackpot hadiah!\n\n` +
+        `**Panduan Permainan:**\n` +
+        `1. Angka rahasia (1-100) sudah langsung siap ditebak.\n` +
+        `2. Ketik angka tebakan kamu (contoh: 50) langsung di chat channel ini.\n` +
+        `3. Bot akan memberikan petunjuk arah:\n` +
+        `   • [Terlalu KECIL] Angka rahasia lebih besar dari tebakanmu\n` +
+        `   • [Terlalu BESAR] Angka rahasia lebih kecil dari tebakanmu\n` +
+        `4. Member yang berhasil menebak dengan tepat dinyatakan sebagai pemenang.`
+      )
+      .addFields(
+        { name: 'Rentang Angka', value: '1 sampai 100', inline: true },
+        { name: 'Mode', value: 'Multiplayer Komunitas', inline: true },
+        { name: 'Hadiah Juara', value: 'Hingga +200 Koin & +100 XP', inline: true }
+      )
+      .setFooter({ text: 'Ketik angka tebakanmu di chat channel ini!' })
+      .setTimestamp();
+
+    const sentNum = await numberChannel.send({ embeds: [numberEmbed], components: [getNumberGameRow()] }).catch(() => null);
+    if (sentNum) await sentNum.pin().catch(() => {});
+  }
+
+  // Mulai ronde tebak angka secara otomatis agar langsung aktif
+  startNumberGuessing(guild.id, guild.client.user.id);
+
+  // 3. Panel & Tombol Suit Jepang
+  const rpsPins = await rpsChannel.messages.fetchPinned().catch(() => null);
+  if (!rpsPins || rpsPins.size === 0) {
+    const rpsEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('✌️ Arena Suit Jepang (Gunting Batu Kertas)')
+      .setDescription(
+        `Tantang FlyBot dalam adu pilihan klasik dan dapatkan koin serta XP!\n\n` +
+        `**Aturan Permainan:**\n` +
+        `• Batu mengalahkan Gunting\n` +
+        `• Gunting mengalahkan Kertas\n` +
+        `• Kertas mengalahkan Batu\n\n` +
+        `Cukup klik salah satu tombol pilihan kamu di bawah ini untuk memulai duel.`
+      )
+      .addFields(
+        { name: 'Lawan', value: 'FlyBot AI (Acak)', inline: true },
+        { name: 'Sistem', value: 'Respons Instan', inline: true },
+        { name: 'Hadiah', value: 'Menang: +50 Koin | Seri: +20 Koin', inline: false }
+      )
+      .setFooter({ text: 'Pilih Batu, Kertas, atau Gunting di bawah untuk bermain!' })
+      .setTimestamp();
+
+    const sentRps = await rpsChannel.send({ embeds: [rpsEmbed], components: [getRpsGameRow()] }).catch(() => null);
+    if (sentRps) await sentRps.pin().catch(() => {});
   }
 
   setGameConfig(guild.id, {
@@ -1018,8 +1192,10 @@ async function setupFullTemplate(guild) {
       selectRolesId: getStarted.selectRolesChannel.id,
       welcomeId: notify.welcome.id,
       leaveId: notify.leave.id,
-      levelsId: community.levels.id,
-      achievementsId: community.achievements.id,
+      levelsId: notify.levels.id,
+      achievementsId: notify.achievements.id,
+      stalkId: community.stalk.id,
+      playlistMusicId: entertainment.playlistMusic.id,
       hubVoiceId: voiceLounges.hubChannel.id,
     },
     categories: {

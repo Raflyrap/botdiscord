@@ -512,11 +512,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     // === MINI GAMES: 1. TEBAK KOIN ===
-    if (interaction.customId.startsWith('btn_game_coin_')) {
+    if (interaction.customId.startsWith('btn_game_coin_') || interaction.customId.startsWith('game_coin_')) {
       const { getCoinGameRow } = require('./gameHelper');
       const { addReward } = require('./levelingHelper');
       const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
-      const type = interaction.customId.replace('btn_game_coin_', '');
+      let type = interaction.customId.replace('btn_game_coin_', '').replace('game_coin_', '');
+      if (type === 'heads') type = 'gambar';
+      if (type === 'tails') type = 'angka';
       const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
       const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
 
@@ -1316,19 +1318,22 @@ client.on(Events.MessageCreate, async (message) => {
 
   // === MINI GAME: TEBAK ANGKA CHAT GUESS ===
   try {
-    const { getGameConfig, checkNumberGuess, getNumberGameRow } = require('./gameHelper');
+    const { getGameConfig, checkNumberGuess, startNumberGuessing, getNumberGameRow } = require('./gameHelper');
     const gameCfg = getGameConfig(message.guild.id);
-    if (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) {
+    const isNumberChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) ||
+      (message.channel.name && message.channel.name.toLowerCase().includes('tebak-angka'));
+
+    if (isNumberChannel) {
       const trimmed = message.content.trim();
       const guessNum = parseInt(trimmed, 10);
       if (!isNaN(guessNum) && String(guessNum) === trimmed && guessNum >= 1 && guessNum <= 100) {
-        const res = checkNumberGuess(message.guild.id, guessNum);
+        let res = checkNumberGuess(message.guild.id, guessNum);
         if (!res) {
-          message.reply({
-            content: 'Ronde tebak angka belum dimulai. Klik tombol **Main Lagi** di bawah untuk mulai bermain.',
-            components: [getNumberGameRow()],
-          }).catch(() => {});
-        } else if (res.status === 'LOW') {
+          // Mulai ronde otomatis jika belum ada ronde berjalan
+          startNumberGuessing(message.guild.id, message.author.id);
+          res = checkNumberGuess(message.guild.id, guessNum);
+        }
+        if (res.status === 'LOW') {
           message.reply(`[Terlalu KECIL] Angka **${guessNum}** masih lebih kecil dari angka rahasia. Coba angka yang lebih besar.`).catch(() => {});
         } else if (res.status === 'HIGH') {
           message.reply(`[Terlalu BESAR] Angka **${guessNum}** masih lebih besar dari angka rahasia. Coba angka yang lebih kecil.`).catch(() => {});

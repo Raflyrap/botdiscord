@@ -57,10 +57,28 @@ function buildAchievementEmbed({ member, user }, ach, ownedCount) {
 
 async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChannel, result) {
   if (!result || !guild) return;
-  const lvlCfg = lvl.getLevelConfig(guild.id);
-  const resolveChannel = (id) => {
-    const ch = id ? guild.channels.cache.get(id) : null;
-    return ch && ch.isTextBased() ? ch : fallbackChannel;
+  const lvlCfg = lvl.getLevelConfig(guild.id) || {};
+
+  const resolveTargetChannel = async (configId, keywords) => {
+    if (configId) {
+      const ch = guild.channels.cache.get(configId) || (await guild.channels.fetch(configId).catch(() => null));
+      if (ch && ch.isTextBased()) return ch;
+    }
+
+    let found = guild.channels.cache.find(
+      (c) => c.isTextBased() && keywords.some((kw) => c.name.toLowerCase().includes(kw))
+    );
+    if (found) return found;
+
+    const fetchedChannels = await guild.channels.fetch().catch(() => null);
+    if (fetchedChannels) {
+      found = fetchedChannels.find(
+        (c) => c && c.isTextBased() && keywords.some((kw) => c.name.toLowerCase().includes(kw))
+      );
+      if (found) return found;
+    }
+
+    return fallbackChannel && fallbackChannel.isTextBased() ? fallbackChannel : null;
   };
 
   const ctx = { member, user, guild };
@@ -74,14 +92,14 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
       position: lvl.getUserRank(guild.id, user.id),
     });
 
-    const ch = resolveChannel(lvlCfg.levelUpChannel);
+    const ch = await resolveTargetChannel(lvlCfg.levelUpChannel, ['level', 'levels']);
     if (ch) {
       await ch.send({ content: `<@${user.id}>`, embeds: [levelUpEmbed] }).catch(console.error);
     }
   }
 
   if (result.newAchievements && result.newAchievements.length > 0) {
-    const achChannel = resolveChannel(lvlCfg.achievementChannel);
+    const achChannel = await resolveTargetChannel(lvlCfg.achievementChannel, ['achiev', 'prestasi']);
     if (achChannel) {
       for (const ach of result.newAchievements) {
         const achEmbed = buildAchievementEmbed(ctx, ach, result.userData.achievements.length);

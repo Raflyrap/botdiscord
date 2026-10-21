@@ -31,6 +31,19 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    // Cek pembatasan channel: /stalk hanya dapat digunakan di channel stalk
+    if (interaction.guild) {
+      const stalkChannel = interaction.guild.channels.cache.find(
+        (c) => c.isTextBased() && c.name.toLowerCase().includes('stalk')
+      );
+      if (stalkChannel && interaction.channelId !== stalkChannel.id) {
+        return interaction.reply({
+          content: `⚠️ Perintah \`/stalk\` hanya dapat digunakan di channel khusus: <#${stalkChannel.id}>!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+
     // Balasan bersifat privat (ephemeral) agar hanya pengguna yang menjalankan yang bisa melihat
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

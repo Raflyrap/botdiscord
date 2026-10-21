@@ -55,8 +55,10 @@ function createResultEmbed(featureKey, result, guild) {
       .setDescription(
         `Kategori **${result.category.name}** dan notifikasi telah aktif:\n\n` +
         `• <#${result.welcome.id}> — Pesan sambutan member baru (terhubung ke Welcome Banner)\n` +
-        `• <#${result.leave.id}> — Log riwayat member keluar\n\n` +
-        `*Bot akan otomatis mengirimkan kartu visual saat ada member yang bergabung.*`
+        `• <#${result.leave.id}> — Log riwayat member keluar\n` +
+        `• <#${result.levels.id}> — Notifikasi resmi naik level XP\n` +
+        `• <#${result.achievements.id}> — Notifikasi resmi pembukaan badge prestasi\n\n` +
+        `*Seluruh notifikasi otomatis tersinkronisasi di kategori Notify ini.*`
       );
   } else if (featureKey === 'community') {
     embed
@@ -67,8 +69,7 @@ function createResultEmbed(featureKey, result, guild) {
         `• <#${result.ngobrol.id}> — Ruang obrolan umum 1\n` +
         `• <#${result.ngobrol2.id}> — Ruang obrolan umum 2\n` +
         `• <#${result.media.id}> — Galeri berbagi media\n` +
-        `• <#${result.levels.id}> — Notifikasi naik level XP\n` +
-        `• <#${result.achievements.id}> — Notifikasi penghargaan & badge prestasi\n` +
+        `• <#${result.stalk.id}> — Ruang khusus perintah /stalk profil\n` +
         `• <#${result.report.id}> — Ruang pelaporan kendala/pelanggaran`
       );
   } else if (featureKey === 'cinematography') {
@@ -89,7 +90,8 @@ function createResultEmbed(featureKey, result, guild) {
         `• <#${result.aiFanart.id}> — Karya seni AI\n` +
         `• <#${result.aiGenerating.id}> — Obrolan cerdas bareng ChatGPT AI\n` +
         `• <#${result.aiPrompt.id}> — Berbagi prompt kreatif AI\n` +
-        `• <#${result.gamingSetup.id}> — Pamer setup gaming & battlestation`
+        `• <#${result.gamingSetup.id}> — Pamer setup gaming & battlestation\n` +
+        `• <#${result.playlistMusic.id}> — Forum rekomendasi & diskusi playlist musik`
       );
   } else if (featureKey === 'games') {
     embed
@@ -120,14 +122,14 @@ function createResultEmbed(featureKey, result, guild) {
         `└ <#${result.getStarted.rulesChannel.id}>, <#${result.getStarted.startHereChannel.id}>, <#${result.getStarted.selectRolesChannel.id}>\n\n` +
         `**2. Official** (Hanya Owner & Bot Chat, Member React)\n` +
         `└ <#${result.official.announcement.id}>, <#${result.official.officialEvent.id}>, <#${result.official.socialMedia.id}>, <#${result.official.helpCenter.id}>\n\n` +
-        `**3. Notify** (Notifikasi Selamat Datang & Keluar)\n` +
-        `└ <#${result.notify.welcome.id}> & <#${result.notify.leave.id}>\n\n` +
-        `**4. Community** (Obrolan, Levels & Achievements)\n` +
-        `└ <#${result.community.newcomerChat.id}>, <#${result.community.ngobrol.id}>, <#${result.community.ngobrol2.id}>, <#${result.community.media.id}>, <#${result.community.levels.id}>, <#${result.community.achievements.id}>, <#${result.community.report.id}>\n\n` +
+        `**3. Notify** (Notifikasi Welcome, Leave, Levels & Achievements)\n` +
+        `└ <#${result.notify.welcome.id}>, <#${result.notify.leave.id}>, <#${result.notify.levels.id}>, <#${result.notify.achievements.id}>\n\n` +
+        `**4. Community** (Obrolan, Media, Stalk & Report)\n` +
+        `└ <#${result.community.newcomerChat.id}>, <#${result.community.ngobrol.id}>, <#${result.community.ngobrol2.id}>, <#${result.community.media.id}>, <#${result.community.stalk.id}>, <#${result.community.report.id}>\n\n` +
         `**5. Cinematography**\n` +
         `└ <#${result.cinematography.fotografi.id}> & <#${result.cinematography.videografi.id}>\n\n` +
-        `**6. Entertainment & AI**\n` +
-        `└ <#${result.entertainment.meme.id}>, <#${result.entertainment.fanart.id}>, <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>, <#${result.entertainment.gamingSetup.id}>\n\n` +
+        `**6. Entertainment & Music Forum**\n` +
+        `└ <#${result.entertainment.meme.id}>, <#${result.entertainment.fanart.id}>, <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>, <#${result.entertainment.gamingSetup.id}>, <#${result.entertainment.playlistMusic.id}>\n\n` +
         `**7. Mini Games**\n` +
         `└ <#${result.miniGames.coinChannel.id}>, <#${result.miniGames.numberChannel.id}>, <#${result.miniGames.rpsChannel.id}>\n\n` +
         `**8. Voice Lounges (Paling Bawah)**\n` +
