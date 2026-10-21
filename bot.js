@@ -221,8 +221,87 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 
+  // Handler dropdown menu delete
+  if (interaction.isStringSelectMenu() && interaction.customId === 'menu_delete_choice') {
+    const hasPerm =
+      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+      interaction.guild?.ownerId === interaction.user.id;
+
+    if (!hasPerm) {
+      return interaction.reply({
+        content: 'Perintah ini hanya bisa dijalankan oleh Administrator.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    const { wipeAllChannels, deleteCategoryAndChildren } = require('./commands/delete');
+    const val = interaction.values[0];
+    if (val === 'semuanya') {
+      await interaction.reply({
+        content: '⏳ Menghapus SELURUH channel dan kategori sampai kosong...',
+        flags: MessageFlags.Ephemeral,
+      });
+      await wipeAllChannels(interaction.guild, { keepGeneral: false, interactionChannelId: interaction.channel.id });
+      return;
+    }
+    if (val === 'semua_plus_general') {
+      await interaction.reply({
+        content: '⏳ Menghapus semua channel lama dan membuat 1 channel #general baru...',
+        flags: MessageFlags.Ephemeral,
+      });
+      await wipeAllChannels(interaction.guild, { keepGeneral: true, interactionChannelId: interaction.channel.id });
+      return;
+    }
+    if (val === 'this_channel') {
+      await interaction.reply({
+        content: `🗑️ Menghapus channel **#${interaction.channel.name}**...`,
+        flags: MessageFlags.Ephemeral,
+      });
+      setTimeout(() => interaction.channel.delete().catch(() => {}), 1500);
+      return;
+    }
+    if (val === 'this_category') {
+      const parent = interaction.channel.parent;
+      if (!parent) return interaction.reply({ content: 'Channel ini tidak berada di dalam kategori.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `⏳ Menghapus kategori **${parent.name}** beserta isinya...`, flags: MessageFlags.Ephemeral });
+      await deleteCategoryAndChildren(parent);
+      return;
+    }
+  }
+
   // Handler untuk klik tombol (Button)
   if (interaction.isButton()) {
+    if (interaction.customId === 'btn_delete_confirm_all') {
+      const hasPerm =
+        interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+        interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+        interaction.guild?.ownerId === interaction.user.id;
+      if (!hasPerm) return interaction.reply({ content: 'Hanya Administrator yang bisa mengeksekusi ini.', flags: MessageFlags.Ephemeral });
+
+      await interaction.reply({ content: '⏳ Menghapus seluruh channel dan kategori sampai kosong bersih...', flags: MessageFlags.Ephemeral });
+      const { wipeAllChannels } = require('./commands/delete');
+      await wipeAllChannels(interaction.guild, { keepGeneral: false, interactionChannelId: interaction.channel.id });
+      return;
+    }
+
+    if (interaction.customId === 'btn_delete_confirm_clean') {
+      const hasPerm =
+        interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+        interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+        interaction.guild?.ownerId === interaction.user.id;
+      if (!hasPerm) return interaction.reply({ content: 'Hanya Administrator yang bisa mengeksekusi ini.', flags: MessageFlags.Ephemeral });
+
+      await interaction.reply({ content: '⏳ Menghapus semua channel lama & membuat channel #general baru...', flags: MessageFlags.Ephemeral });
+      const { wipeAllChannels } = require('./commands/delete');
+      await wipeAllChannels(interaction.guild, { keepGeneral: true, interactionChannelId: interaction.channel.id });
+      return;
+    }
+
+    if (interaction.customId === 'btn_delete_cancel') {
+      return interaction.reply({ content: 'Penghapusan dibatalkan.', flags: MessageFlags.Ephemeral });
+    }
+
     if (interaction.customId === 'btn_setup_run_all') {
       const hasPerm =
         interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||

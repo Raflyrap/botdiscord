@@ -80,6 +80,7 @@ function getMainDashboard(guild, member) {
             name: 'Pengelola Server',
             value: [
               line('/setup', 'Setup lengkap server (1 per 1 atau langsung all)'),
+              line('/delete', 'Hapus channel & kategori (1 per 1 atau kosong total)'),
               line('/setwelcome', 'Channel sambutan & member keluar'),
               line('/setverif', 'Setup role & kunci channel sebelum verif'),
               line('/log', 'Setup otomatis kategori AUDIT LOG & channel'),
@@ -126,6 +127,7 @@ function getMainDashboard(guild, member) {
   if (isAdmin) {
     menuOptions.push(
       { label: 'Setup Server Lengkap (All-in-One)', description: '[Admin] Auto setup verifikasi, welcome, game, voice, tiket, dll', value: 'cmd_setup' },
+      { label: 'Hapus Channel & Kategori', description: '[Admin] Hapus 1 per 1 atau reset kosong bersih total', value: 'cmd_delete' },
       { label: 'Setup Kunci Channel & Verif', description: '[Admin] Setup role & sembunyikan channel', value: 'cmd_setverif' },
       { label: 'Audit Log Server', description: '[Admin] Status & kelola channel audit log', value: 'cmd_log' },
       { label: 'Panel Tiket Bantuan', description: '[Admin] Status & panduan pasang panel tiket bantuan', value: 'cmd_ticket' },
