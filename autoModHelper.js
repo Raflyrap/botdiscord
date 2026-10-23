@@ -48,11 +48,14 @@ function getServerConfig(guildId) {
     autoModConfig[guildId] = {
       antiPhishing: true,
       antiToxic: true,
-      customBadwords: [], // kata tambahan khusus dari admin server
-      whitelistRoles: []  // role yang kebal automod (admin/mod)
+      customBadwords: [],  // kata tambahan khusus dari admin server
+      disabledBadwords: [], // kata bawaan (default) yang dinonaktifkan/dihapus oleh admin server
+      whitelistRoles: []   // role yang kebal automod (admin/mod)
     };
     saveConfig();
   }
+  if (!autoModConfig[guildId].customBadwords) autoModConfig[guildId].customBadwords = [];
+  if (!autoModConfig[guildId].disabledBadwords) autoModConfig[guildId].disabledBadwords = [];
   return autoModConfig[guildId];
 }
 
@@ -61,10 +64,31 @@ function getServerConfig(guildId) {
  */
 function addBadword(guildId, word) {
   const cfg = getServerConfig(guildId);
+  if (!word || typeof word !== 'string') return false;
   const clean = word.toLowerCase().trim();
   if (!clean) return false;
-  if (!cfg.customBadwords.includes(clean)) {
-    cfg.customBadwords.push(clean);
+
+  let changed = false;
+
+  // Jika kata ini sebelumnya dinonaktifkan dari default, pulihkan kembali
+  const disIdx = cfg.disabledBadwords.findIndex(w => w.toLowerCase().trim() === clean);
+  if (disIdx !== -1) {
+    cfg.disabledBadwords.splice(disIdx, 1);
+    changed = true;
+  }
+
+  const isDefault = DEFAULT_BADWORDS.some(w => w.toLowerCase().trim() === clean);
+
+  // Jika bukan kata default, masukkan ke customBadwords jika belum ada
+  if (!isDefault) {
+    const exists = cfg.customBadwords.some(w => w.toLowerCase().trim() === clean);
+    if (!exists) {
+      cfg.customBadwords.push(clean);
+      changed = true;
+    }
+  }
+
+  if (changed) {
     saveConfig();
     return true;
   }
@@ -72,14 +96,34 @@ function addBadword(guildId, word) {
 }
 
 /**
- * Hapus kata toxic oleh admin
+ * Hapus kata toxic oleh admin (bisa menghapus custom kata maupun mengecualikan kata bawaan/default)
  */
 function removeBadword(guildId, word) {
   const cfg = getServerConfig(guildId);
+  if (!word || typeof word !== 'string') return false;
   const clean = word.toLowerCase().trim();
-  const idx = cfg.customBadwords.indexOf(clean);
-  if (idx !== -1) {
-    cfg.customBadwords.splice(idx, 1);
+  if (!clean) return false;
+
+  let changed = false;
+
+  // 1. Cek dan hapus dari customBadwords jika ada
+  const customIdx = cfg.customBadwords.findIndex(w => w.toLowerCase().trim() === clean);
+  if (customIdx !== -1) {
+    cfg.customBadwords.splice(customIdx, 1);
+    changed = true;
+  }
+
+  // 2. Cek apakah ada di DEFAULT_BADWORDS
+  const isDefault = DEFAULT_BADWORDS.some(w => w.toLowerCase().trim() === clean);
+  if (isDefault) {
+    const alreadyDisabled = cfg.disabledBadwords.some(w => w.toLowerCase().trim() === clean);
+    if (!alreadyDisabled) {
+      cfg.disabledBadwords.push(clean);
+      changed = true;
+    }
+  }
+
+  if (changed) {
     saveConfig();
     return true;
   }
@@ -87,11 +131,30 @@ function removeBadword(guildId, word) {
 }
 
 /**
- * Ambil daftar kata toxic (custom + default)
+ * Ambil daftar seluruh kata toxic aktif (default aktif + custom)
  */
 function getAllBadwords(guildId) {
   const cfg = getServerConfig(guildId);
-  return Array.from(new Set([...DEFAULT_BADWORDS, ...cfg.customBadwords]));
+  const disabled = (cfg.disabledBadwords || []).map(w => w.toLowerCase().trim());
+  const activeDefaults = DEFAULT_BADWORDS.filter(w => !disabled.includes(w.toLowerCase().trim()));
+  const customs = (cfg.customBadwords || []).map(w => w.toLowerCase().trim());
+  return Array.from(new Set([...activeDefaults, ...customs]));
+}
+
+/**
+ * Ambil rincian lengkap kata toxic untuk tampilan detail
+ */
+function getBadwordsBreakdown(guildId) {
+  const cfg = getServerConfig(guildId);
+  const disabled = (cfg.disabledBadwords || []).map(w => w.toLowerCase().trim());
+  const activeDefaults = DEFAULT_BADWORDS.filter(w => !disabled.includes(w.toLowerCase().trim()));
+  const customs = (cfg.customBadwords || []).map(w => w.toLowerCase().trim());
+  return {
+    defaults: activeDefaults,
+    customs: customs,
+    disabled: disabled,
+    all: Array.from(new Set([...activeDefaults, ...customs]))
+  };
 }
 
 /**
@@ -143,6 +206,8 @@ module.exports = {
   addBadword,
   removeBadword,
   getAllBadwords,
+  getBadwordsBreakdown,
+  DEFAULT_BADWORDS,
   checkPhishing,
   checkToxic
 };

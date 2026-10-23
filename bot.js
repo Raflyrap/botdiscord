@@ -804,6 +804,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 
+  // Handler untuk Slash Command Autocomplete (misalnya pencarian kata di /antitoxic delete)
+  if (interaction.isAutocomplete()) {
+    const command = interaction.client.commands.get(interaction.commandName);
+    if (command && typeof command.autocomplete === 'function') {
+      try {
+        await command.autocomplete(interaction);
+      } catch (err) {
+        console.error(`Autocomplete error untuk /${interaction.commandName}:`, err);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);

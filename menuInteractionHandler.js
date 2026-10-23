@@ -11,7 +11,7 @@ const {
 } = require('./menuHandler');
 const { setAfk } = require('./afkHelper');
 const { askAI } = require('./aiHelper');
-const { getServerConfig, getAllBadwords } = require('./autoModHelper');
+const { getServerConfig, getAllBadwords, getBadwordsBreakdown } = require('./autoModHelper');
 const { formatDuration, searchTrackWithFallback } = require('./lavalinkHelper');
 
 async function handleMenuInteraction(interaction) {
@@ -345,17 +345,31 @@ async function handleMenuInteraction(interaction) {
     }
 
     if (val === 'cmd_antitoxic') {
-      const config = getServerConfig(interaction.guildId);
-      const allWords = getAllBadwords(interaction.guildId);
+      const { defaults, customs, disabled, all } = getBadwordsBreakdown(interaction.guildId);
+
+      const defaultLines = defaults.length > 0
+        ? defaults.map((w, i) => `${i + 1}. \`${w}\``).join('\n')
+        : '*Semua kata bawaan telah dinonaktifkan.*';
+
+      const customLines = customs.length > 0
+        ? customs.map((w, i) => `${i + 1}. \`${w}\``).join('\n')
+        : '*Belum ada kata khusus tambahan.*';
+
+      const disabledSection = disabled.length > 0
+        ? `\n\n🔓 **Kata Dikecualikan Admin:**\n` + disabled.map((w) => `• ~~${w}~~`).join(', ')
+        : '';
+
       const embed = new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle('Daftar Anti-Toxic Server')
+        .setTitle(`🛡️ Daftar Anti-Toxic Server: ${interaction.guild?.name || 'Server'}`)
         .setDescription(
-          `Kata Khusus Server (${config.customBadwords.length}):\n` +
-          (config.customBadwords.length > 0 ? config.customBadwords.map(w => `• \`${w}\``).join(', ') : '*(Belum ada kata khusus)*') +
-          `\n\nTotal kata terdeteksi: \`${allWords.length}\` kata.`
+          `Berikut seluruh kata yang dilarang (1 per 1 tanpa disembunyikan):\n\n` +
+          `📊 **Total Kata Aktif:** **${all.length} kata**\n\n` +
+          `📋 **Kata Bawaan Sistem (${defaults.length}):**\n${defaultLines}\n\n` +
+          `⭐ **Kata Khusus Server (${customs.length}):**\n${customLines}` +
+          disabledSection
         )
-        .setFooter({ text: 'Ketik /antitoxic tambah <kata> di chat untuk menambah kata baru.' });
+        .setFooter({ text: 'Gunakan /antitoxic tambah <kata> atau /antitoxic delete <kata>' });
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
   }
