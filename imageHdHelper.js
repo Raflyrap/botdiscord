@@ -235,17 +235,23 @@ async function enhanceImage(input, options = {}) {
         if (downloadUrl) {
           const downloadRes = await fetch(downloadUrl);
           if (downloadRes.ok) {
-            let aiBuffer = Buffer.from(await downloadRes.arrayBuffer());
-            let finalMeta = await sharp(aiBuffer).metadata();
-            let ext = finalMeta.format || 'png';
+            const rawAiBuffer = Buffer.from(await downloadRes.arrayBuffer());
 
-            // Jika hasil melebihi 8MB (batas Discord free), konversi efisien ke JPEG kualitas tinggi
-            if (aiBuffer.length > 8 * 1024 * 1024) {
-              aiBuffer = await sharp(aiBuffer).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
-              ext = 'jpg';
-              finalMeta = await sharp(aiBuffer).metadata();
+            // Konversi output ke PNG murni (Lossless) agar tidak dikompresi webp oleh Discord
+            let aiBuffer;
+            let ext = 'png';
+            try {
+              aiBuffer = await sharp(rawAiBuffer).png({ compressionLevel: 6 }).toBuffer();
+              if (aiBuffer.length > 8 * 1024 * 1024) {
+                aiBuffer = await sharp(rawAiBuffer).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+                ext = 'jpg';
+              }
+            } catch {
+              aiBuffer = rawAiBuffer;
+              ext = 'png';
             }
 
+            const finalMeta = await sharp(aiBuffer).metadata();
             const elapsed = Date.now() - startTime;
             return {
               success: true,
@@ -274,16 +280,22 @@ async function enhanceImage(input, options = {}) {
         if (downloadUrl2) {
           const downloadRes2 = await fetch(downloadUrl2);
           if (downloadRes2.ok) {
-            let aiBuffer = Buffer.from(await downloadRes2.arrayBuffer());
-            let finalMeta = await sharp(aiBuffer).metadata();
-            let ext = finalMeta.format || 'png';
+            const rawAiBuffer2 = Buffer.from(await downloadRes2.arrayBuffer());
 
-            if (aiBuffer.length > 8 * 1024 * 1024) {
-              aiBuffer = await sharp(aiBuffer).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
-              ext = 'jpg';
-              finalMeta = await sharp(aiBuffer).metadata();
+            let aiBuffer;
+            let ext = 'png';
+            try {
+              aiBuffer = await sharp(rawAiBuffer2).png({ compressionLevel: 6 }).toBuffer();
+              if (aiBuffer.length > 8 * 1024 * 1024) {
+                aiBuffer = await sharp(rawAiBuffer2).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+                ext = 'jpg';
+              }
+            } catch {
+              aiBuffer = rawAiBuffer2;
+              ext = 'png';
             }
 
+            const finalMeta = await sharp(aiBuffer).metadata();
             const elapsed = Date.now() - startTime;
             return {
               success: true,

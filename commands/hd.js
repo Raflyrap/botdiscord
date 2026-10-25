@@ -14,17 +14,17 @@ module.exports = {
     .addIntegerOption((opt) =>
       opt
         .setName('skala')
-        .setDescription('Pilihan pembesaran (default: 2x HD)')
+        .setDescription('Pilihan pembesaran (default: 4x Ultra HD)')
         .setRequired(false)
         .addChoices(
-          { name: '2x HD (Cepat & Tajam)', value: 2 },
-          { name: '4x Ultra HD (Resolusi Maksimal)', value: 4 }
+          { name: '4x Ultra HD (Paling Tajam & Maksimal)', value: 4 },
+          { name: '2x HD (Cepat)', value: 2 }
         )
     ),
 
   async execute(interaction) {
     const attachment = interaction.options.getAttachment('gambar');
-    const scale = interaction.options.getInteger('skala') || 2;
+    const scale = interaction.options.getInteger('skala') || 4;
 
     if (!attachment) {
       return interaction.reply({
@@ -61,11 +61,13 @@ module.exports = {
       .setColor(0x5865f2)
       .setTitle('Peningkatan Kualitas Gambar Selesai')
       .setDescription(
-        `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
+        `Gambar kamu berhasil ditingkatkan dengan AI Super-Resolution.\n\n` +
         `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
-        `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
-        `• Mesin: **${result.engine || 'Real-ESRGAN AI (Hugging Face GPU)'}**\n` +
-        `• Waktu Proses: **${result.processTimeMs} ms**`
+        `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
+        `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
+        `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
+        `> 💡 **Cara Melihat Kualitas Asli:**\n` +
+        `> Discord otomatis mengecilkan preview di chat. **Klik foto di bawah, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
       )
       .setImage(`attachment://${result.fileName}`)
       .setFooter({

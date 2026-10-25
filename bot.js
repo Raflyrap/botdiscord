@@ -1248,7 +1248,7 @@ client.on(Events.MessageCreate, async (message) => {
     if (targetImageUrl) {
       try {
         const cleanContent = message.content.trim().toLowerCase();
-        const scale = cleanContent.includes('4x') || cleanContent.includes(' 4') ? 4 : 2;
+        const scale = cleanContent.includes('2x') || cleanContent.includes(' 2') ? 2 : 4;
         const processingMsg = await message.reply('Sedang memproses dan meningkatkan kualitas gambar kamu bray, tunggu sebentar...');
 
         const result = await enhanceImage(targetImageUrl, { scale });
@@ -1258,11 +1258,13 @@ client.on(Events.MessageCreate, async (message) => {
             .setColor(0x5865f2)
             .setTitle('Peningkatan Kualitas Gambar Selesai')
             .setDescription(
-              `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
+              `Gambar kamu berhasil ditingkatkan dengan AI Super-Resolution.\n\n` +
               `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
-              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
-              `• Mesin: **${result.engine || 'Real-ESRGAN AI (Hugging Face GPU)'}**\n` +
-              `• Waktu Proses: **${result.processTimeMs} ms**`
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
+              `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
+              `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
+              `> 💡 **Cara Melihat Kualitas Asli:**\n` +
+              `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
             )
             .setImage(`attachment://${result.fileName}`)
             .setFooter({ text: `FlyBot Auto-HD • Diminta oleh ${message.author.username}` })
@@ -1306,7 +1308,7 @@ client.on(Events.MessageCreate, async (message) => {
       }
 
       if (targetImageUrl) {
-        const scale = cleanContent.includes('4x') || cleanContent.includes(' 4') ? 4 : 2;
+        const scale = cleanContent.includes('2x') || cleanContent.includes(' 2') ? 2 : 4;
         const processingMsg = await message.reply('Sedang memproses dan meningkatkan kualitas gambar kamu bray, tunggu sebentar...');
 
         const result = await enhanceImage(targetImageUrl, { scale });
@@ -1316,11 +1318,13 @@ client.on(Events.MessageCreate, async (message) => {
             .setColor(0x5865f2)
             .setTitle('Peningkatan Kualitas Gambar Selesai')
             .setDescription(
-              `Gambar kamu berhasil ditingkatkan dengan resolusi lebih tajam.\n\n` +
+              `Gambar kamu berhasil ditingkatkan dengan AI Super-Resolution.\n\n` +
               `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
-              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
-              `• Mesin: **${result.engine || 'Real-ESRGAN AI (Hugging Face GPU)'}**\n` +
-              `• Waktu Proses: **${result.processTimeMs} ms**`
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
+              `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
+              `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
+              `> 💡 **Cara Melihat Kualitas Asli:**\n` +
+              `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
             )
             .setImage(`attachment://${result.fileName}`)
             .setFooter({ text: `FlyBot Image Enhancer • Diminta oleh ${message.author.username}` })
