@@ -219,18 +219,19 @@ async function enhanceImage(input, options = {}) {
       };
     }
 
-    // 1. Prioritaskan Deep Learning Super-Resolution AI (Real-ESRGAN / CUGAN) jika HF_TOKEN tersedia
+    // 1. Prioritaskan Deep Learning Super-Resolution AI Real-ESRGAN via Cloud GPU jika HF_TOKEN tersedia
     const hfToken = process.env.HF_TOKEN;
     if (hfToken) {
+      const mime = metadata.format === 'png' ? 'image/png' : 'image/jpeg';
+      const imageBlob = new Blob([rawBuffer], { type: mime });
+
+      // Engine 1: Real-ESRGAN 4x-UltraSharp (Model Real-ESRGAN kualitas tertinggi untuk restorasi foto)
       try {
-        const aiModel = scale === 4 ? '4xRealWebPhoto_v4_dat2' : '2xHFA2kReal-CUGAN';
-        const mime = metadata.format === 'png' ? 'image/png' : 'image/jpeg';
-        const imageBlob = new Blob([rawBuffer], { type: mime });
+        const app = await GradioClient.connect('Kim2091/Upscaler', { token: hfToken });
+        const res = await app.predict('/upscale_image', [imageBlob, '4x-UltraSharp']);
 
-        const app = await GradioClient.connect('Phips/Upscaler', { token: hfToken });
-        const res = await app.predict('/upscale_image', [imageBlob, aiModel]);
-
-        const downloadUrl = res?.data?.[1]?.url;
+        const afterItem = res?.data?.[0]?.[1];
+        const downloadUrl = afterItem?.url || res?.data?.[1]?.url;
         if (downloadUrl) {
           const downloadRes = await fetch(downloadUrl);
           if (downloadRes.ok) {
@@ -249,19 +250,57 @@ async function enhanceImage(input, options = {}) {
             return {
               success: true,
               buffer: aiBuffer,
-              fileName: `ai_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
+              fileName: `realesrgan_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
               originalWidth: metadata.width,
               originalHeight: metadata.height,
               newWidth: finalMeta.width,
               newHeight: finalMeta.height,
               scale: scale,
-              engine: 'Real-ESRGAN AI (Hugging Face GPU)',
+              engine: 'Real-ESRGAN AI (4x-UltraSharp GPU)',
               processTimeMs: elapsed,
             };
           }
         }
-      } catch (hfErr) {
-        console.warn('[HF AI UPSCALE FAILED, FALLBACK TO LOCAL]:', hfErr.message);
+      } catch (err1) {
+        console.warn('[REAL-ESRGAN PRIMARY FAILED, TRYING SECONDARY GPU]:', err1.message);
+      }
+
+      // Engine 2: Real-ESRGAN Universal CUDA GPU
+      try {
+        const app2 = await GradioClient.connect('tailot/universal-upscale', { token: hfToken });
+        const res2 = await app2.predict('/predict', [imageBlob, scale, 0]);
+
+        const downloadUrl2 = res2?.data?.[0]?.url;
+        if (downloadUrl2) {
+          const downloadRes2 = await fetch(downloadUrl2);
+          if (downloadRes2.ok) {
+            let aiBuffer = Buffer.from(await downloadRes2.arrayBuffer());
+            let finalMeta = await sharp(aiBuffer).metadata();
+            let ext = finalMeta.format || 'png';
+
+            if (aiBuffer.length > 8 * 1024 * 1024) {
+              aiBuffer = await sharp(aiBuffer).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+              ext = 'jpg';
+              finalMeta = await sharp(aiBuffer).metadata();
+            }
+
+            const elapsed = Date.now() - startTime;
+            return {
+              success: true,
+              buffer: aiBuffer,
+              fileName: `realesrgan_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
+              originalWidth: metadata.width,
+              originalHeight: metadata.height,
+              newWidth: finalMeta.width,
+              newHeight: finalMeta.height,
+              scale: scale,
+              engine: 'Real-ESRGAN AI (Universal GPU)',
+              processTimeMs: elapsed,
+            };
+          }
+        }
+      } catch (err2) {
+        console.warn('[REAL-ESRGAN SECONDARY FAILED, FALLBACK TO LOCAL]:', err2.message);
       }
     }
 
