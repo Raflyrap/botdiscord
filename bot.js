@@ -59,7 +59,7 @@ try { require('@noble/ciphers'); } catch (e) {}
 try { require('libsodium-wrappers'); } catch (e) {}
 try { require('opusscript'); } catch (e) {}
 const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
-const { handleVoiceStateUpdate, handleVoiceControlInteraction } = require('./tempVoiceHelper');
+const { handleVoiceStateUpdate, handleVoiceControlInteraction, handleChannelDelete: handleVoiceChannelDelete } = require('./tempVoiceHelper');
 const { updateServerStats } = require('./serverStatsHelper');
 const { getAutoRole } = require('./autoRoleHelper');
 const { handleMenuInteraction } = require('./menuInteractionHandler');
@@ -965,6 +965,10 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 
 // Event saat channel dihapus (Sinkronisasi konfigurasi Private AI & Ticket jika channel dihapus)
 client.on(Events.ChannelDelete, async (channel) => {
+  // Bersihkan paired text channel jika voice channel sementara dihapus manual
+  try {
+    await handleVoiceChannelDelete(channel);
+  } catch {}
   if (isPrivateAiChannel(channel.id)) {
     unregisterPrivateChannel(channel.id);
     console.log(`[PRIVATE AI] Channel ${channel.id} telah dihapus dan dibersihkan dari database.`);
