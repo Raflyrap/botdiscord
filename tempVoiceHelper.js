@@ -238,26 +238,10 @@ async function applyRoomPermissions(channel, roomData, guild) {
       PermissionFlagsBits.ViewChannel,
       PermissionFlagsBits.Connect,
       PermissionFlagsBits.Speak,
-      PermissionFlagsBits.ManageChannels,
-      PermissionFlagsBits.MuteMembers,
-      PermissionFlagsBits.DeafenMembers,
-      PermissionFlagsBits.MoveMembers,
     ],
   });
 
-  // 3. Server Owner (Selalu boleh akses room privat)
-  if (guild.ownerId && guild.ownerId !== roomData.ownerId) {
-    overwrites.push({
-      id: guild.ownerId,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.Connect,
-        PermissionFlagsBits.Speak,
-      ],
-    });
-  }
-
-  // 4. Client Bot (Selalu bisa masuk & kelola)
+  // 3. Client Bot (Selalu bisa masuk & kelola)
   overwrites.push({
     id: guild.client.user.id,
     allow: [
@@ -269,7 +253,7 @@ async function applyRoomPermissions(channel, roomData, guild) {
     ],
   });
 
-  // 5. Teman yang di-whitelist (Diberi izin akses connect)
+  // 4. Teman yang di-whitelist (Diberi izin akses connect)
   if (roomData.allowedUserIds) {
     for (const allowedId of roomData.allowedUserIds) {
       if (allowedId === roomData.ownerId) continue;
@@ -284,7 +268,7 @@ async function applyRoomPermissions(channel, roomData, guild) {
     }
   }
 
-  // 6. User yang di-blokir / kick
+  // 5. User yang di-blokir / kick
   if (roomData.blockedUserIds) {
     for (const blockedId of roomData.blockedUserIds) {
       overwrites.push({
@@ -339,7 +323,8 @@ async function handleVoiceStateUpdate(oldState, newState) {
 
   const config = getTempVoiceConfig(guild.id);
   const hubChannelId = config?.hubChannelId;
-  const chNameLower = newState.channel?.name?.toLowerCase() || '';
+  const joinedChannel = newState.channel || (newState.channelId ? await guild.channels.fetch(newState.channelId).catch(() => null) : null);
+  const chNameLower = joinedChannel?.name?.toLowerCase() || '';
 
   const isTriggerChannel =
     (hubChannelId && newState.channelId === hubChannelId) ||
@@ -351,18 +336,20 @@ async function handleVoiceStateUpdate(oldState, newState) {
   if (isTriggerChannel && newState.channelId) {
     const member = newState.member;
     if (!member) return;
-    const parentCategory = newState.channel?.parentId || config?.categoryId;
+    const rawParentId = joinedChannel?.parentId || config?.categoryId;
 
     // Simpan konfigurasi hub channel secara otomatis jika belum tersimpan
     if (!hubChannelId || hubChannelId !== newState.channelId) {
-      setTempVoiceConfig(guild.id, newState.channelId, parentCategory);
+      setTempVoiceConfig(guild.id, newState.channelId, rawParentId);
     }
 
     try {
       // Pastikan kategori induk dapat dilihat oleh member pembuat room & everyone
-      if (parentCategory) {
-        const cat = guild.channels.cache.get(parentCategory);
-        if (cat) {
+      let validParentId = null;
+      if (rawParentId) {
+        const cat = guild.channels.cache.get(rawParentId) || await guild.channels.fetch(rawParentId).catch(() => null);
+        if (cat && cat.type === ChannelType.GuildCategory) {
+          validParentId = cat.id;
           await cat.permissionOverwrites.edit(member.id, {
             ViewChannel: true,
           }).catch(() => {});
@@ -375,7 +362,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
       const baseName = member.displayName || member.user.username;
       const channelName = `🔊・${baseName}'s Lounge`;
 
-      // Overwrites untuk voice channel
+      // Overwrites untuk voice channel (Gunakan permission dasar agar tidak ditolak Discord jika bot bukan Admin)
       const voiceOverwrites = [
         {
           id: guild.roles.everyone.id,
@@ -387,10 +374,6 @@ async function handleVoiceStateUpdate(oldState, newState) {
             PermissionFlagsBits.Connect,
             PermissionFlagsBits.Speak,
             PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.ManageChannels,
-            PermissionFlagsBits.MuteMembers,
-            PermissionFlagsBits.DeafenMembers,
-            PermissionFlagsBits.MoveMembers,
           ],
         },
         {
@@ -405,26 +388,24 @@ async function handleVoiceStateUpdate(oldState, newState) {
         },
       ];
 
-      if (guild.ownerId && typeof guild.ownerId === 'string' && guild.ownerId !== member.id) {
-        voiceOverwrites.push({
-          id: guild.ownerId,
-          allow: [
-            PermissionFlagsBits.Connect,
-            PermissionFlagsBits.Speak,
-            PermissionFlagsBits.ViewChannel,
-          ],
+      // A. Buat voice channel baru untuk member tersebut dengan fallback
+      let tempChannel = null;
+      try {
+        tempChannel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildVoice,
+          parent: validParentId,
+          permissionOverwrites: voiceOverwrites,
+        });
+      } catch (err) {
+        console.warn('[TEMP VOICE] Gagal buat voice channel dengan parent/overwrites, mencoba fallback:', err.message);
+        tempChannel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildVoice,
         });
       }
 
-      // A. Buat voice channel baru untuk member tersebut
-      const tempChannel = await guild.channels.create({
-        name: channelName,
-        type: ChannelType.GuildVoice,
-        parent: parentCategory || null,
-        permissionOverwrites: voiceOverwrites,
-      });
-
-      // Overwrites untuk text channel kontrol-voice
+      // Overwrites untuk text channel kontrol-voice (Hanya member & bot yang bisa lihat, member dilarang ketik)
       const textOverwrites = [
         {
           id: guild.roles.everyone.id,
@@ -441,10 +422,6 @@ async function handleVoiceStateUpdate(oldState, newState) {
           ],
           deny: [
             PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.AddReactions,
-            PermissionFlagsBits.CreatePublicThreads,
-            PermissionFlagsBits.CreatePrivateThreads,
-            PermissionFlagsBits.SendMessagesInThreads,
           ],
         },
         {
@@ -453,30 +430,31 @@ async function handleVoiceStateUpdate(oldState, newState) {
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
             PermissionFlagsBits.EmbedLinks,
-            PermissionFlagsBits.ManageChannels,
-            PermissionFlagsBits.ManageMessages,
           ],
         },
       ];
 
-      if (guild.ownerId && typeof guild.ownerId === 'string' && guild.ownerId !== member.id) {
-        textOverwrites.push({
-          id: guild.ownerId,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.ReadMessageHistory,
+      // B. Buat channel teks khusus "kontrol-voice" yang GABISA NULIS (hanya tombol kontrol)
+      let controlTextChannel = null;
+      try {
+        controlTextChannel = await guild.channels.create({
+          name: 'kontrol-voice',
+          type: ChannelType.GuildText,
+          parent: validParentId,
+          topic: `Panel kontrol suara interaktif khusus untuk ${member.displayName}`,
+          permissionOverwrites: textOverwrites,
+        });
+      } catch (err) {
+        console.warn('[TEMP VOICE] Gagal buat text channel dengan parent/overwrites, mencoba fallback:', err.message);
+        controlTextChannel = await guild.channels.create({
+          name: 'kontrol-voice',
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
           ],
         });
       }
-
-      // B. Buat channel teks khusus "kontrol-voice" yang GABISA NULIS (hanya tombol kontrol)
-      const controlTextChannel = await guild.channels.create({
-        name: 'kontrol-voice',
-        type: ChannelType.GuildText,
-        parent: parentCategory || null,
-        topic: `Panel kontrol suara interaktif khusus untuk ${member.displayName}`,
-        permissionOverwrites: textOverwrites,
-      });
 
       // C. Simpan data room baru
       const roomData = {
@@ -497,7 +475,9 @@ async function handleVoiceStateUpdate(oldState, newState) {
       saveActiveRooms();
 
       // D. Pindahkan user ke voice channel yang baru dibuat
-      await member.voice.setChannel(tempChannel);
+      await member.voice.setChannel(tempChannel).catch((err) => {
+        console.warn('[TEMP VOICE] Gagal memindahkan user ke temp channel baru:', err.message);
+      });
       console.log(`[TEMP VOICE] Dibuat: ${channelName} & kontrol-voice untuk ${member.user.tag}`);
 
       // E. Kirim panel kontrol interaktif ke dalam channel teks kontrol-voice
@@ -533,15 +513,15 @@ async function handleVoiceStateUpdate(oldState, newState) {
     }
 
     if (targetRoomData) {
-      const oldChannel = oldState.channel;
-      if (oldChannel && oldChannel.members.size === 0) {
+      const oldChannel = oldState.channel || (oldState.channelId ? await guild.channels.fetch(oldState.channelId).catch(() => null) : null);
+      if (oldChannel && oldChannel.members?.size === 0) {
         try {
           activeTempChannels.delete(targetRoomId);
           saveActiveRooms();
 
           // 1. Hapus channel teks kontrol-voice otomatis
           if (targetRoomData.textChannelId) {
-            const txtCh = guild.channels.cache.get(targetRoomData.textChannelId);
+            const txtCh = guild.channels.cache.get(targetRoomData.textChannelId) || await guild.channels.fetch(targetRoomData.textChannelId).catch(() => null);
             if (txtCh) await txtCh.delete('Voice room telah kosong').catch(() => {});
           }
 

@@ -1044,11 +1044,27 @@ async function setupVoiceLounges(guild, roles) {
     },
   ];
 
+  if (roles?.member?.id) {
+    voiceOverwrites.push({
+      id: roles.member.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.Speak,
+      ],
+    });
+  }
+
   const category = await getOrCreateChannel(guild, {
     name: '───────Voice Lounges───────',
     type: ChannelType.GuildCategory,
     position: 7, // Paling bawah
     permissionOverwrites: voiceOverwrites,
+  });
+
+  // Pastikan izin kategori diperbarui jika kategori sudah ada sebelumnya
+  await category.permissionOverwrites.set(voiceOverwrites).catch((err) => {
+    console.warn('[SETUP VOICE] Gagal update permissions kategori:', err.message);
   });
 
   // Channel Trigger Buat Room Voice (Satu-satunya channel di kategori ini)
