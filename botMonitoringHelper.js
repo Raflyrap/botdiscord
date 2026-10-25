@@ -4,6 +4,7 @@ const {
   EmbedBuilder,
   ChannelType,
   PermissionFlagsBits,
+  OverwriteType,
 } = require('discord.js');
 
 const DATA_PATH = path.join(__dirname, 'botMonitorData.json');
@@ -112,6 +113,13 @@ async function ensureMonitoringChannels(client) {
   }
   const appOwnerId = client.application?.owner?.id || null;
 
+  // Pastikan Owner server ter-fetch dan ter-cache
+  const guildOwner = await officialGuild.fetchOwner().catch(() => null);
+  const ownerId = guildOwner?.id || officialGuild.ownerId;
+  if (ownerId) {
+    await client.users.fetch(ownerId).catch(() => null);
+  }
+
   // Konfigurasi Hak Akses Privat:
   // - @everyone: DILARANG melihat, membaca, atau mengetik apapun
   // - Owner Server & Bot Owner: BISA melihat & membaca
@@ -119,24 +127,16 @@ async function ensureMonitoringChannels(client) {
   const privateOverwrites = [
     {
       id: officialGuild.roles.everyone.id,
+      type: OverwriteType.Role,
       deny: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ReadMessageHistory,
-      ],
-    },
-    {
-      id: officialGuild.ownerId,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.ReadMessageHistory,
-      ],
-      deny: [
-        PermissionFlagsBits.SendMessages,
       ],
     },
     {
       id: client.user.id,
+      type: OverwriteType.Member,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -149,9 +149,10 @@ async function ensureMonitoringChannels(client) {
     },
   ];
 
-  if (appOwnerId && appOwnerId !== officialGuild.ownerId) {
+  if (ownerId) {
     privateOverwrites.push({
-      id: appOwnerId,
+      id: ownerId,
+      type: OverwriteType.Member,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.ReadMessageHistory,
@@ -160,6 +161,23 @@ async function ensureMonitoringChannels(client) {
         PermissionFlagsBits.SendMessages,
       ],
     });
+  }
+
+  if (appOwnerId && appOwnerId !== ownerId) {
+    const appMember = await officialGuild.members.fetch(appOwnerId).catch(() => null);
+    if (appMember) {
+      privateOverwrites.push({
+        id: appOwnerId,
+        type: OverwriteType.Member,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+        deny: [
+          PermissionFlagsBits.SendMessages,
+        ],
+      });
+    }
   }
 
   // 1. Temukan atau Buat Kategori Induk: 👑︱FLYBOT MONITORING
