@@ -613,83 +613,72 @@ async function handleVoiceControlInteraction(interaction) {
   if (interaction.isButton()) {
     // A. Kunci Room (Privat Gembok)
     if (customId === 'btn_vc_lock') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (roomData.isLocked) {
-        return interaction.reply({
-          content: 'ℹ️ Room sudah dalam keadaan **Terkunci (Privat)**.',
-          flags: MessageFlags.Ephemeral,
-        });
+        return interaction.editReply({ content: 'ℹ️ Room sudah dalam keadaan **Terkunci (Privat)**.' });
       }
 
       roomData.isLocked = true;
       saveActiveRooms();
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
-      await safeRenameChannel(voiceChannel, `🔒・${roomData.baseName}`);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      safeRenameChannel(voiceChannel, `🔒・${roomData.baseName}`).catch(() => {});
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content:
           '🔒 **Room Berhasil Dikunci (Privat)!**\n' +
           'Kini voice channel digembok — hanya kamu, Owner server, Bot, dan teman yang kamu izinkan yang bisa bergabung.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // B. Buka Room (Public)
     if (customId === 'btn_vc_unlock') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!roomData.isLocked) {
-        return interaction.reply({
-          content: 'ℹ️ Room sudah dalam keadaan **Terbuka (Public)**.',
-          flags: MessageFlags.Ephemeral,
-        });
+        return interaction.editReply({ content: 'ℹ️ Room sudah dalam keadaan **Terbuka (Public)**.' });
       }
 
       roomData.isLocked = false;
       saveActiveRooms();
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
-      await safeRenameChannel(voiceChannel, `🔊・${roomData.baseName}`);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      safeRenameChannel(voiceChannel, `🔊・${roomData.baseName}`).catch(() => {});
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content:
           '🔓 **Room Berhasil Dibuka (Public)!**\n' +
           'Semua member di server sekarang dapat bergabung ke dalam voice room kamu.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // C. Sembunyikan Room (Invisible)
     if (customId === 'btn_vc_hide') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (roomData.isHidden) {
-        return interaction.reply({
-          content: 'ℹ️ Room sudah dalam keadaan **Tersembunyi**.',
-          flags: MessageFlags.Ephemeral,
-        });
+        return interaction.editReply({ content: 'ℹ️ Room sudah dalam keadaan **Tersembunyi**.' });
       }
 
       roomData.isHidden = true;
       saveActiveRooms();
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
-      await safeRenameChannel(voiceChannel, `👻・${roomData.baseName}`);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      safeRenameChannel(voiceChannel, `👻・${roomData.baseName}`).catch(() => {});
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content:
           '👁️ **Room Berhasil Disembunyikan!**\n' +
           'Voice channel ini sekarang tidak terlihat oleh member lain di daftar channel server.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // D. Tampilkan Room (Visible)
     if (customId === 'btn_vc_unhide') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!roomData.isHidden) {
-        return interaction.reply({
-          content: 'ℹ️ Room sudah dalam keadaan **Terlihat** di daftar channel.',
-          flags: MessageFlags.Ephemeral,
-        });
+        return interaction.editReply({ content: 'ℹ️ Room sudah dalam keadaan **Terlihat** di daftar channel.' });
       }
 
       roomData.isHidden = false;
@@ -697,18 +686,17 @@ async function handleVoiceControlInteraction(interaction) {
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
       const icon = roomData.isLocked ? '🔒' : '🔊';
-      await safeRenameChannel(voiceChannel, `${icon}・${roomData.baseName}`);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      safeRenameChannel(voiceChannel, `${icon}・${roomData.baseName}`).catch(() => {});
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content:
-          '👁️‍🗨️ **Room Berhasil Ditampilkan!**\n' +
+          '👀 **Room Berhasil Ditampilkan!**\n' +
           'Voice channel ini sekarang kembali terlihat di daftar channel server.',
-        flags: MessageFlags.Ephemeral,
       });
     }
 
-    // E. Ganti Nama Room (Buka Modal)
+    // E. Ganti Nama Room (Buka Modal langsung)
     if (customId === 'btn_vc_rename') {
       const modal = new ModalBuilder()
         .setCustomId('modal_vc_rename')
@@ -727,7 +715,7 @@ async function handleVoiceControlInteraction(interaction) {
       return interaction.showModal(modal);
     }
 
-    // F. Batasi Jumlah Member (Buka Modal)
+    // F. Batasi Jumlah Member (Buka Modal langsung)
     if (customId === 'btn_vc_limit') {
       const modal = new ModalBuilder()
         .setCustomId('modal_vc_limit')
@@ -780,6 +768,7 @@ async function handleVoiceControlInteraction(interaction) {
 
     // I. Mute Semua Member (Speaker Mode)
     if (customId === 'btn_vc_mute_all') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       let count = 0;
       for (const [, voiceMember] of voiceChannel.members) {
         if (voiceMember.id !== roomData.ownerId && voiceMember.id !== interaction.client.user.id) {
@@ -789,9 +778,8 @@ async function handleVoiceControlInteraction(interaction) {
         }
       }
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `🔇 **Speaker Mode Diubah!**\nBerhasil mengubah status mikrofon untuk **${count} member** di dalam room ini.`,
-        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -813,12 +801,12 @@ async function handleVoiceControlInteraction(interaction) {
 
     // K. Hapus Room Manual
     if (customId === 'btn_vc_delete') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       activeTempChannels.delete(voiceChannel.id);
       saveActiveRooms();
 
-      await interaction.reply({
+      await interaction.editReply({
         content: '🗑️ Menghapus voice room dan panel kontrol...',
-        flags: MessageFlags.Ephemeral,
       });
 
       if (roomData.textChannelId) {
@@ -833,6 +821,7 @@ async function handleVoiceControlInteraction(interaction) {
   // === 2. MODAL SUBMISSIONS ===
   if (interaction.isModalSubmit()) {
     if (customId === 'modal_vc_rename') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const rawName = interaction.fields.getTextInputValue('vc_name_input') || roomData.baseName;
       const cleanName = rawName.trim().slice(0, 30) || 'Lounge';
 
@@ -840,23 +829,22 @@ async function handleVoiceControlInteraction(interaction) {
       saveActiveRooms();
 
       const icon = roomData.isLocked ? '🔒' : (roomData.isHidden ? '👻' : '🔊');
-      await safeRenameChannel(voiceChannel, `${icon}・${cleanName}`);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      safeRenameChannel(voiceChannel, `${icon}・${cleanName}`).catch(() => {});
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ Nama room berhasil diubah menjadi: **${cleanName}**\n*(Catatan: Discord membatasi perubahan nama channel maksimal 2x per 10 menit)*`,
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (customId === 'modal_vc_limit') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const rawLimit = interaction.fields.getTextInputValue('vc_limit_input') || '0';
       const parsedLimit = parseInt(rawLimit.trim(), 10);
 
       if (isNaN(parsedLimit) || parsedLimit < 0 || parsedLimit > 99) {
-        return interaction.reply({
+        return interaction.editReply({
           content: '❌ Batas member harus berupa angka antara **0 sampai 99** (0 = tanpa batas).',
-          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -866,11 +854,10 @@ async function handleVoiceControlInteraction(interaction) {
       await voiceChannel.setUserLimit(parsedLimit).catch((err) => {
         console.warn('[TEMP VOICE] Gagal atur user limit:', err.message);
       });
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ Batas maksimal member room diatur ke: **${parsedLimit === 0 ? 'Tanpa Batas' : parsedLimit + ' Orang'}**!`,
-        flags: MessageFlags.Ephemeral,
       });
     }
   }
@@ -879,6 +866,7 @@ async function handleVoiceControlInteraction(interaction) {
   if (interaction.isUserSelectMenu()) {
     // Whitelist Teman
     if (customId === 'select_vc_permit') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const users = interaction.values;
       for (const uId of users) {
         roomData.allowedUserIds.add(uId);
@@ -887,17 +875,17 @@ async function handleVoiceControlInteraction(interaction) {
       saveActiveRooms();
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
       const userPings = users.map((id) => `<@${id}>`).join(', ');
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ Berhasil mengizinkan ${userPings} untuk bergabung ke voice room meskipun sedang dikunci!`,
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // Kick / Blokir Member
     if (customId === 'select_vc_kick') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const users = interaction.values;
       for (const uId of users) {
         if (uId === roomData.ownerId || uId === interaction.client.user.id) continue;
@@ -913,26 +901,24 @@ async function handleVoiceControlInteraction(interaction) {
       saveActiveRooms();
 
       await applyRoomPermissions(voiceChannel, roomData, interaction.guild);
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
       const userPings = users.map((id) => `<@${id}>`).join(', ');
-      return interaction.reply({
+      return interaction.editReply({
         content: `🚫 Berhasil mengeluarkan & memblokir ${userPings} dari room ini.`,
-        flags: MessageFlags.Ephemeral,
       });
     }
 
     // Transfer Host
     if (customId === 'select_vc_transfer') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const newOwnerId = interaction.values[0];
       if (newOwnerId === interaction.client.user.id) {
-        return interaction.reply({
+        return interaction.editReply({
           content: '❌ Bot tidak bisa dijadikan Host room suara.',
-          flags: MessageFlags.Ephemeral,
         });
       }
 
-      const oldOwnerId = roomData.ownerId;
       roomData.ownerId = newOwnerId;
       roomData.allowedUserIds.add(newOwnerId);
       saveActiveRooms();
@@ -951,11 +937,10 @@ async function handleVoiceControlInteraction(interaction) {
         }
       }
 
-      await updatePanelMessage(voiceChannel, roomData, interaction.guild);
+      updatePanelMessage(voiceChannel, roomData, interaction.guild).catch(() => {});
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `👑 Kamu telah berhasil mengalihkan kepemilikan room ini ke <@${newOwnerId}>!`,
-        flags: MessageFlags.Ephemeral,
       });
     }
   }

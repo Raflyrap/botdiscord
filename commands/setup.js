@@ -315,11 +315,13 @@ module.exports = {
 
     // Jika tidak ada parameter fitur, tampilkan Dashboard Interaktif
     const dashboardData = getSetupDashboard(interaction.guild);
-    const replyMessage = await interaction.reply({
+    const response = await interaction.reply({
       ...dashboardData,
       flags: MessageFlags.Ephemeral,
-      fetchReply: true,
+      withResponse: true,
     });
+    const replyMessage = response.resource?.message || (await interaction.fetchReply().catch(() => null));
+    if (!replyMessage) return;
 
     // Pasang Collector untuk merespons tombol dan select menu secara instan
     const collector = replyMessage.createMessageComponentCollector({
@@ -328,6 +330,7 @@ module.exports = {
     });
 
     collector.on('collect', async (i) => {
+      if (i.deferred || i.replied) return;
       let chosen = 'all';
       if (i.customId === 'btn_setup_run_all') {
         chosen = 'all';
@@ -335,7 +338,7 @@ module.exports = {
         chosen = i.values[0] || 'all';
       }
 
-      await i.deferUpdate();
+      await i.deferUpdate().catch(() => {});
 
       // Berikan indikator sedang memproses
       await interaction.editReply({
