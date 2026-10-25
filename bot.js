@@ -70,6 +70,12 @@ const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
 const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel } = require('./patroliHelper');
 const { enhanceImage, extractImageUrlFromMessage, isHdChannel, setupHdChannel } = require('./imageHdHelper');
+const {
+  handleGuildCreate,
+  handleGuildDelete,
+  initBotMonitoring,
+  recordCommandExecution,
+} = require('./botMonitoringHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -163,6 +169,13 @@ client.once(Events.ClientReady, async (readyClient) => {
     if (mainGuild) {
       setupHdChannel(mainGuild).catch((e) => console.warn('[AUTO-HD SETUP]:', e.message));
     }
+  }
+
+  // Inisialisasi Monitoring Realtime Server Official FlyBot
+  try {
+    initBotMonitoring(readyClient);
+  } catch (err) {
+    console.error('[BOT MONITOR INIT] Error:', err.message);
   }
 
   // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
@@ -827,6 +840,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   if (!interaction.isChatInputCommand()) return;
 
+  // Catat eksekusi perintah untuk statistik realtime
+  try {
+    recordCommandExecution();
+  } catch {}
+
   const command = interaction.client.commands.get(interaction.commandName);
 
   if (!command) {
@@ -931,6 +949,24 @@ client.on(Events.GuildMemberRemove, async (member) => {
         .setTimestamp();
       sendAuditLog(member.guild, memberLog);
     } catch {}
+  }
+});
+
+// Event saat bot dimasukkan ke server baru
+client.on(Events.GuildCreate, async (guild) => {
+  try {
+    await handleGuildCreate(guild, client);
+  } catch (err) {
+    console.error('[GUILD CREATE] Error:', err);
+  }
+});
+
+// Event saat bot dikeluarkan dari server
+client.on(Events.GuildDelete, async (guild) => {
+  try {
+    await handleGuildDelete(guild, client);
+  } catch (err) {
+    console.error('[GUILD DELETE] Error:', err);
   }
 });
 
