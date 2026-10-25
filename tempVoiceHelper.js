@@ -111,8 +111,7 @@ function createControlPanelEmbed(roomData, guild) {
     .setColor(isLocked ? 0xed4245 : 0x5865f2)
     .setTitle(`🎛️ Panel Kontrol Voice  •  ${roomData.baseName}`)
     .setDescription(
-      `Halo <@${roomData.ownerId}>! Channel ini adalah **Panel Kontrol Khusus** untuk voice room <#${roomData.channelId}>.\n` +
-      `Channel teks ini hanya bisa kamu lihat dan tidak bisa diketik chat (khusus tombol kontrol).\n\n` +
+      `Halo <@${roomData.ownerId}>! Gunakan panel tombol di bawah ini untuk mengatur room suara <#${roomData.channelId}> kamu.\n\n` +
       `╭─ **STATUS ROOM SAAT INI**\n` +
       `├ 🔒 **Status Akses:** ${isLocked ? '`🔒 Privat (Gembok Aktif)`' : '`🔓 Public (Terbuka Bebas)`'}\n` +
       `├ 👁️ **Visibilitas:** ${isHidden ? '`👻 Tersembunyi (Hidden)`' : '`👁️ Terlihat (Visible)`'}\n` +
@@ -128,10 +127,10 @@ function createControlPanelEmbed(roomData, guild) {
       `• 🚫 **Kick / Blokir:** Tendang dan blokir orang yang tidak diinginkan.\n` +
       `• 🔇 **Mute Semua:** Mode hening (Speaker/Presentasi).\n` +
       `• 👑 **Transfer Host:** Berikan kepemilikan room ke teman.\n` +
-      `• 🗑️ **Hapus Room:** Hapus voice room dan panel ini sekarang.\n\n` +
-      `*💡 Channel panel ini dan voice room kamu akan **otomatis hilang terhapus** saat kamu/semua member keluar dari voice!*`
+      `• 🗑️ **Hapus Room:** Hapus voice room ini sekarang.\n\n` +
+      `*💡 Voice room ini akan **otomatis hilang terhapus** saat semua member keluar dari voice!*`
     )
-    .setFooter({ text: `${guild.name} • Panel Khusus Pemilik Room (Hanya Tombol)` })
+    .setFooter({ text: `${guild.name} • Panel Kontrol Suara Interaktif` })
     .setTimestamp();
 }
 
@@ -286,38 +285,25 @@ async function applyRoomPermissions(channel, roomData, guild) {
   });
 }
 
-// Helper: Update Pesan Panel Kontrol di Channel Teks Khusus
-// Helper: Update Pesan Panel Kontrol di Channel Teks Khusus & Voice Chat
+// Helper: Update Pesan Panel Kontrol di Chat Voice Room
 async function updatePanelMessage(voiceChannel, roomData, guild) {
+  const targetId = roomData.channelId || voiceChannel?.id;
+  const panelMsgId = roomData.panelMessageId || roomData.voicePanelMessageId;
+  if (!targetId || !panelMsgId) return;
+
   const embed = createControlPanelEmbed(roomData, guild);
   const components = createControlPanelComponents(roomData);
 
-  // 1. Update di text channel khusus kontrol-voice
-  if (roomData.textChannelId && roomData.panelMessageId) {
-    try {
-      const textChannel = guild.channels.cache.get(roomData.textChannelId) || await guild.channels.fetch(roomData.textChannelId).catch(() => null);
-      if (textChannel) {
-        const msg = await textChannel.messages.fetch(roomData.panelMessageId).catch(() => null);
-        if (msg) {
-          await msg.edit({ embeds: [embed], components: components }).catch(() => {});
-        }
-      }
-    } catch (err) {
-      console.warn('[TEMP VOICE] Gagal memperbarui pesan panel text:', err.message);
-    }
-  }
-
-  // 2. Update di voice channel chat
-  const vCh = voiceChannel || (roomData.channelId ? (guild.channels.cache.get(roomData.channelId) || await guild.channels.fetch(roomData.channelId).catch(() => null)) : null);
-  if (vCh && roomData.voicePanelMessageId) {
-    try {
-      const vMsg = await vCh.messages.fetch(roomData.voicePanelMessageId).catch(() => null);
+  try {
+    const vCh = voiceChannel || guild.channels.cache.get(targetId) || await guild.channels.fetch(targetId).catch(() => null);
+    if (vCh) {
+      const vMsg = await vCh.messages.fetch(panelMsgId).catch(() => null);
       if (vMsg) {
         await vMsg.edit({ embeds: [embed], components: components }).catch(() => {});
       }
-    } catch (err) {
-      console.warn('[TEMP VOICE] Gagal memperbarui pesan panel voice:', err.message);
     }
+  } catch (err) {
+    console.warn('[TEMP VOICE] Gagal memperbarui pesan panel voice:', err.message);
   }
 }
 
@@ -419,66 +405,10 @@ async function handleVoiceStateUpdate(oldState, newState) {
         });
       }
 
-      // Overwrites untuk text channel kontrol-voice (Hanya member & bot yang bisa lihat, member dilarang ketik)
-      const textOverwrites = [
-        {
-          id: guild.roles.everyone.id,
-          type: 0,
-          deny: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-          ],
-        },
-        {
-          id: member.id,
-          type: 1,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.ReadMessageHistory,
-          ],
-          deny: [
-            PermissionFlagsBits.SendMessages,
-          ],
-        },
-        {
-          id: guild.client.user.id,
-          type: 1,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.EmbedLinks,
-          ],
-        },
-      ];
-
-      // B. Buat channel teks khusus "🎛️︱kontrol-voice" yang GABISA NULIS (hanya tombol kontrol)
-      let controlTextChannel = null;
-      try {
-        controlTextChannel = await guild.channels.create({
-          name: '🎛️︱kontrol-voice',
-          type: ChannelType.GuildText,
-          parent: validParentId,
-          position: 0,
-          topic: `Panel kontrol suara interaktif khusus untuk ${member.displayName}`,
-          permissionOverwrites: textOverwrites,
-        });
-      } catch (err) {
-        console.warn('[TEMP VOICE] Gagal buat text channel dengan parent/overwrites, mencoba fallback:', err.message);
-        controlTextChannel = await guild.channels.create({
-          name: '🎛️︱kontrol-voice',
-          type: ChannelType.GuildText,
-          parent: validParentId,
-          permissionOverwrites: [
-            { id: guild.roles.everyone.id, type: 0, deny: [PermissionFlagsBits.ViewChannel] },
-            { id: member.id, type: 1, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-          ],
-        });
-      }
-
-      // C. Simpan data room baru
+      // B. Simpan data room baru (Panel kontrol langsung di dalam chat voice channel)
       const roomData = {
         channelId: tempChannel.id,
-        textChannelId: controlTextChannel?.id || null,
+        textChannelId: null,
         guildId: guild.id,
         ownerId: member.id,
         isLocked: false,
@@ -488,38 +418,20 @@ async function handleVoiceStateUpdate(oldState, newState) {
         allowedUserIds: new Set([member.id]),
         blockedUserIds: new Set(),
         panelMessageId: null,
-        voicePanelMessageId: null,
       };
 
       activeTempChannels.set(tempChannel.id, roomData);
       saveActiveRooms();
 
-      // D. Pindahkan user ke voice channel yang baru dibuat
+      // C. Pindahkan user ke voice channel yang baru dibuat
       await member.voice.setChannel(tempChannel).catch((err) => {
         console.warn('[TEMP VOICE] Gagal memindahkan user ke temp channel baru:', err.message);
       });
-      console.log(`[TEMP VOICE] Dibuat: ${channelName} & kontrol-voice untuk ${member.user.tag}`);
+      console.log(`[TEMP VOICE] Dibuat: ${channelName} untuk ${member.user.tag}`);
 
-      // E. Kirim panel kontrol interaktif ke dalam channel teks khusus
-      if (controlTextChannel) {
-        const panelMsg = await controlTextChannel.send({
-          content: `👋 Halo <@${member.id}>! Gunakan tombol kontrol di bawah ini untuk mengatur room suara kamu.`,
-          embeds: [createControlPanelEmbed(roomData, guild)],
-          components: createControlPanelComponents(roomData),
-        }).catch((err) => {
-          console.warn('[TEMP VOICE] Gagal mengirim pesan panel ke kontrol-voice:', err.message);
-          return null;
-        });
-
-        if (panelMsg) {
-          roomData.panelMessageId = panelMsg.id;
-          saveActiveRooms();
-        }
-      }
-
-      // F. Kirim JUGA panel kontrol langsung ke dalam obrolan teks room voice (Chat Voice)
-      const voicePanelMsg = await tempChannel.send({
-        content: `👋 Halo <@${member.id}>! Gunakan tombol kontrol di bawah ini untuk mengatur room kamu${controlTextChannel ? ` (atau lihat channel <#${controlTextChannel.id}>)` : ''}:`,
+      // D. Kirim panel kontrol interaktif langsung ke dalam obrolan teks room voice (Chat Voice)
+      const panelMsg = await tempChannel.send({
+        content: `👋 Halo <@${member.id}>! Gunakan tombol kontrol di bawah ini untuk mengatur room suara kamu:`,
         embeds: [createControlPanelEmbed(roomData, guild)],
         components: createControlPanelComponents(roomData),
       }).catch((err) => {
@@ -527,12 +439,12 @@ async function handleVoiceStateUpdate(oldState, newState) {
         return null;
       });
 
-      if (voicePanelMsg) {
-        roomData.voicePanelMessageId = voicePanelMsg.id;
+      if (panelMsg) {
+        roomData.panelMessageId = panelMsg.id;
         saveActiveRooms();
       }
     } catch (error) {
-      console.error('Error saat membuat temp voice & kontrol-voice channel:', error);
+      console.error('Error saat membuat temp voice channel:', error);
     }
   }
 
