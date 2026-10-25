@@ -339,58 +339,135 @@ async function handleVoiceStateUpdate(oldState, newState) {
 
   const config = getTempVoiceConfig(guild.id);
   const hubChannelId = config?.hubChannelId;
+  const chNameLower = newState.channel?.name?.toLowerCase() || '';
 
-  // 1. Jika user bergabung ke channel trigger (➕︱Buat Room Voice)
-  if (hubChannelId && newState.channelId === hubChannelId) {
+  const isTriggerChannel =
+    (hubChannelId && newState.channelId === hubChannelId) ||
+    chNameLower.includes('buat room') ||
+    chNameLower.includes('join to create') ||
+    chNameLower.startsWith('➕');
+
+  // 1. Jika user bergabung ke channel trigger (➕︱Buat Room Voice) di server mana pun
+  if (isTriggerChannel && newState.channelId) {
     const member = newState.member;
+    if (!member) return;
     const parentCategory = newState.channel?.parentId || config?.categoryId;
 
+    // Simpan konfigurasi hub channel secara otomatis jika belum tersimpan
+    if (!hubChannelId || hubChannelId !== newState.channelId) {
+      setTempVoiceConfig(guild.id, newState.channelId, parentCategory);
+    }
+
     try {
+      // Pastikan kategori induk dapat dilihat oleh member pembuat room & everyone
+      if (parentCategory) {
+        const cat = guild.channels.cache.get(parentCategory);
+        if (cat) {
+          await cat.permissionOverwrites.edit(member.id, {
+            ViewChannel: true,
+          }).catch(() => {});
+          await cat.permissionOverwrites.edit(guild.roles.everyone.id, {
+            ViewChannel: true,
+          }).catch(() => {});
+        }
+      }
+
       const baseName = member.displayName || member.user.username;
       const channelName = `🔊・${baseName}'s Lounge`;
+
+      // Overwrites untuk voice channel
+      const voiceOverwrites = [
+        {
+          id: guild.roles.everyone.id,
+          allow: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.ViewChannel],
+        },
+        {
+          id: member.id,
+          allow: [
+            PermissionFlagsBits.Connect,
+            PermissionFlagsBits.Speak,
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.MuteMembers,
+            PermissionFlagsBits.DeafenMembers,
+            PermissionFlagsBits.MoveMembers,
+          ],
+        },
+        {
+          id: guild.client.user.id,
+          allow: [
+            PermissionFlagsBits.Connect,
+            PermissionFlagsBits.Speak,
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.MoveMembers,
+          ],
+        },
+      ];
+
+      if (guild.ownerId && typeof guild.ownerId === 'string' && guild.ownerId !== member.id) {
+        voiceOverwrites.push({
+          id: guild.ownerId,
+          allow: [
+            PermissionFlagsBits.Connect,
+            PermissionFlagsBits.Speak,
+            PermissionFlagsBits.ViewChannel,
+          ],
+        });
+      }
 
       // A. Buat voice channel baru untuk member tersebut
       const tempChannel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildVoice,
         parent: parentCategory || null,
-        permissionOverwrites: [
-          {
-            id: guild.roles.everyone.id,
-            allow: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.ViewChannel],
-          },
-          {
-            id: member.id,
-            allow: [
-              PermissionFlagsBits.Connect,
-              PermissionFlagsBits.Speak,
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.ManageChannels,
-              PermissionFlagsBits.MuteMembers,
-              PermissionFlagsBits.DeafenMembers,
-              PermissionFlagsBits.MoveMembers,
-            ],
-          },
-          {
-            id: guild.ownerId,
-            allow: [
-              PermissionFlagsBits.Connect,
-              PermissionFlagsBits.Speak,
-              PermissionFlagsBits.ViewChannel,
-            ],
-          },
-          {
-            id: guild.client.user.id,
-            allow: [
-              PermissionFlagsBits.Connect,
-              PermissionFlagsBits.Speak,
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.ManageChannels,
-              PermissionFlagsBits.MoveMembers,
-            ],
-          },
-        ],
+        permissionOverwrites: voiceOverwrites,
       });
+
+      // Overwrites untuk text channel kontrol-voice
+      const textOverwrites = [
+        {
+          id: guild.roles.everyone.id,
+          deny: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+          ],
+        },
+        {
+          id: member.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+          deny: [
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.AddReactions,
+            PermissionFlagsBits.CreatePublicThreads,
+            PermissionFlagsBits.CreatePrivateThreads,
+            PermissionFlagsBits.SendMessagesInThreads,
+          ],
+        },
+        {
+          id: guild.client.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.ManageMessages,
+          ],
+        },
+      ];
+
+      if (guild.ownerId && typeof guild.ownerId === 'string' && guild.ownerId !== member.id) {
+        textOverwrites.push({
+          id: guild.ownerId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        });
+      }
 
       // B. Buat channel teks khusus "kontrol-voice" yang GABISA NULIS (hanya tombol kontrol)
       const controlTextChannel = await guild.channels.create({
@@ -398,47 +475,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
         type: ChannelType.GuildText,
         parent: parentCategory || null,
         topic: `Panel kontrol suara interaktif khusus untuk ${member.displayName}`,
-        permissionOverwrites: [
-          {
-            id: guild.roles.everyone.id,
-            deny: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-            ],
-          },
-          {
-            id: member.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.ReadMessageHistory,
-            ],
-            // Dilarang mengetik atau mengirim pesan, hanya untuk melihat tombol
-            deny: [
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.AddReactions,
-              PermissionFlagsBits.CreatePublicThreads,
-              PermissionFlagsBits.CreatePrivateThreads,
-              PermissionFlagsBits.SendMessagesInThreads,
-            ],
-          },
-          {
-            id: guild.ownerId,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.ReadMessageHistory,
-            ],
-          },
-          {
-            id: guild.client.user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.EmbedLinks,
-              PermissionFlagsBits.ManageChannels,
-              PermissionFlagsBits.ManageMessages,
-            ],
-          },
-        ],
+        permissionOverwrites: textOverwrites,
       });
 
       // C. Simpan data room baru

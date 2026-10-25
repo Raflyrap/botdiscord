@@ -1026,10 +1026,6 @@ async function setupVoiceLounges(guild, roles) {
   const voiceOverwrites = [
     {
       id: guild.roles.everyone.id,
-      deny: [PermissionFlagsBits.ViewChannel],
-    },
-    {
-      id: roles.member.id,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.Connect,
