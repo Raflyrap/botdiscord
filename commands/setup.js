@@ -107,11 +107,8 @@ function createResultEmbed(featureKey, result, guild) {
       .setTitle('Setup Voice Lounges Selesai (Posisi Terbawah)')
       .setDescription(
         `Kategori **${result.category.name}** telah siap di urutan paling bawah:\n\n` +
-        `• <#${result.hubChannel.id}> — Voice trigger (Join-to-Create room mandiri)\n` +
-        `• <#${result.productionRoom.id}> — Voice room untuk produksi & stream\n` +
-        `• <#${result.generalVoice.id}> — Obrolan suara santai\n` +
-        `• <#${result.musicLounge.id}> — Mendengarkan musik HD bareng FlyBot\n` +
-        `• <#${result.voiceChat.id}> — Obrolan teks pendamping voice`
+        `• <#${result.hubChannel.id}> — ➕︱Buat Room Voice (Join-to-Create room mandiri)\n` +
+        `  *(Saat member masuk, bot otomatis membuat room pribadi dengan Panel Kontrol Gembok 🔒 Privat/Public, batasi member, ganti nama, whitelist & kick!)*`
       );
   } else if (featureKey === 'all') {
     embed
@@ -133,7 +130,7 @@ function createResultEmbed(featureKey, result, guild) {
         `**7. Mini Games**\n` +
         `└ <#${result.miniGames.coinChannel.id}>, <#${result.miniGames.numberChannel.id}>, <#${result.miniGames.rpsChannel.id}>\n\n` +
         `**8. Voice Lounges (Paling Bawah)**\n` +
-        `└ <#${result.voiceLounges.hubChannel.id}>, <#${result.voiceLounges.productionRoom.id}>, <#${result.voiceLounges.generalVoice.id}>, <#${result.voiceLounges.musicLounge.id}>, <#${result.voiceLounges.voiceChat.id}>\n\n` +
+        `└ <#${result.voiceLounges.hubChannel.id}> (Room Suara Mandiri & Panel Kontrol Gembok 🔒 Privat/Public)\n\n` +
         `✅ **Sistem Keamanan Aktif**: Member baru yang bergabung hanya akan melihat kategori **Get Started** sampai mereka menekan tombol verifikasi dan memilih role gender (**👦 Laki-laki** / **👧 Perempuan**). Setelah itu, seluruh server akan otomatis terbuka penuh!`
       );
   }
@@ -193,7 +190,7 @@ function getSetupDashboard(guild) {
       `7. **───────Mini Games───────**\n` +
       `   • tebak-koin, tebak-angka, suit-jepang\n` +
       `8. **───────Voice Lounges───────** (Paling Bawah)\n` +
-      `   • Buat Room Voice (Join-to-Create), Production Room, General Voice, Music Lounge\n\n` +
+      `   • ➕︱Buat Room Voice (Join-to-Create room mandiri + panel gembok 🔒 privat/public & kontrol lengkap)\n\n` +
       `*Pilih tombol hijau untuk membuat semua sekaligus, atau gunakan dropdown untuk memilih satu per satu:*`
     )
     .setThumbnail(guild.iconURL({ size: 256 }) || guild.client.user.displayAvatarURL())
@@ -253,7 +250,7 @@ function getSetupDashboard(guild) {
       },
       {
         label: 'Voice Lounges (Paling Bawah - Room Suara)',
-        description: 'Kategori suara di posisi terbawah: Hub mandiri, Production, Musik',
+        description: 'Kategori suara di posisi terbawah: Buat Room Voice mandiri & panel gembok 🔒',
         value: 'voice',
       },
     ]);

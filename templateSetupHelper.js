@@ -1020,7 +1020,7 @@ async function setupMiniGamesTemplate(guild, roles) {
 
 /**
  * Setup 8: Voice Lounges (At the Bottom!)
- * Buat Room Voice (Trigger), Production Room, General Voice, Music Lounge, Companion Chat
+ * Hanya Buat Room Voice (Trigger Join-to-Create Room Mandiri dengan Panel Interaktif)
  */
 async function setupVoiceLounges(guild, roles) {
   const voiceOverwrites = [
@@ -1055,7 +1055,7 @@ async function setupVoiceLounges(guild, roles) {
     permissionOverwrites: voiceOverwrites,
   });
 
-  // 1. Channel Trigger Buat Room Voice
+  // Channel Trigger Buat Room Voice (Satu-satunya channel di kategori ini)
   const hubChannel = await getOrCreateChannel(guild, {
     name: '➕︱Buat Room Voice',
     type: ChannelType.GuildVoice,
@@ -1063,59 +1063,10 @@ async function setupVoiceLounges(guild, roles) {
     permissionOverwrites: voiceOverwrites,
   });
 
-  // 2. Production Room
-  const productionRoom = await getOrCreateChannel(guild, {
-    name: '🚀︱Production Room',
-    type: ChannelType.GuildVoice,
-    parentId: category.id,
-    permissionOverwrites: voiceOverwrites,
-  });
-
-  // 3. General Voice
-  const generalVoice = await getOrCreateChannel(guild, {
-    name: '🔊︱General Voice',
-    type: ChannelType.GuildVoice,
-    parentId: category.id,
-    permissionOverwrites: voiceOverwrites,
-  });
-
-  // 4. Music Lounge
-  const musicLounge = await getOrCreateChannel(guild, {
-    name: '🎵︱Music Lounge',
-    type: ChannelType.GuildVoice,
-    parentId: category.id,
-    permissionOverwrites: voiceOverwrites,
-  });
-
-  // 5. Companion Text
-  const voiceChat = await getOrCreateChannel(guild, {
-    name: '💬︱voice-chat',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: [
-      {
-        id: guild.roles.everyone.id,
-        deny: [PermissionFlagsBits.ViewChannel],
-      },
-      {
-        id: roles.member.id,
-        allow: [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory,
-        ],
-      },
-      {
-        id: guild.client.user.id,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-      },
-    ],
-  });
-
   // Sambungkan ke tempVoiceHelper
   setTempVoiceConfig(guild.id, hubChannel.id, category.id);
 
-  return { category, hubChannel, productionRoom, generalVoice, musicLounge, voiceChat };
+  return { category, hubChannel };
 }
 
 /**

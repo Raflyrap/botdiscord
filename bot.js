@@ -59,7 +59,7 @@ try { require('@noble/ciphers'); } catch (e) {}
 try { require('libsodium-wrappers'); } catch (e) {}
 try { require('opusscript'); } catch (e) {}
 const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
-const { handleVoiceStateUpdate } = require('./tempVoiceHelper');
+const { handleVoiceStateUpdate, handleVoiceControlInteraction } = require('./tempVoiceHelper');
 const { updateServerStats } = require('./serverStatsHelper');
 const { getAutoRole } = require('./autoRoleHelper');
 const { handleMenuInteraction } = require('./menuInteractionHandler');
@@ -194,6 +194,14 @@ client.once(Events.ClientReady, async (readyClient) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   // Handler untuk Menu Dashboard interaktif
   await handleMenuInteraction(interaction).catch(console.error);
+
+  // Handler interaktif Panel Kontrol Voice Room
+  try {
+    const handledVoice = await handleVoiceControlInteraction(interaction);
+    if (handledVoice) return;
+  } catch (err) {
+    console.error('Error saat handleVoiceControlInteraction:', err);
+  }
 
   // Handler dropdown menu setup
   if (interaction.isStringSelectMenu() && interaction.customId === 'menu_setup_select') {

@@ -66,6 +66,7 @@ async function checkForUpdates() {
         'afkData.json',
         'serverStatsConfig.json',
         'tempVoiceConfig.json',
+        'tempVoiceRooms.json',
         'privateAiConfig.json',
         'ticketConfig.json',
         'ticketData.json',
