@@ -6,8 +6,9 @@ const {
 } = require('discord.js');
 const {
   updateLiveDashboard,
+  updateServerListDashboard,
   formatUptime,
-  getOfficialLogChannelId,
+  ensureMonitoringChannels,
 } = require('../botMonitoringHelper');
 
 async function isBotOwner(interaction) {
@@ -100,8 +101,7 @@ module.exports = {
           { name: 'RAM (Heap)', value: `\`${heapUsedMb} MB\``, inline: true },
           { name: 'Gateway Latency', value: `\`${wsPing} ms\``, inline: true },
           { name: 'Node.js', value: `\`${process.version}\``, inline: true },
-          { name: 'Platform Host', value: `\`${process.platform} (${process.arch})\``, inline: true },
-          { name: 'Channel Log Realtime', value: `<#${getOfficialLogChannelId()}>`, inline: true }
+          { name: 'Platform Host', value: `\`${process.platform} (${process.arch})\``, inline: true }
         )
         .setFooter({ text: 'FlyBot Developer Tools' })
         .setTimestamp();
@@ -114,8 +114,9 @@ module.exports = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         await updateLiveDashboard(interaction.client);
+        await updateServerListDashboard(interaction.client);
         return interaction.editReply({
-          content: `Live monitoring dashboard berhasil diperbarui di channel <#${getOfficialLogChannelId()}>!`,
+          content: 'Live monitoring dashboard dan direktori server berhasil diperbarui di channel privat!',
         });
       } catch (err) {
         return interaction.editReply({
