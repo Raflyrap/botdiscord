@@ -101,8 +101,8 @@ function initLavalink(client) {
       requestTimeout: 10000,
     },
     {
-      id: 'jirayu-v4',
-      host: 'lavalink.jirayu.net',
+      id: 'serenetia-v4',
+      host: 'lavalink.serenetia.com',
       port: 443,
       authorization: 'youshallnotpass',
       secure: true,

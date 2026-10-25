@@ -117,7 +117,7 @@ async function setupHdChannel(guild) {
     const sent = await hdChannel.send({ embeds: [guideEmbed] });
     await sent.pin().catch(() => {});
   } else {
-    const pins = await hdChannel.messages.fetchPinned().catch(() => null);
+    const pins = await (hdChannel.messages.fetchPins ? hdChannel.messages.fetchPins() : hdChannel.messages.fetchPinned()).catch(() => null);
     if (!pins || pins.size === 0) {
       const sent = await hdChannel.send({ embeds: [guideEmbed] });
       await sent.pin().catch(() => {});

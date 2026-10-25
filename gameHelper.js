@@ -208,7 +208,7 @@ async function setupMiniGames(guild) {
     const sentCoin = await coinChannel.send({ embeds: [coinEmbed], components: [getCoinGameRow()] });
     await sentCoin.pin().catch(() => {});
   } else {
-    const pins = await coinChannel.messages.fetchPinned().catch(() => null);
+    const pins = await (coinChannel.messages.fetchPins ? coinChannel.messages.fetchPins() : coinChannel.messages.fetchPinned()).catch(() => null);
     if (!pins || pins.size === 0) {
       const sentCoin = await coinChannel.send({ embeds: [coinEmbed], components: [getCoinGameRow()] });
       await sentCoin.pin().catch(() => {});
@@ -252,7 +252,7 @@ async function setupMiniGames(guild) {
     const sentNumber = await numberChannel.send({ embeds: [numberEmbed], components: [getNumberGameRow()] });
     await sentNumber.pin().catch(() => {});
   } else {
-    const pins = await numberChannel.messages.fetchPinned().catch(() => null);
+    const pins = await (numberChannel.messages.fetchPins ? numberChannel.messages.fetchPins() : numberChannel.messages.fetchPinned()).catch(() => null);
     if (!pins || pins.size === 0) {
       const sentNumber = await numberChannel.send({ embeds: [numberEmbed], components: [getNumberGameRow()] });
       await sentNumber.pin().catch(() => {});
@@ -293,7 +293,7 @@ async function setupMiniGames(guild) {
     const sentRps = await rpsChannel.send({ embeds: [rpsEmbed], components: [getRpsGameRow()] });
     await sentRps.pin().catch(() => {});
   } else {
-    const pins = await rpsChannel.messages.fetchPinned().catch(() => null);
+    const pins = await (rpsChannel.messages.fetchPins ? rpsChannel.messages.fetchPins() : rpsChannel.messages.fetchPinned()).catch(() => null);
     if (!pins || pins.size === 0) {
       const sentRps = await rpsChannel.send({ embeds: [rpsEmbed], components: [getRpsGameRow()] });
       await sentRps.pin().catch(() => {});

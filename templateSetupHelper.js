@@ -920,7 +920,7 @@ async function setupMiniGamesTemplate(guild, roles) {
   });
 
   // 1. Panel & Tombol Tebak Koin
-  const coinPins = await coinChannel.messages.fetchPinned().catch(() => null);
+  const coinPins = await (coinChannel.messages.fetchPins ? coinChannel.messages.fetchPins() : coinChannel.messages.fetchPinned()).catch(() => null);
   if (!coinPins || coinPins.size === 0) {
     const coinEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
@@ -948,7 +948,7 @@ async function setupMiniGamesTemplate(guild, roles) {
   }
 
   // 2. Panel & Tombol Tebak Angka
-  const numberPins = await numberChannel.messages.fetchPinned().catch(() => null);
+  const numberPins = await (numberChannel.messages.fetchPins ? numberChannel.messages.fetchPins() : numberChannel.messages.fetchPinned()).catch(() => null);
   if (!numberPins || numberPins.size === 0) {
     const numberEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
@@ -981,7 +981,7 @@ async function setupMiniGamesTemplate(guild, roles) {
   startNumberGuessing(guild.id, guild.client.user.id);
 
   // 3. Panel & Tombol Suit Jepang
-  const rpsPins = await rpsChannel.messages.fetchPinned().catch(() => null);
+  const rpsPins = await (rpsChannel.messages.fetchPins ? rpsChannel.messages.fetchPins() : rpsChannel.messages.fetchPinned()).catch(() => null);
   if (!rpsPins || rpsPins.size === 0) {
     const rpsEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
