@@ -160,7 +160,7 @@ function createControlPanelComponents(roomData) {
     new ButtonBuilder()
       .setCustomId('btn_vc_unhide')
       .setLabel('Tampilkan')
-      .setEmoji('👁️‍🗨️')
+      .setEmoji('👀')
       .setStyle(!isHidden ? ButtonStyle.Primary : ButtonStyle.Secondary)
   );
 
