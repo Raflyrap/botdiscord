@@ -17,6 +17,7 @@ const {
   setupCommunityCategory,
   setupCinematographyCategory,
   setupEntertainmentCategory,
+  setupSosmedConverterCategory,
   setupMiniGamesCategory,
   setupVoiceLoungesCategory,
 } = require('../setupHelper');
@@ -90,6 +91,17 @@ function createResultEmbed(featureKey, result, guild) {
         `• <#${result.aiPrompt.id}> — Studio racik prompt AI (Visual & Generative)\n` +
         `• <#${result.playlistMusic.id}> — Forum rekomendasi & diskusi playlist musik`
       );
+  } else if (featureKey === 'sosmed') {
+    embed
+      .setTitle('Setup Sosmed Converter Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** telah siap:\n\n` +
+        `• <#${result.tiktokConvert.id}> — TikTok Converter (Video no-watermark & foto slideshow)\n` +
+        `• <#${result.instagramConvert.id}> — Instagram Converter (Reels, Feed & Carousel)\n` +
+        `• <#${result.facebookConvert.id}> — Facebook Converter (Video & Reels HD)\n` +
+        `• <#${result.youtubeConvert.id}> — YouTube Converter (Shorts & Video)\n\n` +
+        `*Member cukup kirim link sosmed dari PC/Mobile, bot otomatis konversi langsung ke chat!*`
+      );
   } else if (featureKey === 'games') {
     embed
       .setTitle('Setup Mini Games Selesai')
@@ -124,9 +136,11 @@ function createResultEmbed(featureKey, result, guild) {
         `└ <#${result.cinematography.fotografi.id}>, <#${result.cinematography.videografi.id}>, <#${result.cinematography.hdFoto.id}>\n\n` +
         `**6. Entertainment & Music Forum** (Meme, Fanart, 3 Ruang AI & Forum Musik)\n` +
         `└ <#${result.entertainment.meme.id}>, <#${result.entertainment.fanart.id}>, <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>, <#${result.entertainment.playlistMusic.id}>\n\n` +
-        `**7. Mini Games** (Tombol & Chat Interaktif Langsung Berfungsi)\n` +
+        `**7. Sosmed Converter** (Auto-Download TikTok, Instagram, Facebook, YouTube)\n` +
+        `└ <#${result.sosmedConverter.tiktokConvert.id}>, <#${result.sosmedConverter.instagramConvert.id}>, <#${result.sosmedConverter.facebookConvert.id}>, <#${result.sosmedConverter.youtubeConvert.id}>\n\n` +
+        `**8. Mini Games** (Tombol & Chat Interaktif Langsung Berfungsi)\n` +
         `└ <#${result.miniGames.coinChannel.id}>, <#${result.miniGames.numberChannel.id}>, <#${result.miniGames.rpsChannel.id}>\n\n` +
-        `**8. Voice Lounges (Paling Bawah)**\n` +
+        `**9. Voice Lounges (Paling Bawah)**\n` +
         `└ <#${result.voiceLounges.hubChannel.id}> (Room Suara Mandiri & Panel Kontrol Gembok 🔒 Privat/Public)\n\n` +
         `✅ **Sistem Keamanan & Auto-Update Aktif**: Member baru yang bergabung hanya akan melihat kategori **Get Started** sampai mereka memverifikasi akun & memilih role gender (**👦 Laki-laki** / **👧 Perempuan**).\n` +
         `🔄 **Auto-Update On**: Jika ada pembaruan template di masa mendatang, server ini akan otomatis tersinkronisasi saat bot restart tanpa perlu delete-all!`
@@ -151,6 +165,8 @@ async function executeSetupAction(featureKey, guild) {
       return await setupCinematographyCategory(guild);
     case 'entertainment':
       return await setupEntertainmentCategory(guild);
+    case 'sosmed':
+      return await setupSosmedConverterCategory(guild);
     case 'games':
       return await setupMiniGamesCategory(guild);
     case 'voice':
@@ -185,9 +201,11 @@ function getSetupDashboard(guild) {
       `   • fotografi, videografi, hd-foto (Auto-HD AI 2x/4x Super-Resolution)\n` +
       `6. **───────Entertainment───────**\n` +
       `   • meme, fanart, ai-fanart, ai-generating, ai-prompt, playlist-music (forum)\n` +
-      `7. **───────Mini Games───────**\n` +
+      `7. **───────Sosmed Converter───────**\n` +
+      `   • tiktok-convert, instagram-convert, facebook-convert, youtube-convert (Auto-download video & foto)\n` +
+      `8. **───────Mini Games───────**\n` +
       `   • tebak-koin, tebak-angka, suit-jepang (Tombol & Chat langsung berfungsi)\n` +
-      `8. **───────Voice Lounges───────** (Paling Bawah)\n` +
+      `9. **───────Voice Lounges───────** (Paling Bawah)\n` +
       `   • ➕︱Buat Room Voice (Join-to-Create room mandiri + panel gembok 🔒 privat/public & kontrol lengkap)\n\n` +
       `*Pilih tombol hijau untuk membuat semua sekaligus, atau gunakan dropdown untuk memilih satu per satu:*`
     )
@@ -208,7 +226,7 @@ function getSetupDashboard(guild) {
     .addOptions([
       {
         label: '🌟 Setup Semua Template (All-in-One)',
-        description: 'Buat seluruh 8 kategori & channel teks/suara secara instan',
+        description: 'Buat seluruh kategori & channel teks/suara secara instan',
         value: 'all',
       },
       {
@@ -240,6 +258,11 @@ function getSetupDashboard(guild) {
         label: 'Entertainment & AI (Meme, Fanart, 3 AI Rooms)',
         description: 'Meme, fanart, ai-fanart, ai-generating, ai-prompt, forum musik',
         value: 'entertainment',
+      },
+      {
+        label: 'Sosmed Converter (TikTok, IG, FB, YouTube)',
+        description: 'Channel auto-download video & foto sosmed dari link PC/Mobile',
+        value: 'sosmed',
       },
       {
         label: 'Mini Games (Koin, Angka, Suit)',
@@ -276,6 +299,7 @@ module.exports = {
           { name: '💬 Community (Ngobrol, Levels, Achievements)', value: 'community' },
           { name: '📷 Cinematography (Fotografi & Videografi)', value: 'cinematography' },
           { name: '🎨 Entertainment & AI (Meme, Fanart, AI Rooms)', value: 'entertainment' },
+          { name: '📥 Sosmed Converter (TikTok, IG, FB, YouTube)', value: 'sosmed' },
           { name: '🎮 Mini Games (Koin, Angka, Suit)', value: 'games' },
           { name: '🔊 Voice Lounges (Paling Bawah - Room Mandiri)', value: 'voice' }
         )

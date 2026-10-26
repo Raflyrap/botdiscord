@@ -187,7 +187,9 @@ client.once(Events.ClientReady, async (readyClient) => {
               c.name.toLowerCase().includes('get started') ||
               c.name.toLowerCase().includes('entertainment') ||
               c.name.toLowerCase().includes('mini games') ||
-              c.name.toLowerCase().includes('community')
+              c.name.toLowerCase().includes('community') ||
+              c.name.toLowerCase().includes('sosmed') ||
+              c.name.toLowerCase().includes('converter')
             )
           );
           if (cfg?.allInOneConfigured || hasTemplateCat) {
@@ -1387,6 +1389,50 @@ client.on(Events.MessageCreate, async (message) => {
       message.react('📸').then(() => message.react('✨')).catch(() => {});
     } else if (chName.includes('videografi')) {
       message.react('🎥').then(() => message.react('🔥')).catch(() => {});
+    }
+  }
+
+  // === FITUR AUTO-DOWNLOAD / CONVERT SOSMED (TIKTOK, INSTAGRAM, FACEBOOK, YOUTUBE) ===
+  if (message.guild && !message.author.bot && message.channel?.name) {
+    const {
+      getExpectedPlatform,
+      detectPlatform,
+      extractUrls,
+      handleMediaConvert,
+      PLATFORM_INFO,
+    } = require('./mediaConvertHelper');
+
+    const expectedPlatform = getExpectedPlatform(message.channel.name);
+    if (expectedPlatform) {
+      const urls = extractUrls(message.content);
+
+      if (urls.length > 0) {
+        const targetUrl = urls[0];
+        const detectedPlatform = detectPlatform(targetUrl);
+
+        if (detectedPlatform && detectedPlatform !== expectedPlatform) {
+          // SALAH LAPAK!
+          const expInfo = PLATFORM_INFO[expectedPlatform];
+          const detInfo = PLATFORM_INFO[detectedPlatform];
+
+          const correctChannel = message.guild.channels.cache.find(
+            (c) => c.name.toLowerCase().includes(detInfo.channelKeyword)
+          );
+          const channelMention = correctChannel ? `<#${correctChannel.id}>` : `#${detInfo.channelKeyword}`;
+
+          const warnMsg = await message.reply({
+            content: `Salah lapak lu bray! 🗿 Link yang lo kirim itu link **${detInfo.name}**, harusnya kirim ke channel ${channelMention}! Di sini khusus lapak **${expInfo.name}** ya.`,
+          });
+          setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+          return;
+        }
+
+        if (detectedPlatform && detectedPlatform === expectedPlatform) {
+          // LAPAK BENAR! Eksekusi konversi media
+          await handleMediaConvert(message, targetUrl, expectedPlatform);
+          return;
+        }
+      }
     }
   }
 

@@ -921,7 +921,153 @@ async function setupEntertainment(guild, roles) {
 }
 
 /**
- * Setup 7: Mini Games
+ * Setup 7: Sosmed Converter & Downloader
+ * TikTok, Instagram, Facebook, YouTube (Konversi Link Otomatis ke Media Video & Foto)
+ */
+async function setupSosmedConverter(guild, roles) {
+  const memberOverwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel],
+    },
+    {
+      id: roles.member.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.EmbedLinks,
+      ],
+    },
+    {
+      id: guild.client.user.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.ManageMessages,
+      ],
+    },
+  ];
+
+  const category = await getOrCreateChannel(guild, {
+    name: '──────Sosmed-Converter──────',
+    type: ChannelType.GuildCategory,
+    position: 6,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  // 1. TikTok Convert
+  const tiktokConvert = await getOrCreateChannel(guild, {
+    name: '🎵︱tiktok-convert',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    topic: 'Kirim link TikTok dari PC/Mobile, bot otomatis konversi jadi video tanpa watermark atau foto slideshow!',
+  });
+
+  // 2. Instagram Convert
+  const instagramConvert = await getOrCreateChannel(guild, {
+    name: '📸︱instagram-convert',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    topic: 'Kirim link Reels, Postingan, atau Carousel Instagram untuk diunduh otomatis!',
+  });
+
+  // 3. Facebook Convert
+  const facebookConvert = await getOrCreateChannel(guild, {
+    name: '📘︱facebook-convert',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    topic: 'Kirim link video / reels Facebook untuk dikonversi menjadi video langsung!',
+  });
+
+  // 4. YouTube Convert
+  const youtubeConvert = await getOrCreateChannel(guild, {
+    name: '▶️︱youtube-convert',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    topic: 'Kirim link YouTube Shorts atau video YouTube untuk dikonversi langsung!',
+  });
+
+  // Guide embed TikTok
+  const ttMsgs = await tiktokConvert.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!ttMsgs || ttMsgs.size === 0) {
+    const embed = new EmbedBuilder()
+      .setColor(0xFE2C55)
+      .setTitle('🎵 TikTok Converter & Downloader No Watermark')
+      .setDescription(
+        `Selamat datang di channel **TikTok Converter**!\n\n` +
+        `**Cara Pakai:**\n` +
+        `• Cukup **salin link TikTok** (video atau foto slideshow) dari HP atau browser PC kamu.\n` +
+        `• **Kirim link-nya ke channel ini**, bot FlyBot akan otomatis mengonversi dan mengirimkan videonya tanpa watermark atau galeri foto ke chat ini!\n\n` +
+        `> ⚠️ **Catatan Lapak:** Channel ini hanya untuk link TikTok. Jangan kirim link sosmed lain ke sini ya!`
+      )
+      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setTimestamp();
+    await tiktokConvert.send({ embeds: [embed] }).catch(() => {});
+  }
+
+  // Guide embed Instagram
+  const igMsgs = await instagramConvert.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!igMsgs || igMsgs.size === 0) {
+    const embed = new EmbedBuilder()
+      .setColor(0xE1306C)
+      .setTitle('📸 Instagram Reels & Post Converter')
+      .setDescription(
+        `Selamat datang di channel **Instagram Converter**!\n\n` +
+        `**Cara Pakai:**\n` +
+        `• Salin link **Reels**, **Postingan Feed**, atau **Foto Carousel** Instagram publik.\n` +
+        `• Kirim link ke channel ini, bot akan langsung mengunduh dan menyajikannya di chat!\n\n` +
+        `> ⚠️ **Catatan Lapak:** Khusus link Instagram publik.`
+      )
+      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setTimestamp();
+    await instagramConvert.send({ embeds: [embed] }).catch(() => {});
+  }
+
+  // Guide embed Facebook
+  const fbMsgs = await facebookConvert.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!fbMsgs || fbMsgs.size === 0) {
+    const embed = new EmbedBuilder()
+      .setColor(0x1877F2)
+      .setTitle('📘 Facebook Video & Reels Converter')
+      .setDescription(
+        `Selamat datang di channel **Facebook Converter**!\n\n` +
+        `**Cara Pakai:**\n` +
+        `• Salin link video, watch, atau reels dari Facebook publik.\n` +
+        `• Kirim link ke sini untuk dikonversi menjadi video langsung!\n\n` +
+        `> ⚠️ **Catatan Lapak:** Khusus link video Facebook.`
+      )
+      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setTimestamp();
+    await facebookConvert.send({ embeds: [embed] }).catch(() => {});
+  }
+
+  // Guide embed YouTube
+  const ytMsgs = await youtubeConvert.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!ytMsgs || ytMsgs.size === 0) {
+    const embed = new EmbedBuilder()
+      .setColor(0xFF0000)
+      .setTitle('▶️ YouTube & Shorts Converter')
+      .setDescription(
+        `Selamat datang di channel **YouTube Converter**!\n\n` +
+        `**Cara Pakai:**\n` +
+        `• Salin link **YouTube Shorts** atau video YouTube.\n` +
+        `• Kirim link ke channel ini, bot akan otomatis mengonversi video & menyediakan link download resolusi penuh!\n\n` +
+        `> ⚠️ **Catatan Lapak:** Khusus link YouTube.`
+      )
+      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setTimestamp();
+    await youtubeConvert.send({ embeds: [embed] }).catch(() => {});
+  }
+
+  return { category, tiktokConvert, instagramConvert, facebookConvert, youtubeConvert };
+}
+
+/**
+ * Setup 8: Mini Games
  * Tebak Koin, Tebak Angka, Suit Jepang (Lengkap dengan Tombol & Game Langsung Aktif)
  */
 async function setupMiniGamesTemplate(guild, roles) {
@@ -1216,16 +1362,19 @@ async function setupFullTemplate(guild) {
   // 7. Setup Kategori 6: Entertainment (AI Rooms & Forum Musik)
   const entertainment = await setupEntertainment(guild, roles);
 
-  // 8. Setup Kategori 7: Mini Games
+  // 8. Setup Kategori 7: Sosmed Converter (TikTok, Instagram, Facebook, YouTube)
+  const sosmedConverter = await setupSosmedConverter(guild, roles);
+
+  // 9. Setup Kategori 8: Mini Games
   const miniGames = await setupMiniGamesTemplate(guild, roles);
 
-  // 9. Setup Kategori 8: Voice Lounges (Paling Bawah)
+  // 10. Setup Kategori 9: Voice Lounges (Paling Bawah)
   const voiceLounges = await setupVoiceLounges(guild, roles);
 
-  // 10. Simpan konfigurasi server
+  // 11. Simpan konfigurasi server
   setTemplateConfig(guild.id, {
     allInOneConfigured: true,
-    templateVersion: 2,
+    templateVersion: 3,
     roles: {
       memberId: memberRole.id,
       maleId: maleRole.id,
@@ -1246,6 +1395,10 @@ async function setupFullTemplate(guild) {
       aiGeneratingId: entertainment.aiGenerating.id,
       aiPromptId: entertainment.aiPrompt.id,
       playlistMusicId: entertainment.playlistMusic.id,
+      tiktokConvertId: sosmedConverter.tiktokConvert.id,
+      instagramConvertId: sosmedConverter.instagramConvert.id,
+      facebookConvertId: sosmedConverter.facebookConvert.id,
+      youtubeConvertId: sosmedConverter.youtubeConvert.id,
       coinId: miniGames.coinChannel.id,
       numberId: miniGames.numberChannel.id,
       rpsId: miniGames.rpsChannel.id,
@@ -1258,6 +1411,7 @@ async function setupFullTemplate(guild) {
       communityId: community.category.id,
       cinematographyId: cinematography.category.id,
       entertainmentId: entertainment.category.id,
+      sosmedConverterId: sosmedConverter.category.id,
       miniGamesId: miniGames.category.id,
       voiceLoungesId: voiceLounges.category.id,
     },
@@ -1272,6 +1426,7 @@ async function setupFullTemplate(guild) {
     community,
     cinematography,
     entertainment,
+    sosmedConverter,
     miniGames,
     voiceLounges,
   };
@@ -1395,6 +1550,7 @@ module.exports = {
   setupCommunity,
   setupCinematography,
   setupEntertainment,
+  setupSosmedConverter,
   setupMiniGamesTemplate,
   setupVoiceLounges,
   setupFullTemplate,

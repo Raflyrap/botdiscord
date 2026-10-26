@@ -6,6 +6,7 @@ const {
   setupCommunity,
   setupCinematography,
   setupEntertainment,
+  setupSosmedConverter,
   setupMiniGamesTemplate,
   setupVoiceLounges,
   syncServerTemplate,
@@ -58,6 +59,11 @@ async function setupEntertainmentCategory(guild) {
   return await setupEntertainment(guild, roles);
 }
 
+async function setupSosmedConverterCategory(guild) {
+  const roles = await getStandardRoles(guild);
+  return await setupSosmedConverter(guild, roles);
+}
+
 async function setupMiniGamesCategory(guild) {
   const roles = await getStandardRoles(guild);
   return await setupMiniGamesTemplate(guild, roles);
@@ -84,6 +90,7 @@ module.exports = {
   setupCommunityCategory,
   setupCinematographyCategory,
   setupEntertainmentCategory,
+  setupSosmedConverterCategory,
   setupMiniGamesCategory,
   setupVoiceLoungesCategory,
   syncServerTemplate,
