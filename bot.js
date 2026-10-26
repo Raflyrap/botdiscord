@@ -64,7 +64,7 @@ const { updateServerStats } = require('./serverStatsHelper');
 const { getAutoRole } = require('./autoRoleHelper');
 const { handleMenuInteraction } = require('./menuInteractionHandler');
 const { processMessage } = require('./levelingHelper');
-const { askAI } = require('./aiHelper');
+const { askAI, askEntertainmentAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
@@ -163,12 +163,34 @@ client.once(Events.ClientReady, async (readyClient) => {
     console.error('[REMINDER INIT] Error:', err.message);
   }
 
-  // Auto-setup channel khusus HD foto untuk server utama jika belum ada
-  if (process.env.GUILD_ID) {
-    const mainGuild = readyClient.guilds.cache.get(process.env.GUILD_ID);
-    if (mainGuild) {
-      setupHdChannel(mainGuild).catch((e) => console.warn('[AUTO-HD SETUP]:', e.message));
+  // Auto-Update Setup Server untuk seluruh guild yang telah disetup All-in-One
+  try {
+    const { getTemplateConfig, syncServerTemplate } = require('./templateSetupHelper');
+    for (const [, guild] of readyClient.guilds.cache) {
+      (async () => {
+        try {
+          await guild.channels.fetch().catch(() => {});
+          const cfg = getTemplateConfig(guild.id);
+          const hasTemplateCat = guild.channels.cache.some(
+            (c) => c.type === ChannelType.GuildCategory && (
+              c.name.toLowerCase().includes('get started') ||
+              c.name.toLowerCase().includes('entertainment') ||
+              c.name.toLowerCase().includes('mini games') ||
+              c.name.toLowerCase().includes('community')
+            )
+          );
+          if (cfg?.allInOneConfigured || hasTemplateCat) {
+            console.log(`[AUTO-UPDATE SETUP] Menyinkronkan update template untuk server: ${guild.name}...`);
+            await syncServerTemplate(guild);
+            console.log(`[AUTO-UPDATE SETUP] Sukses menyinkronkan template server: ${guild.name}`);
+          }
+        } catch (err) {
+          console.warn(`[AUTO-UPDATE SETUP] Gagal sinkron ${guild.name}:`, err.message);
+        }
+      })();
     }
+  } catch (err) {
+    console.error('[AUTO-UPDATE SETUP] Error:', err.message);
   }
 
   // Inisialisasi Monitoring Realtime Server Official FlyBot
@@ -336,7 +358,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
 
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      } catch (e) {
+        return;
+      }
       try {
         const { executeSetupAction, createResultEmbed } = require('./commands/setup');
         const result = await executeSetupAction('all', interaction.guild);
@@ -534,135 +560,168 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // === MINI GAMES: 1. TEBAK KOIN ===
     if (interaction.customId.startsWith('btn_game_coin_') || interaction.customId.startsWith('game_coin_')) {
-      const { getCoinGameRow } = require('./gameHelper');
-      const { addReward } = require('./levelingHelper');
-      const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
-      let type = interaction.customId.replace('btn_game_coin_', '').replace('game_coin_', '');
-      if (type === 'heads') type = 'gambar';
-      if (type === 'tails') type = 'angka';
-      const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
-      const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
+      try {
+        const { getCoinGameRow } = require('./gameHelper');
+        const { addReward } = require('./levelingHelper');
+        const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
+        let type = interaction.customId.replace('btn_game_coin_', '').replace('game_coin_', '');
+        if (type === 'heads') type = 'gambar';
+        if (type === 'tails') type = 'angka';
+        const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
+        const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
 
-      if (type === 'random') {
-        const reward = addReward(interaction.guildId, interaction.user.id, { coins: 5, xp: 5, isWin: false });
-        dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
-        let bonusText = `\n• Hadiah Partisipasi: +5 Koin & +5 XP`;
-        if (reward.leveledUp) bonusText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
-        return interaction.reply({
-          content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**${bonusText}`,
+        if (type === 'random') {
+          const reward = addReward(interaction.guildId, interaction.user.id, { coins: 5, xp: 5, isWin: false });
+          let bonusText = `\n• Hadiah Partisipasi: +5 Koin & +5 XP`;
+          if (reward.leveledUp) bonusText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+          await interaction.reply({
+            content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**${bonusText}`,
+            components: [getCoinGameRow()],
+          });
+          dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward).catch(() => {});
+          return;
+        }
+
+        const guessName = type === 'gambar' ? 'Gambar' : 'Angka';
+        const won = type === flip;
+        const coinsEarned = won ? 50 : 0;
+        const xpEarned = won ? 30 : 10;
+        const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin: won });
+
+        let rewardText = won
+          ? `\n• Hadiah Menang: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
+          : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
+        if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+        await interaction.reply({
+          content:
+            `**Hasil Lemparan Koin**\n` +
+            `• Sisi Koin: **${flipName}**\n` +
+            `• Tebakan <@${interaction.user.id}>: **${guessName}**\n\n` +
+            (won
+              ? `Status: **Tebakan Tepat (Menang)**`
+              : `Status: **Belum Tepat (Coba Lagi)**`) +
+            `${rewardText}`,
           components: [getCoinGameRow()],
         });
+        dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward).catch(() => {});
+        return;
+      } catch (err) {
+        console.error('Error saat tombol tebak koin:', err);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: 'Gagal memproses tebak koin. Coba lagi!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
       }
-
-      const guessName = type === 'gambar' ? 'Gambar' : 'Angka';
-      const won = type === flip;
-      const coinsEarned = won ? 50 : 0;
-      const xpEarned = won ? 30 : 10;
-      const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin: won });
-      dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
-
-      let rewardText = won
-        ? `\n• Hadiah Menang: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
-        : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
-      if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
-
-      return interaction.reply({
-        content:
-          `**Hasil Lemparan Koin**\n` +
-          `• Sisi Koin: **${flipName}**\n` +
-          `• Tebakan <@${interaction.user.id}>: **${guessName}**\n\n` +
-          (won
-            ? `Status: **Tebakan Tepat (Menang)**`
-            : `Status: **Belum Tepat (Coba Lagi)**`) +
-          `${rewardText}`,
-        components: [getCoinGameRow()],
-      });
     }
 
     // === MINI GAMES: 2. SUIT JEPANG (GUNTING BATU KERTAS) ===
     if (interaction.customId.startsWith('btn_game_rps_')) {
-      const { getRpsGameRow } = require('./gameHelper');
-      const { addReward } = require('./levelingHelper');
-      const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
-      const userChoice = interaction.customId.replace('btn_game_rps_', '');
-      const choices = ['rock', 'paper', 'scissors'];
-      const botChoice = choices[Math.floor(Math.random() * choices.length)];
+      try {
+        const { getRpsGameRow } = require('./gameHelper');
+        const { addReward } = require('./levelingHelper');
+        const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
+        const userChoice = interaction.customId.replace('btn_game_rps_', '');
+        const choices = ['rock', 'paper', 'scissors'];
+        const botChoice = choices[Math.floor(Math.random() * choices.length)];
 
-      const choiceMap = {
-        rock: 'Batu',
-        paper: 'Kertas',
-        scissors: 'Gunting',
-      };
+        const choiceMap = {
+          rock: 'Batu',
+          paper: 'Kertas',
+          scissors: 'Gunting',
+        };
 
-      let resultText = '';
-      let isWin = false;
-      let coinsEarned = 0;
-      let xpEarned = 10;
+        let resultText = '';
+        let isWin = false;
+        let coinsEarned = 0;
+        let xpEarned = 10;
 
-      if (userChoice === botChoice) {
-        resultText = 'Hasil: **Seri**';
-        coinsEarned = 20;
-        xpEarned = 15;
-      } else if (
-        (userChoice === 'rock' && botChoice === 'scissors') ||
-        (userChoice === 'paper' && botChoice === 'rock') ||
-        (userChoice === 'scissors' && botChoice === 'paper')
-      ) {
-        resultText = 'Hasil: **Kamu Menang**';
-        isWin = true;
-        coinsEarned = 50;
-        xpEarned = 30;
-      } else {
-        resultText = 'Hasil: **Kamu Kalah**';
-        coinsEarned = 0;
-        xpEarned = 10;
+        if (userChoice === botChoice) {
+          resultText = 'Hasil: **Seri**';
+          coinsEarned = 20;
+          xpEarned = 15;
+        } else if (
+          (userChoice === 'rock' && botChoice === 'scissors') ||
+          (userChoice === 'paper' && botChoice === 'rock') ||
+          (userChoice === 'scissors' && botChoice === 'paper')
+        ) {
+          resultText = 'Hasil: **Kamu Menang**';
+          isWin = true;
+          coinsEarned = 50;
+          xpEarned = 30;
+        } else {
+          resultText = 'Hasil: **Kamu Kalah**';
+          coinsEarned = 0;
+          xpEarned = 10;
+        }
+
+        const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin });
+
+        let rewardText = coinsEarned > 0
+          ? `\n• Hadiah: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
+          : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
+        if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+        await interaction.reply({
+          content:
+            `**Duel Suit**\n` +
+            `• <@${interaction.user.id}>: **${choiceMap[userChoice] || userChoice}**\n` +
+            `• FlyBot: **${choiceMap[botChoice] || botChoice}**\n\n` +
+            `${resultText}${rewardText}`,
+          components: [getRpsGameRow()],
+        });
+        dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward).catch(() => {});
+        return;
+      } catch (err) {
+        console.error('Error saat tombol suit:', err);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: 'Gagal memproses suit. Coba lagi!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
       }
-
-      const reward = addReward(interaction.guildId, interaction.user.id, { coins: coinsEarned, xp: xpEarned, isWin });
-      dispatchLevelUpAndAchievements(interaction.guild, interaction.member, interaction.user, interaction.channel, reward);
-
-      let rewardText = coinsEarned > 0
-        ? `\n• Hadiah: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
-        : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
-      if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
-
-      return interaction.reply({
-        content:
-          `**Duel Suit**\n` +
-          `• <@${interaction.user.id}>: **${choiceMap[userChoice]}**\n` +
-          `• FlyBot: **${choiceMap[botChoice]}**\n\n` +
-          `${resultText}${rewardText}`,
-        components: [getRpsGameRow()],
-      });
     }
 
     // === MINI GAMES: 3. TEBAK ANGKA ===
     if (interaction.customId === 'btn_game_number_start') {
-      const { startNumberGuessing } = require('./gameHelper');
-      startNumberGuessing(interaction.guildId, interaction.user.id);
+      try {
+        const { startNumberGuessing } = require('./gameHelper');
+        startNumberGuessing(interaction.guildId, interaction.user.id);
 
-      return interaction.reply({
-        content:
-          `**Ronde Tebak Angka Dimulai** oleh <@${interaction.user.id}>\n` +
-          `Angka rahasia antara **1 sampai 100** telah disiapkan.\n\n` +
-          `Ketik angka tebakan kamu (1 - 100) langsung di channel ini untuk menebak.`,
-      });
+        return await interaction.reply({
+          content:
+            `**Ronde Tebak Angka Dimulai** oleh <@${interaction.user.id}>\n` +
+            `Angka rahasia antara **1 sampai 100** telah disiapkan.\n\n` +
+            `Ketik angka tebakan kamu (1 - 100) langsung di channel ini untuk menebak.`,
+        });
+      } catch (err) {
+        console.error('Error saat tombol tebak angka start:', err);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: 'Gagal memulai tebak angka. Coba lagi!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
+      }
     }
 
     if (interaction.customId === 'btn_game_number_status') {
-      const { getNumberGuessingState } = require('./gameHelper');
-      const state = getNumberGuessingState(interaction.guildId);
+      try {
+        const { getNumberGuessingState } = require('./gameHelper');
+        const state = getNumberGuessingState(interaction.guildId);
 
-      if (state && state.active) {
-        return interaction.reply({
-          content: `Ronde sedang aktif. Total tebakan: **${state.attempts}** kali. Ketik angka tebakan kamu (1 - 100) di chat.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      } else {
-        return interaction.reply({
-          content: `Belum ada ronde yang aktif. Klik tombol **Main Lagi** untuk memulai ronde baru.`,
-          flags: MessageFlags.Ephemeral,
-        });
+        if (state && state.active) {
+          return await interaction.reply({
+            content: `Ronde sedang aktif. Total tebakan: **${state.attempts}** kali. Ketik angka tebakan kamu (1 - 100) di chat.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        } else {
+          return await interaction.reply({
+            content: `Belum ada ronde yang aktif. Klik tombol **Main Lagi** untuk memulai ronde baru.`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+      } catch (err) {
+        console.error('Error saat tombol tebak angka status:', err);
+        return;
       }
     }
 
@@ -1204,26 +1263,38 @@ client.on(Events.MessageCreate, async (message) => {
   if (message.guild && message.channel?.name) {
     const chName = message.channel.name.toLowerCase();
 
-    // 1. Channel AI Generating / AI Prompt: Otomatis diskusi bareng ChatGPT AI
-    if (chName.includes('ai-generating') || chName.includes('ai-prompt')) {
+    // 1. Channel AI Generating, AI Prompt, AI Fanart: Otomatis diskusi bareng ChatGPT AI sesuai tema channel
+    if (chName.includes('ai-generating') || chName.includes('ai-prompt') || chName.includes('ai-promt') || chName.includes('ai-fanart')) {
       if (!message.content.startsWith('/') && !message.content.startsWith('!')) {
         try {
           await message.channel.sendTyping().catch(() => {});
-          const aiRes = await askAI(message.author.id, message.content);
-          if (aiRes.success) {
-            if (aiRes.reply.length <= 1900) {
-              await message.reply(aiRes.reply).catch(console.error);
+
+          let aiType = 'generating';
+          if (chName.includes('fanart')) aiType = 'fanart';
+          else if (chName.includes('promt') || chName.includes('prompt')) aiType = 'prompt';
+
+          // Ekstrak URL gambar jika ada attachment (terutama untuk review/inspirasi di ai-fanart)
+          const attachedImage = message.attachments.find(att => att.contentType?.startsWith('image/'))?.url || null;
+          const userPrompt = message.content.trim() || (attachedImage ? 'Tolong review dan beri kritik seni visual untuk karya ini bray' : '');
+
+          if (userPrompt || attachedImage) {
+            const aiRes = await askEntertainmentAI(message.author.id, userPrompt, aiType, attachedImage);
+            if (aiRes.success) {
+              if (aiRes.reply.length <= 1900) {
+                await message.reply(aiRes.reply).catch(console.error);
+              } else {
+                const aiEmbed = new EmbedBuilder()
+                  .setColor(aiType === 'fanart' ? 0xFEE75C : aiType === 'prompt' ? 0x57F287 : 0x5865F2)
+                  .setDescription(aiRes.reply.substring(0, 3900))
+                  .setFooter({ text: `Fly AI • ${aiType.toUpperCase()} MODE` });
+                await message.reply({ embeds: [aiEmbed] }).catch(console.error);
+              }
             } else {
-              const aiEmbed = new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setDescription(aiRes.reply.substring(0, 3900))
-                .setFooter({ text: `Fly AI • ${aiRes.model}` });
-              await message.reply({ embeds: [aiEmbed] }).catch(console.error);
+              await message.reply(`Waduh, AI lagi pusing bray: ${aiRes.error}`).catch(() => {});
             }
           }
-          return;
         } catch (e) {
-          console.error('Error auto AI generating:', e);
+          console.error('Error auto AI entertainment channel:', e);
         }
       }
     }
@@ -1237,13 +1308,13 @@ client.on(Events.MessageCreate, async (message) => {
       message.react('📸').then(() => message.react('✨')).catch(() => {});
     } else if (chName.includes('videografi')) {
       message.react('🎥').then(() => message.react('🔥')).catch(() => {});
-    } else if (chName.includes('showcase-gaming') || chName.includes('gaming-setup')) {
-      message.react('🖥️').then(() => message.react('🔥')).catch(() => {});
     }
   }
 
   // === FITUR AUTO-HD DI CHANNEL KHUSUS HD FOTO ===
-  if (message.guild && isHdChannel(message.guild.id, message.channel.id)) {
+  const isHdTarget = (message.guild && isHdChannel(message.guild.id, message.channel.id)) ||
+    (message.guild && message.channel?.name && message.channel.name.toLowerCase().includes('hd-foto'));
+  if (isHdTarget) {
     const targetImageUrl = extractImageUrlFromMessage(message);
     if (targetImageUrl) {
       try {
@@ -1381,54 +1452,161 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
-  // === MINI GAME: TEBAK ANGKA CHAT GUESS ===
+  // === MINI GAMES: CHAT GAMEPLAY (TEBAK ANGKA, TEBAK KOIN, SUIT JEPANG) ===
   try {
-    const { getGameConfig, checkNumberGuess, startNumberGuessing, getNumberGameRow } = require('./gameHelper');
+    const {
+      getGameConfig,
+      checkNumberGuess,
+      startNumberGuessing,
+      getNumberGameRow,
+      getCoinGameRow,
+      getRpsGameRow
+    } = require('./gameHelper');
+    const { addReward } = require('./levelingHelper');
+    const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
     const gameCfg = getGameConfig(message.guild.id);
-    const isNumberChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) ||
-      (message.channel.name && message.channel.name.toLowerCase().includes('tebak-angka'));
+    const chLower = (message.channel.name || '').toLowerCase();
 
+    // 1. Tebak Angka
+    const isNumberChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.numberChannelId) ||
+      chLower.includes('tebak-angka');
     if (isNumberChannel) {
       const trimmed = message.content.trim();
       const guessNum = parseInt(trimmed, 10);
       if (!isNaN(guessNum) && String(guessNum) === trimmed && guessNum >= 1 && guessNum <= 100) {
         let res = checkNumberGuess(message.guild.id, guessNum);
         if (!res) {
-          // Mulai ronde otomatis jika belum ada ronde berjalan
           startNumberGuessing(message.guild.id, message.author.id);
           res = checkNumberGuess(message.guild.id, guessNum);
         }
         if (res.status === 'LOW') {
-          message.reply(`[Terlalu KECIL] Angka **${guessNum}** masih lebih kecil dari angka rahasia. Coba angka yang lebih besar.`).catch(() => {});
+          message.reply(`[Terlalu KECIL] Angka **${guessNum}** masih lebih kecil dari angka rahasia. Coba angka yang lebih besar!`).catch(() => {});
         } else if (res.status === 'HIGH') {
-          message.reply(`[Terlalu BESAR] Angka **${guessNum}** masih lebih besar dari angka rahasia. Coba angka yang lebih kecil.`).catch(() => {});
+          message.reply(`[Terlalu BESAR] Angka **${guessNum}** masih lebih besar dari angka rahasia. Coba angka yang lebih kecil!`).catch(() => {});
         } else if (res.status === 'CORRECT') {
-          const { addReward } = require('./levelingHelper');
-          const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
           const bonusCoins = res.attempts <= 3 ? 200 : res.attempts <= 6 ? 150 : res.attempts <= 10 ? 100 : 70;
           const xpEarned = 100;
           const reward = addReward(message.guild.id, message.author.id, { coins: bonusCoins, xp: xpEarned, isWin: true });
-          dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward);
+          dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward).catch(() => {});
 
           let extraLevelText = reward.leveledUp ? `\n\n**LEVEL UP!** Selamat <@${message.author.id}> naik ke **Level ${reward.newLevel}**!` : '';
 
           const winEmbed = new EmbedBuilder()
             .setColor(0x57F287)
-            .setTitle('Tebakan Tepat  •  Pemenang Juara')
+            .setTitle('Tebakan Tepat • Pemenang Juara')
             .setDescription(
               `Selamat <@${message.author.id}>, angka rahasianya memang **${res.target}**!\n\n` +
               `• Berhasil ditebak dalam **${res.attempts} percobaan**\n` +
               `• Hadiah Juara: **+${bonusCoins} Koin** & **+${xpEarned} XP**` +
               extraLevelText +
-              `\n\n*Klik tombol **Main Lagi** di bawah untuk langsung mulai ronde baru tanpa perlu scroll.*`
+              `\n\n*Klik tombol **Main Lagi** di bawah untuk langsung mulai ronde baru!*`
             )
             .setTimestamp();
           message.channel.send({ embeds: [winEmbed], components: [getNumberGameRow()] }).catch(() => {});
         }
       }
     }
+
+    // 2. Tebak Koin Chat Gameplay
+    const isCoinChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.coinChannelId) ||
+      chLower.includes('tebak-koin');
+    if (isCoinChannel) {
+      const txt = message.content.trim().toLowerCase();
+      let guess = null;
+      if (txt === 'gambar' || txt === 'heads') guess = 'gambar';
+      else if (txt === 'angka' || txt === 'tails') guess = 'angka';
+      else if (txt === 'lempar' || txt === 'acak' || txt === 'koin' || txt === 'flip') guess = 'random';
+
+      if (guess) {
+        const flip = Math.random() < 0.5 ? 'gambar' : 'angka';
+        const flipName = flip === 'gambar' ? 'Gambar' : 'Angka';
+
+        if (guess === 'random') {
+          const reward = addReward(message.guild.id, message.author.id, { coins: 5, xp: 5, isWin: false });
+          let bonusText = `\n• Hadiah Partisipasi: +5 Koin & +5 XP`;
+          if (reward.leveledUp) bonusText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+          message.reply({
+            content: `**Hasil Lemparan Koin**\nKoin mendarat di sisi: **${flipName}**${bonusText}`,
+            components: [getCoinGameRow()],
+          }).catch(() => {});
+          dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward).catch(() => {});
+        } else {
+          const guessName = guess === 'gambar' ? 'Gambar' : 'Angka';
+          const won = guess === flip;
+          const coinsEarned = won ? 50 : 0;
+          const xpEarned = won ? 30 : 10;
+          const reward = addReward(message.guild.id, message.author.id, { coins: coinsEarned, xp: xpEarned, isWin: won });
+
+          let rewardText = won
+            ? `\n• Hadiah Menang: **+${coinsEarned} Koin** & **+${xpEarned} XP**`
+            : `\n• Hadiah Partisipasi: **+${xpEarned} XP**`;
+          if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+          message.reply({
+            content:
+              `**Hasil Lemparan Koin**\n` +
+              `• Sisi Koin: **${flipName}**\n` +
+              `• Tebakan <@${message.author.id}>: **${guessName}**\n\n` +
+              (won ? `Status: **Tebakan Tepat (Menang)**` : `Status: **Belum Tepat (Coba Lagi)**`) +
+              `${rewardText}`,
+            components: [getCoinGameRow()],
+          }).catch(() => {});
+          dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward).catch(() => {});
+        }
+      }
+    }
+
+    // 3. Suit Jepang Chat Gameplay
+    const isRpsChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.rpsChannelId) ||
+      chLower.includes('suit-jepang');
+    if (isRpsChannel) {
+      const txt = message.content.trim().toLowerCase();
+      let userChoice = null;
+      if (txt === 'batu' || txt === 'rock') userChoice = 'batu';
+      else if (txt === 'kertas' || txt === 'paper') userChoice = 'kertas';
+      else if (txt === 'gunting' || txt === 'scissors') userChoice = 'gunting';
+
+      if (userChoice) {
+        const choices = ['batu', 'gunting', 'kertas'];
+        const botChoice = choices[Math.floor(Math.random() * choices.length)];
+
+        let result = 'draw';
+        let won = false;
+        if (userChoice === botChoice) {
+          result = 'draw';
+        } else if (
+          (userChoice === 'batu' && botChoice === 'gunting') ||
+          (userChoice === 'gunting' && botChoice === 'kertas') ||
+          (userChoice === 'kertas' && botChoice === 'batu')
+        ) {
+          result = 'win';
+          won = true;
+        } else {
+          result = 'lose';
+        }
+
+        const coinsEarned = result === 'win' ? 60 : result === 'draw' ? 15 : 0;
+        const xpEarned = result === 'win' ? 40 : result === 'draw' ? 20 : 10;
+        const reward = addReward(message.guild.id, message.author.id, { coins: coinsEarned, xp: xpEarned, isWin: won });
+
+        let statusText = result === 'win' ? 'Kamu Menang' : result === 'draw' ? 'Seri' : 'Kamu Kalah';
+        let rewardText = `\n• Hadiah: **+${coinsEarned} Koin** & **+${xpEarned} XP**`;
+        if (reward.leveledUp) rewardText += `\n**LEVEL UP!** Selamat naik ke **Level ${reward.newLevel}**!`;
+
+        message.reply({
+          content:
+            `**Hasil Suit Jepang**\n` +
+            `• Pilihan Kamu: **${userChoice.toUpperCase()}**\n` +
+            `• Pilihan Bot: **${botChoice.toUpperCase()}**\n\n` +
+            `Status: **${statusText}**${rewardText}`,
+          components: [getRpsGameRow()],
+        }).catch(() => {});
+        dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward).catch(() => {});
+      }
+    }
   } catch (err) {
-    console.error('Error saat tebak angka chat:', err);
+    console.error('Error saat mini game chat gameplay:', err);
   }
 
   try {

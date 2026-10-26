@@ -21,6 +21,7 @@ const {
   startNumberGuessing,
 } = require('./gameHelper');
 const { setGuildTicketConfig } = require('./ticketHelper');
+const { setHdConfig } = require('./imageHdHelper');
 
 const CONFIG_FILE = path.join(__dirname, 'serverTemplateConfig.json');
 
@@ -392,13 +393,6 @@ async function setupOfficial(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  const socialMedia = await getOrCreateChannel(guild, {
-    name: '🎉︱social-media',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
   const helpCenter = await getOrCreateChannel(guild, {
     name: '❓︱help-center',
     type: ChannelType.GuildText,
@@ -457,7 +451,7 @@ async function setupOfficial(guild, roles) {
     await announcement.send({ embeds: [annEmbed] }).catch(() => {});
   }
 
-  return { category, announcement, officialEvent, socialMedia, helpCenter };
+  return { category, announcement, officialEvent, helpCenter };
 }
 
 /**
@@ -606,22 +600,8 @@ async function setupCommunity(guild, roles) {
     permissionOverwrites: standardOverwrites,
   });
 
-  const newcomerChat = await getOrCreateChannel(guild, {
-    name: '👋︱newcomer-chat',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: standardOverwrites,
-  });
-
   const ngobrol = await getOrCreateChannel(guild, {
     name: '💭︱ngobrol',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: standardOverwrites,
-  });
-
-  const ngobrol2 = await getOrCreateChannel(guild, {
-    name: '💭︱ngobrol-2',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: standardOverwrites,
@@ -669,9 +649,7 @@ async function setupCommunity(guild, roles) {
 
   return {
     category,
-    newcomerChat,
     ngobrol,
-    ngobrol2,
     media,
     stalk,
     report,
@@ -730,7 +708,42 @@ async function setupCinematography(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  return { category, fotografi, videografi };
+  const hdFoto = await getOrCreateChannel(guild, {
+    name: '🖼️︱hd-foto',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  // Sambungkan ke hdChannelConfig
+  setHdConfig(guild.id, {
+    categoryId: category.id,
+    channelId: hdFoto.id,
+    enabled: true,
+  });
+
+  // Kirim panduan Auto-HD jika channel masih baru / kosong
+  const hdMsgs = await hdFoto.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!hdMsgs || hdMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setAuthor({ name: `${guild.name} • Studio HD Foto`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Studio Auto-HD Foto')
+      .setDescription(
+        `Selamat datang di channel khusus Auto-HD!\n\n` +
+        `**Cara Pakai (Otomatis & Cepat):**\n` +
+        `• Cukup **kirim foto apa saja** ke channel ini, bot akan otomatis meningkatkan resolusi dan ketajamannya (Auto-HD 2x) tanpa perlu mengetik perintah apa pun.\n` +
+        `• Ingin hasil 4x lebih besar? Ketik \`/hd 4x\` pada caption foto untuk pembesaran 4x Ultra HD.\n` +
+        `• Kamu juga bisa me-reply foto di channel ini lalu ketik \`/hd\` atau \`!hd\`.\n\n` +
+        `> 💡 **Tips Kejernihan Maksimal:**\n` +
+        `> Discord mengecilkan tampilan gambar di chat. Klik foto hasil lalu pilih "Buka yang asli" di pojok kiri bawah untuk melihat kualitas foto penuh tanpa kompresi Discord!`
+      )
+      .setFooter({ text: 'FlyBot AI Super-Resolution Enhancer' })
+      .setTimestamp();
+    await hdFoto.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  return { category, fotografi, videografi, hdFoto };
 }
 
 /**
@@ -806,19 +819,64 @@ async function setupEntertainment(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  const gamingSetup = await getOrCreateChannel(guild, {
-    name: '🎮︱showcase-gaming-setup',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
   const playlistMusic = await getOrCreateChannel(guild, {
     name: '🎵︱playlist-music',
     type: ChannelType.GuildForum,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
+
+  // Kirim guide embed di ai-fanart jika channel masih kosong
+  const fanartAiMsgs = await aiFanart.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!fanartAiMsgs || fanartAiMsgs.size === 0) {
+    const aiFanartEmbed = new EmbedBuilder()
+      .setColor(0xEB459E)
+      .setTitle('Studio AI Fanart & Review Seni Visual')
+      .setDescription(
+        `Selamat datang di studio visual & kurasi seni AI **${guild.name}**!\n\n` +
+        `**Fitur Interaktif:**\n` +
+        `• **Kirim Gambar / Fanart**: AI Bot Fly akan langsung membedah karya senimu (komposisi, pencahayaan, harmoni warna, ekspresi) dan memberikan saran estetik kreatif.\n` +
+        `• **Minta Ide / Konsep Visual**: Ceritakan ide karakter atau tema yang ingin dibuat, AI akan merancang konsep visual yang epik.\n\n` +
+        `*Setiap pesan dan karya kamu di channel ini akan langsung direspons oleh AI.*`
+      )
+      .setFooter({ text: 'Fly AI Visual Art Reviewer' });
+    await aiFanart.send({ embeds: [aiFanartEmbed] }).catch(() => {});
+  }
+
+  // Kirim guide embed di ai-generating jika channel masih kosong
+  const genMsgs = await aiGenerating.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!genMsgs || genMsgs.size === 0) {
+    const aiGenEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Studio AI Generating Serba Bisa')
+      .setDescription(
+        `Selamat datang di ruang text generation cerdas ChatGPT **${guild.name}**!\n\n` +
+        `**Kamu bisa minta apa saja:**\n` +
+        `• Bikin cerita fiksi, skrip dialog, atau puisi\n` +
+        `• Buat kode program, perbaiki error kode, dan rancang algoritma\n` +
+        `• Brainstorming ide konten, rangkuman materi, dan riset cepat\n\n` +
+        `*Cukup ketik pesanmu langsung di channel ini, AI Bot Fly akan langsung membalas.*`
+      )
+      .setFooter({ text: 'Powered by OpenAI ChatGPT (GPT-4o)' });
+    await aiGenerating.send({ embeds: [aiGenEmbed] }).catch(() => {});
+  }
+
+  // Kirim guide embed di ai-prompt jika channel masih kosong
+  const promptMsgs = await aiPrompt.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!promptMsgs || promptMsgs.size === 0) {
+    const aiPromptEmbed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('Studio Prompt Engineering AI')
+      .setDescription(
+        `Selamat datang di studio peracikan prompt generative AI tingkat master **${guild.name}**!\n\n` +
+        `**Cara Pakai:**\n` +
+        `• Ketik ide visual atau konsep yang ingin kamu buat gambar/teksnya\n` +
+        `• AI Bot Fly akan otomatis meracik **Prompt Utama Bahasa Inggris**, **Negative Prompt**, dan **Parameter Kamera / Render Engine** siap pakai untuk Midjourney, DALL-E 3, atau Stable Diffusion.\n\n` +
+        `*Tinggal salin kode prompt dari kotak kode ke generator AI kamu!*`
+      )
+      .setFooter({ text: 'Master Prompt Engineer FlyBot' });
+    await aiPrompt.send({ embeds: [aiPromptEmbed] }).catch(() => {});
+  }
 
   // Sambutan di forum playlist-music
   if (playlistMusic.type === ChannelType.GuildForum) {
@@ -859,7 +917,7 @@ async function setupEntertainment(guild, roles) {
     }
   }
 
-  return { category, meme, fanart, aiFanart, aiGenerating, aiPrompt, gamingSetup, playlistMusic };
+  return { category, meme, fanart, aiFanart, aiGenerating, aiPrompt, playlistMusic };
 }
 
 /**
@@ -867,6 +925,19 @@ async function setupEntertainment(guild, roles) {
  * Tebak Koin, Tebak Angka, Suit Jepang (Lengkap dengan Tombol & Game Langsung Aktif)
  */
 async function setupMiniGamesTemplate(guild, roles) {
+  const botOverwrites = {
+    id: guild.client.user.id,
+    allow: [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.EmbedLinks,
+      PermissionFlagsBits.AttachFiles,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.ManageMessages,
+      PermissionFlagsBits.ManageChannels,
+    ],
+  };
+
   const memberOverwrites = [
     {
       id: guild.roles.everyone.id,
@@ -878,17 +949,10 @@ async function setupMiniGamesTemplate(guild, roles) {
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.AddReactions,
       ],
     },
-    {
-      id: guild.client.user.id,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.EmbedLinks,
-        PermissionFlagsBits.ManageMessages,
-      ],
-    },
+    botOverwrites,
   ];
 
   const category = await getOrCreateChannel(guild, {
@@ -919,93 +983,95 @@ async function setupMiniGamesTemplate(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  // 1. Panel & Tombol Tebak Koin
-  const coinPins = await (coinChannel.messages.fetchPins ? coinChannel.messages.fetchPins() : coinChannel.messages.fetchPinned()).catch(() => null);
-  if (!coinPins || coinPins.size === 0) {
-    const coinEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('🪙 Arena Tebak Koin')
-      .setDescription(
-        `Selamat datang di Arena Tebak Koin.\n` +
-        `Uji insting dan tebakan kamu di sini dan menangkan koin serta XP!\n\n` +
-        `**Panduan Permainan:**\n` +
-        `1. Tentukan pilihan tebakan kamu: **Gambar** atau **Angka**.\n` +
-        `2. Klik tombol di bawah untuk langsung melempar koin.\n` +
-        `3. Bot akan mengocok koin dan mengumumkan hasilnya.\n` +
-        `4. Kamu juga bisa klik tombol **Lempar Acak** untuk sekadar mengocok koin.`
-      )
-      .addFields(
-        { name: 'Pilihan Sisi', value: 'Gambar  |  Angka', inline: true },
-        { name: 'Peluang', value: '50% : 50%', inline: true },
-        { name: 'Hadiah Kemenangan', value: '+50 Koin & +30 XP', inline: true }
-      )
-      .setFooter({ text: 'Klik tombol di bawah untuk langsung bermain!' })
-      .setTimestamp();
-
-    const sentCoin = await coinChannel.send({ embeds: [coinEmbed], components: [getCoinGameRow()] }).catch(() => null);
-    if (sentCoin) await sentCoin.pin().catch(() => {});
+  // Helper untuk memastikan pesan panel & tombol game aktif selalu tersedia
+  async function ensurePanel(channel, embed, row) {
+    try {
+      const msgs = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+      const existing = msgs ? msgs.find((m) => m.author.id === guild.client.user.id && m.components.length > 0) : null;
+      if (!existing) {
+        const sent = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+        if (sent) await sent.pin().catch(() => {});
+      }
+    } catch (e) {
+      console.warn(`[GAME SETUP] Gagal kirim panel di ${channel.name}:`, e.message);
+    }
   }
+
+  // 1. Panel & Tombol Tebak Koin
+  const coinEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('🪙 Arena Tebak Koin')
+    .setDescription(
+      `Selamat datang di Arena Tebak Koin.\n` +
+      `Uji insting dan tebakan kamu di sini dan menangkan koin serta XP!\n\n` +
+      `**Panduan Permainan:**\n` +
+      `1. Tentukan pilihan tebakan kamu: **Gambar** atau **Angka**.\n` +
+      `2. Klik tombol di bawah atau ketik kata **gambar** / **angka** di chat untuk melempar koin.\n` +
+      `3. Bot akan mengocok koin dan mengumumkan hasilnya.\n` +
+      `4. Kamu juga bisa klik tombol **Lempar Acak** untuk sekadar mengocok koin.`
+    )
+    .addFields(
+      { name: 'Pilihan Sisi', value: 'Gambar  |  Angka', inline: true },
+      { name: 'Peluang', value: '50% : 50%', inline: true },
+      { name: 'Hadiah Kemenangan', value: '+50 Koin & +30 XP', inline: true }
+    )
+    .setFooter({ text: 'Klik tombol di bawah atau ketik di chat untuk bermain!' })
+    .setTimestamp();
+
+  await ensurePanel(coinChannel, coinEmbed, getCoinGameRow());
 
   // 2. Panel & Tombol Tebak Angka
-  const numberPins = await (numberChannel.messages.fetchPins ? numberChannel.messages.fetchPins() : numberChannel.messages.fetchPinned()).catch(() => null);
-  if (!numberPins || numberPins.size === 0) {
-    const numberEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('🔢 Arena Tebak Angka (1 - 100)')
-      .setDescription(
-        `Selamat datang di Arena Tebak Angka.\n` +
-        `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem dan raih jackpot hadiah!\n\n` +
-        `**Panduan Permainan:**\n` +
-        `1. Angka rahasia (1-100) sudah langsung siap ditebak.\n` +
-        `2. Ketik angka tebakan kamu (contoh: 50) langsung di chat channel ini.\n` +
-        `3. Bot akan memberikan petunjuk arah:\n` +
-        `   • [Terlalu KECIL] Angka rahasia lebih besar dari tebakanmu\n` +
-        `   • [Terlalu BESAR] Angka rahasia lebih kecil dari tebakanmu\n` +
-        `4. Member yang berhasil menebak dengan tepat dinyatakan sebagai pemenang.`
-      )
-      .addFields(
-        { name: 'Rentang Angka', value: '1 sampai 100', inline: true },
-        { name: 'Mode', value: 'Multiplayer Komunitas', inline: true },
-        { name: 'Hadiah Juara', value: 'Hingga +200 Koin & +100 XP', inline: true }
-      )
-      .setFooter({ text: 'Ketik angka tebakanmu di chat channel ini!' })
-      .setTimestamp();
+  const numberEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('🔢 Arena Tebak Angka (1 - 100)')
+    .setDescription(
+      `Selamat datang di Arena Tebak Angka.\n` +
+      `Tebak angka rahasia antara 1 sampai 100 yang disimpan oleh sistem dan raih jackpot hadiah!\n\n` +
+      `**Panduan Permainan:**\n` +
+      `1. Angka rahasia (1-100) langsung aktif dan siap ditebak kapan saja.\n` +
+      `2. Ketik angka tebakan kamu (contoh: 50) langsung di chat channel ini.\n` +
+      `3. Bot akan memberikan petunjuk arah:\n` +
+      `   • [Terlalu KECIL] Angka rahasia lebih besar dari tebakanmu\n` +
+      `   • [Terlalu BESAR] Angka rahasia lebih kecil dari tebakanmu\n` +
+      `4. Member yang berhasil menebak dengan tepat dinyatakan sebagai juara!`
+    )
+    .addFields(
+      { name: 'Rentang Angka', value: '1 sampai 100', inline: true },
+      { name: 'Mode', value: 'Multiplayer Komunitas', inline: true },
+      { name: 'Hadiah Juara', value: 'Hingga +200 Koin & +100 XP', inline: true }
+    )
+    .setFooter({ text: 'Ketik angka tebakanmu (1-100) langsung di channel ini!' })
+    .setTimestamp();
 
-    const sentNum = await numberChannel.send({ embeds: [numberEmbed], components: [getNumberGameRow()] }).catch(() => null);
-    if (sentNum) await sentNum.pin().catch(() => {});
-  }
+  await ensurePanel(numberChannel, numberEmbed, getNumberGameRow());
 
   // Mulai ronde tebak angka secara otomatis agar langsung aktif
   startNumberGuessing(guild.id, guild.client.user.id);
 
   // 3. Panel & Tombol Suit Jepang
-  const rpsPins = await (rpsChannel.messages.fetchPins ? rpsChannel.messages.fetchPins() : rpsChannel.messages.fetchPinned()).catch(() => null);
-  if (!rpsPins || rpsPins.size === 0) {
-    const rpsEmbed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('✌️ Arena Suit Jepang (Gunting Batu Kertas)')
-      .setDescription(
-        `Tantang FlyBot dalam adu pilihan klasik dan dapatkan koin serta XP!\n\n` +
-        `**Aturan Permainan:**\n` +
-        `• Batu mengalahkan Gunting\n` +
-        `• Gunting mengalahkan Kertas\n` +
-        `• Kertas mengalahkan Batu\n\n` +
-        `Cukup klik salah satu tombol pilihan kamu di bawah ini untuk memulai duel.`
-      )
-      .addFields(
-        { name: 'Lawan', value: 'FlyBot AI (Acak)', inline: true },
-        { name: 'Sistem', value: 'Respons Instan', inline: true },
-        { name: 'Hadiah', value: 'Menang: +50 Koin | Seri: +20 Koin', inline: false }
-      )
-      .setFooter({ text: 'Pilih Batu, Kertas, atau Gunting di bawah untuk bermain!' })
-      .setTimestamp();
+  const rpsEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('✌️ Arena Suit Jepang (Gunting Batu Kertas)')
+    .setDescription(
+      `Tantang FlyBot dalam adu pilihan klasik dan dapatkan koin serta XP!\n\n` +
+      `**Aturan Permainan:**\n` +
+      `• Batu mengalahkan Gunting\n` +
+      `• Gunting mengalahkan Kertas\n` +
+      `• Kertas mengalahkan Batu\n\n` +
+      `Klik tombol pilihan di bawah atau ketik **batu**, **gunting**, atau **kertas** di chat untuk duel!`
+    )
+    .addFields(
+      { name: 'Lawan', value: 'FlyBot AI (Acak)', inline: true },
+      { name: 'Sistem', value: 'Respons Instan', inline: true },
+      { name: 'Hadiah', value: 'Menang: +50 Koin | Seri: +20 Koin', inline: false }
+    )
+    .setFooter({ text: 'Pilih Batu, Kertas, atau Gunting di bawah untuk bermain!' })
+    .setTimestamp();
 
-    const sentRps = await rpsChannel.send({ embeds: [rpsEmbed], components: [getRpsGameRow()] }).catch(() => null);
-    if (sentRps) await sentRps.pin().catch(() => {});
-  }
+  await ensurePanel(rpsChannel, rpsEmbed, getRpsGameRow());
 
   setGameConfig(guild.id, {
     categoryId: category.id,
@@ -1085,6 +1151,21 @@ async function setupVoiceLounges(guild, roles) {
  * MASTER SETUP: Bangun Seluruh Template Lengkap Sesuai Gambar
  */
 async function setupFullTemplate(guild) {
+  // 0. Auto-cleanup channel usang / tidak terpakai jika ada di server
+  const obsoleteKeywords = ['showcase-gaming', 'gaming-setup', 'ngobrol-2', 'newcomer-chat', 'social-media'];
+  const allChannels = await guild.channels.fetch().catch(() => guild.channels.cache);
+  if (allChannels) {
+    for (const [, ch] of allChannels) {
+      if (!ch || ch.type === ChannelType.GuildCategory) continue;
+      const cleanName = ch.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const shouldDelete = obsoleteKeywords.some((kw) => cleanName.includes(kw.replace(/[^a-z0-9]/g, '')));
+      if (shouldDelete) {
+        console.log(`[AUTO-CLEANUP] Menghapus channel tidak terpakai: #${ch.name} di ${guild.name}`);
+        await ch.delete('Auto-cleanup channel template yang sudah dihapus').catch(() => {});
+      }
+    }
+  }
+
   // 1. Inisialisasi Role
   const memberRole = await getOrCreateRole(guild, {
     name: 'Member',
@@ -1129,10 +1210,10 @@ async function setupFullTemplate(guild) {
   // 5. Setup Kategori 4: Community (Termasuk Achievements)
   const community = await setupCommunity(guild, roles);
 
-  // 6. Setup Kategori 5: Cinematography
+  // 6. Setup Kategori 5: Cinematography (Termasuk hd-foto)
   const cinematography = await setupCinematography(guild, roles);
 
-  // 7. Setup Kategori 6: Entertainment
+  // 7. Setup Kategori 6: Entertainment (AI Rooms & Forum Musik)
   const entertainment = await setupEntertainment(guild, roles);
 
   // 8. Setup Kategori 7: Mini Games
@@ -1143,6 +1224,8 @@ async function setupFullTemplate(guild) {
 
   // 10. Simpan konfigurasi server
   setTemplateConfig(guild.id, {
+    allInOneConfigured: true,
+    templateVersion: 2,
     roles: {
       memberId: memberRole.id,
       maleId: maleRole.id,
@@ -1158,7 +1241,14 @@ async function setupFullTemplate(guild) {
       levelsId: notify.levels.id,
       achievementsId: notify.achievements.id,
       stalkId: community.stalk.id,
+      hdFotoId: cinematography.hdFoto.id,
+      aiFanartId: entertainment.aiFanart.id,
+      aiGeneratingId: entertainment.aiGenerating.id,
+      aiPromptId: entertainment.aiPrompt.id,
       playlistMusicId: entertainment.playlistMusic.id,
+      coinId: miniGames.coinChannel.id,
+      numberId: miniGames.numberChannel.id,
+      rpsId: miniGames.rpsChannel.id,
       hubVoiceId: voiceLounges.hubChannel.id,
     },
     categories: {
@@ -1185,6 +1275,19 @@ async function setupFullTemplate(guild) {
     miniGames,
     voiceLounges,
   };
+}
+
+/**
+ * Auto-Sync Server Setup:
+ * Menyelaraskan struktur server yang sudah pernah disetup sebelumnya tanpa perlu delete & setup ulang!
+ */
+async function syncServerTemplate(guild) {
+  try {
+    return await setupFullTemplate(guild);
+  } catch (err) {
+    console.error(`[SYNC TEMPLATE ERROR] Gagal menyinkronkan ${guild.name}:`, err);
+    throw err;
+  }
 }
 
 /**
@@ -1295,6 +1398,7 @@ module.exports = {
   setupMiniGamesTemplate,
   setupVoiceLounges,
   setupFullTemplate,
+  syncServerTemplate,
   handleGenderRoleSelection,
   handleVerificationButton,
 };

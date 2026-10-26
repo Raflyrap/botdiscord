@@ -121,6 +121,162 @@ async function askAI(userId, prompt) {
 }
 
 /**
+ * Mengirim pesan ke AI khusus channel Entertainment (ai-fanart, ai-generating, ai-prompt)
+ * @param {object} params
+ * @param {string} params.channelType - 'ai-fanart' | 'ai-generating' | 'ai-prompt'
+ * @param {string} params.userId - Discord User ID
+ * @param {string} params.prompt - Teks prompt atau pesan pengguna
+ * @param {string} [params.imageUrl] - URL gambar (khusus review fanart / vision)
+ * @param {string} [params.authorName] - Nama pengguna
+ * @returns {Promise<{success: boolean, reply?: string, error?: string, model?: string}>}
+ */
+async function askEntertainmentAI({ channelType, userId, prompt, imageUrl = null, authorName = 'Temen' }) {
+  const client = getOpenAIClient();
+  if (!client) {
+    return {
+      success: false,
+      error: 'OPENAI_API_KEY belum disetel di file .env!',
+    };
+  }
+
+  let finalPrompt = (prompt || '').trim();
+  if (!finalPrompt && imageUrl) {
+    finalPrompt = 'Tolong review dan ulas karya fanart / ilustrasi visual ini dari segi komposisi, warna, gaya estetika, dan berikan saran atau ide kreatif pengembangannya bray!';
+  }
+
+  if (!finalPrompt && !imageUrl) {
+    return {
+      success: false,
+      error: 'Pesan atau gambar tidak boleh kosong.',
+    };
+  }
+
+  let systemPromptContent = '';
+  if (channelType === 'ai-fanart') {
+    systemPromptContent =
+      'Nama kamu adalah Bot Fly (atau Fly), AI Art & Fanart Reviewer spesialis seni visual, karya anime, ilustrasi game, dan desain karakter di server ini.\n\n' +
+      'ATURAN KEPRIBADIAN & GAYA BAHASA (MUTLAK):\n' +
+      '1. IDENTITAS & NADA BICARA:\n' +
+      '   - Kamu adalah kurator seni digital dan fanart enthusiast berwawasan luas.\n' +
+      '   - Gaya bicara: Gaul, santai, asik ala anak tongkrongan / Jaksel (gunakan "gue" untuk diri sendiri dan "lo" untuk lawan bicara, panggil "bray/bro/ler").\n' +
+      '   - DILARANG KERAS menggunakan kata "aku", "saya", "kamu", atau "anda"!\n' +
+      '   - DILARANG KERAS menggunakan emoji apa pun dalam jawabanmu (jan pake emoji sama sekali)!\n' +
+      '2. PERAN DALAM CHANNEL AI-FANART:\n' +
+      '   - Jika user melampirkan gambar/karya fanart: Ulas secara apresiatif dan berbobot: analisis pencahayaan (lighting), palet warna (color harmony), ekspresi, detail pose, dan atmosfer karyanya. Berikan pujian tulus atas bagian yang keren dan saran kreatif yang membangun.\n' +
+      '   - Jika user menanyakan ide/konsep/prompt fanart: Rancang ide konsep visual yang epik dengan detail tema, style referensi (misal: Makoto Shinkai style, cyberpunk, semi-realism, Ufotable, dll), dan komposisi yang hidup.\n' +
+      '3. FORMAT:\n' +
+      '   - Gunakan format Discord Markdown (**tebal**, bullet point, blockquote >) agar rapi dan estetik.';
+  } else if (channelType === 'ai-generating') {
+    systemPromptContent =
+      'Nama kamu adalah Bot Fly (atau Fly), AI Generator serba bisa di server ini.\n\n' +
+      'ATURAN KEPRIBADIAN & GAYA BAHASA (MUTLAK):\n' +
+      '1. IDENTITAS & NADA BICARA:\n' +
+      '   - Kamu adalah mesin generative AI cerdas yang siap membuatkan apa pun yang diminta: cerita, skrip, ide konten, kode program, puisi, terjemahan, ringkasan, atau pembahasan ilmiah/populer.\n' +
+      '   - Gaya bicara: Gaul, santai, to-the-point ala anak tongkrongan (gunakan "gue" dan "lo", panggil "bray/bro").\n' +
+      '   - DILARANG KERAS menggunakan kata "aku", "saya", "kamu", atau "anda"!\n' +
+      '   - DILARANG KERAS menggunakan emoji apa pun dalam jawabanmu!\n' +
+      '2. KUALITAS GENERASI:\n' +
+      '   - Buat hasil generasi yang sangat kreatif, terstruktur, padat berisi, dan langsung siap dinikmati atau dipakai oleh user.\n' +
+      '3. FORMAT:\n' +
+      '   - Gunakan Discord Markdown (heading, code block, bullet points) yang rapi.';
+  } else if (channelType === 'ai-prompt') {
+    systemPromptContent =
+      'Nama kamu adalah Bot Fly (atau Fly), Master Prompt Engineer generative AI (Midjourney, Stable Diffusion, DALL-E 3, ChatGPT, Claude) di server ini.\n\n' +
+      'ATURAN KEPRIBADIAN & GAYA BAHASA (MUTLAK):\n' +
+      '1. IDENTITAS & NADA BICARA:\n' +
+      '   - Kamu adalah ahli racik prompt AI kelas dunia yang mengubah ide mentah atau konsep sederhana user menjadi prompt visual / teks tingkat master.\n' +
+      '   - Gaya bicara: Gaul, santai, cerdas ala anak tongkrongan (gunakan "gue" dan "lo", panggil "bray/bro").\n' +
+      '   - DILARANG KERAS menggunakan kata "aku", "saya", "kamu", atau "anda"!\n' +
+      '   - DILARANG KERAS menggunakan emoji apa pun dalam jawabanmu!\n' +
+      '2. STRUKTUR JAWABAN WAJIB (JELAS & RAPI):\n' +
+      '   • **Konsep Prompt**: Penjelasan singkat pendekatan visual atau logika prompt yang dirancang.\n' +
+      '   • **Prompt Utama (Code Block ```)**: Tuliskan prompt detail dalam BAHASA INGGRIS yang kaya deskriptor visual (subject, environment, lighting, cinematic camera, render engine seperti Unreal Engine 5 / Octane, aesthetic, aspect ratio misal --ar 16:9 --v 6.1).\n' +
+      '   • **Negative Prompt (Code Block ```)**: Kata kunci negatif untuk mencegah gambar cacat/blurry/distorsi.\n' +
+      '   • **Tips Eksekusi**: Parameter atau variasi kata kunci rekomendasi untuk dieksplorasi user.';
+  } else {
+    systemPromptContent = SYSTEM_PROMPT.content;
+  }
+
+  const systemMessage = {
+    role: 'system',
+    content: systemPromptContent,
+  };
+
+  // Buat isi pesan user (dengan Vision jika ada foto)
+  let userMessageContent;
+  if (imageUrl) {
+    userMessageContent = [
+      {
+        type: 'text',
+        text: `[Dari user: ${authorName}]\n${finalPrompt}`,
+      },
+      {
+        type: 'image_url',
+        image_url: {
+          url: imageUrl,
+          detail: 'low',
+        },
+      },
+    ];
+  } else {
+    userMessageContent = `[Dari user: ${authorName}]\n${finalPrompt}`;
+  }
+
+  // Riwayat percakapan per user khusus entertainment channel
+  const histKey = `${channelType}:${userId}`;
+  const now = Date.now();
+  let session = userHistories.get(histKey);
+  if (!session || (now - session.lastActive) > CONVERSATION_TIMEOUT_MS) {
+    session = {
+      lastActive: now,
+      messages: [],
+    };
+  }
+
+  session.messages.push({
+    role: 'user',
+    content: userMessageContent,
+  });
+
+  if (session.messages.length > 8) {
+    session.messages = session.messages.slice(-8);
+  }
+
+  session.lastActive = now;
+  userHistories.set(histKey, session);
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [systemMessage, ...session.messages],
+      max_tokens: 1600,
+      temperature: 0.75,
+    });
+
+    const reply = response.choices[0]?.message?.content?.trim() || 'Tidak ada balasan dari model.';
+
+    session.messages.push({
+      role: 'assistant',
+      content: reply,
+    });
+    session.lastActive = Date.now();
+    userHistories.set(histKey, session);
+
+    return {
+      success: true,
+      reply,
+      model: response.model || 'gpt-4o-mini',
+    };
+  } catch (error) {
+    console.error(`[OPENAI ${channelType.toUpperCase()} ERROR]:`, error);
+    return {
+      success: false,
+      error: error.message || 'Terjadi kesalahan saat menghubungi server OpenAI.',
+    };
+  }
+}
+
+/**
  * Menghapus riwayat percakapan pengguna
  * @param {string} userId
  */
@@ -141,6 +297,8 @@ function getUserHistoryCount(userId) {
 
 module.exports = {
   askAI,
+  askEntertainmentAI,
   clearUserHistory,
   getUserHistoryCount,
 };
+

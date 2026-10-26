@@ -368,7 +368,7 @@ module.exports = {
           content: '⏳ **Sedang mereset server...** Menghapus semua channel lama dan membuat 1 channel #general baru.',
           embeds: [],
           components: [],
-        });
+        }).catch(() => {});
 
         await i.user.send(`⏳ Sedang mereset server **${interaction.guild.name}**...`).catch(() => {});
 
