@@ -109,7 +109,7 @@ async function askAI(userId, prompt) {
     return {
       success: true,
       reply,
-      model: response.model || 'gpt-4o-mini',
+      model: 'BotFly AI Neural Engine',
     };
   } catch (error) {
     console.error('[OPENAI ERROR]:', error);
@@ -221,7 +221,7 @@ async function askEntertainmentAI(firstArg, ...rest) {
       '   - Gunakan Discord Markdown (heading, code block, bullet points) yang rapi.';
   } else if (channelType === 'ai-prompt') {
     systemPromptContent =
-      'Nama kamu adalah Bot Fly (atau Fly), Master Prompt Engineer generative AI (Midjourney, Stable Diffusion, DALL-E 3, ChatGPT, Claude) di server ini.\n\n' +
+      'Nama kamu adalah Bot Fly (atau Fly), Master Prompt Engineer generative AI tingkat master di server ini.\n\n' +
       'ATURAN KEPRIBADIAN & GAYA BAHASA (MUTLAK):\n' +
       '1. IDENTITAS & NADA BICARA:\n' +
       '   - Kamu adalah ahli racik prompt AI kelas dunia yang mengubah ide mentah atau konsep sederhana user menjadi prompt visual / teks tingkat master.\n' +
@@ -305,7 +305,7 @@ async function askEntertainmentAI(firstArg, ...rest) {
     return {
       success: true,
       reply,
-      model: response.model || 'gpt-4o-mini',
+      model: 'BotFly AI Neural Engine',
     };
   } catch (error) {
     console.error(`[OPENAI ${channelType.toUpperCase()} ERROR]:`, error);

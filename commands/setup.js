@@ -85,9 +85,9 @@ function createResultEmbed(featureKey, result, guild) {
         `Kategori **${result.category.name}** telah siap:\n\n` +
         `• <#${result.meme.id}> — Berbagi meme lucu (Auto-react)\n` +
         `• <#${result.fanart.id}> — Galeri seni & fanart\n` +
-        `• <#${result.aiFanart.id}> — Review seni & konsep fanart (Dibalas AI otomatis + Vision)\n` +
-        `• <#${result.aiGenerating.id}> — Obrolan cerdas & generator teks ChatGPT\n` +
-        `• <#${result.aiPrompt.id}> — Studio racik prompt AI (Midjourney/DALL-E/Stable Diffusion)\n` +
+        `• <#${result.aiFanart.id}> — Review seni & konsep fanart (Dibalas AI privat + Vision)\n` +
+        `• <#${result.aiGenerating.id}> — Obrolan cerdas & generator teks BotFly AI\n` +
+        `• <#${result.aiPrompt.id}> — Studio racik prompt AI (Visual & Generative)\n` +
         `• <#${result.playlistMusic.id}> — Forum rekomendasi & diskusi playlist musik`
       );
   } else if (featureKey === 'games') {

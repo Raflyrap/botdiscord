@@ -93,6 +93,17 @@ const client = new Client({
 // Koleksi untuk menyimpan command yang terdaftar di bot
 client.commands = new Collection();
 
+// Storage sementara untuk respon AI privat (Ephemeral: Only you can see this) di channel entertainment
+const entertainmentAiStorage = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of entertainmentAiStorage.entries()) {
+    if (now - val.createdAt > 30 * 60 * 1000) {
+      entertainmentAiStorage.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
 // Membaca file command secara otomatis dari folder commands/
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
@@ -343,6 +354,54 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.customId === 'btn_delete_cancel') {
       return interaction.reply({ content: 'Penghapusan dibatalkan.', flags: MessageFlags.Ephemeral });
+    }
+
+    // Tombol Buka Jawaban AI Privat (Only you can see this • Dismiss message)
+    if (interaction.customId.startsWith('btn_ephemeral_ai_')) {
+      const resId = interaction.customId.replace('btn_ephemeral_ai_', '');
+      const data = entertainmentAiStorage.get(resId);
+      if (!data) {
+        return interaction.reply({
+          content: 'Pesan ini sudah kadaluarsa bray. Silakan ketik perintah atau pertanyaan baru di channel!',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (interaction.user.id !== data.userId) {
+        return interaction.reply({
+          content: 'Eits, jawaban ini khusus dibuat untuk orang yang meminta bray!',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      const color = data.channelType === 'fanart' ? 0xFEE75C : data.channelType === 'prompt' ? 0x57F287 : 0x5865F2;
+      const channelTitle = data.channelType === 'fanart'
+        ? 'BotFly AI • Fanart & Visual Review'
+        : data.channelType === 'prompt'
+        ? 'BotFly AI • Master Prompt Studio'
+        : 'BotFly AI • Generative Intelligence';
+
+      let replyText = data.reply;
+      if (replyText.length > 3900) {
+        replyText = replyText.substring(0, 3900) + '\n\n*(Jawaban dipotong karena melebihi batas karakter Discord)*';
+      }
+
+      const aiEmbed = new EmbedBuilder()
+        .setColor(color)
+        .setTitle(channelTitle)
+        .setDescription(replyText)
+        .setFooter({ text: 'BotFly AI Intelligence • Copyright © BotFly' })
+        .setTimestamp();
+
+      if (data.prompt) {
+        const promptShort = data.prompt.length > 200 ? data.prompt.substring(0, 197) + '...' : data.prompt;
+        aiEmbed.addFields({ name: 'Pertanyaan / Prompt Kamu:', value: `>>> ${promptShort}` });
+      }
+
+      return interaction.reply({
+        embeds: [aiEmbed],
+        flags: MessageFlags.Ephemeral,
+      });
     }
 
     if (interaction.customId === 'btn_setup_run_all') {
@@ -1217,7 +1276,7 @@ client.on(Events.MessageCreate, async (message) => {
           const aiEmbed = new EmbedBuilder()
             .setColor(0x10A37F)
             .setDescription(aiRes.reply.substring(0, 3900))
-            .setFooter({ text: `OpenAI ${aiRes.model}` });
+            .setFooter({ text: 'BotFly AI Intelligence • Copyright © BotFly' });
           await message.reply({ embeds: [aiEmbed] }).catch(console.error);
         }
       } else {
@@ -1263,7 +1322,7 @@ client.on(Events.MessageCreate, async (message) => {
   if (message.guild && message.channel?.name) {
     const chName = message.channel.name.toLowerCase();
 
-    // 1. Channel AI Generating, AI Prompt, AI Fanart: Otomatis diskusi bareng ChatGPT AI sesuai tema channel
+    // 1. Channel AI Generating, AI Prompt, AI Fanart: Otomatis diskusi bareng BotFly AI (Respon Privat: Only you can see this)
     if (chName.includes('ai-generating') || chName.includes('ai-prompt') || chName.includes('ai-promt') || chName.includes('ai-fanart')) {
       if (!message.content.startsWith('/') && !message.content.startsWith('!')) {
         try {
@@ -1286,15 +1345,29 @@ client.on(Events.MessageCreate, async (message) => {
               authorName: message.member?.displayName || message.author.username || 'Temen',
             });
             if (aiRes.success) {
-              if (aiRes.reply.length <= 1900) {
-                await message.reply(aiRes.reply).catch(console.error);
-              } else {
-                const aiEmbed = new EmbedBuilder()
-                  .setColor(aiType === 'fanart' ? 0xFEE75C : aiType === 'prompt' ? 0x57F287 : 0x5865F2)
-                  .setDescription(aiRes.reply.substring(0, 3900))
-                  .setFooter({ text: `Fly AI • ${aiType.toUpperCase()} MODE` });
-                await message.reply({ embeds: [aiEmbed] }).catch(console.error);
-              }
+              const resId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+              entertainmentAiStorage.set(resId, {
+                userId: message.author.id,
+                channelType: aiType,
+                prompt: userPrompt,
+                reply: aiRes.reply,
+                createdAt: Date.now(),
+              });
+
+              const openBtn = new ButtonBuilder()
+                .setCustomId(`btn_ephemeral_ai_${resId}`)
+                .setLabel('Lihat Jawaban AI (Hanya Kamu)')
+                .setEmoji('🔒')
+                .setStyle(ButtonStyle.Primary);
+              const row = new ActionRowBuilder().addComponents(openBtn);
+
+              const promptShort = userPrompt.length > 100 ? userPrompt.substring(0, 97) + '...' : userPrompt;
+              const promptLine = promptShort ? `\n> *"${promptShort}"*` : '';
+
+              await message.reply({
+                content: `🔒 <@${message.author.id}>, jawaban AI kamu sudah siap! Klik tombol di bawah untuk membacanya secara privat (**Only you can see this**):${promptLine}`,
+                components: [row],
+              }).catch(console.error);
             } else {
               await message.reply(`Waduh, AI lagi pusing bray: ${aiRes.error}`).catch(() => {});
             }
@@ -1635,7 +1708,7 @@ client.on(Events.MessageCreate, async (message) => {
           const aiEmbed = new EmbedBuilder()
             .setColor(0x10A37F)
             .setDescription(aiRes.reply.substring(0, 3900))
-            .setFooter({ text: `OpenAI ${aiRes.model}` });
+            .setFooter({ text: 'BotFly AI Intelligence • Copyright © BotFly' });
           await message.reply({ embeds: [aiEmbed] }).catch(console.error);
         }
       } else {
@@ -1664,7 +1737,7 @@ client.on(Events.MessageCreate, async (message) => {
             const aiEmbed = new EmbedBuilder()
               .setColor(0x10A37F)
               .setDescription(aiRes.reply.substring(0, 3900))
-              .setFooter({ text: `OpenAI ${aiRes.model}` });
+              .setFooter({ text: 'BotFly AI Intelligence • Copyright © BotFly' });
             await message.reply({ embeds: [aiEmbed] }).catch(console.error);
           }
         } else {

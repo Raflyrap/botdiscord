@@ -850,14 +850,14 @@ async function setupEntertainment(guild, roles) {
       .setColor(0x5865F2)
       .setTitle('Studio AI Generating Serba Bisa')
       .setDescription(
-        `Selamat datang di ruang text generation cerdas ChatGPT **${guild.name}**!\n\n` +
+        `Selamat datang di ruang text generation cerdas BotFly AI **${guild.name}**!\n\n` +
         `**Kamu bisa minta apa saja:**\n` +
         `• Bikin cerita fiksi, skrip dialog, atau puisi\n` +
         `• Buat kode program, perbaiki error kode, dan rancang algoritma\n` +
         `• Brainstorming ide konten, rangkuman materi, dan riset cepat\n\n` +
-        `*Cukup ketik pesanmu langsung di channel ini, AI Bot Fly akan langsung membalas.*`
+        `*Cukup ketik pesanmu langsung di channel ini, BotFly AI akan langsung membalas secara privat.*`
       )
-      .setFooter({ text: 'Powered by OpenAI ChatGPT (GPT-4o)' });
+      .setFooter({ text: 'BotFly Neural Intelligence • Copyright © BotFly' });
     await aiGenerating.send({ embeds: [aiGenEmbed] }).catch(() => {});
   }
 
@@ -871,10 +871,10 @@ async function setupEntertainment(guild, roles) {
         `Selamat datang di studio peracikan prompt generative AI tingkat master **${guild.name}**!\n\n` +
         `**Cara Pakai:**\n` +
         `• Ketik ide visual atau konsep yang ingin kamu buat gambar/teksnya\n` +
-        `• AI Bot Fly akan otomatis meracik **Prompt Utama Bahasa Inggris**, **Negative Prompt**, dan **Parameter Kamera / Render Engine** siap pakai untuk Midjourney, DALL-E 3, atau Stable Diffusion.\n\n` +
+        `• BotFly AI akan otomatis meracik **Prompt Utama Bahasa Inggris**, **Negative Prompt**, dan **Parameter Kamera / Render Engine** siap pakai untuk mesin generator visual kamu.\n\n` +
         `*Tinggal salin kode prompt dari kotak kode ke generator AI kamu!*`
       )
-      .setFooter({ text: 'Master Prompt Engineer FlyBot' });
+      .setFooter({ text: 'BotFly Master Prompt Studio • Copyright © BotFly' });
     await aiPrompt.send({ embeds: [aiPromptEmbed] }).catch(() => {});
   }
 

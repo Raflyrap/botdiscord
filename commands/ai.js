@@ -11,7 +11,7 @@ const { askAI } = require('../aiHelper');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ai')
-    .setDescription('Tanya apapun ke FlyBot AI yang ditenagai ChatGPT (OpenAI GPT-4o-mini)')
+    .setDescription('Tanya apapun ke BotFly AI Neural Intelligence')
     .addStringOption((option) =>
       option
         .setName('prompt')
@@ -41,7 +41,7 @@ module.exports = {
         .setColor(0xED4245)
         .setTitle('❌ Gagal Memproses AI')
         .setDescription(`Maaf, terjadi masalah saat memproses pertanyaanmu:\n\`\`\`\n${result.error}\n\`\`\``)
-        .setFooter({ text: 'Pastikan OPENAI_API_KEY valid di konfigurasi bot.' });
+        .setFooter({ text: 'BotFly AI Intelligence • Copyright © BotFly' });
 
       return interaction.editReply({ embeds: [errorEmbed] });
     }
@@ -57,14 +57,14 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setTitle('Fly AI Assistant')
+      .setTitle('BotFly AI Intelligence')
       .setDescription(replyText)
       .addFields({
         name: 'Pertanyaan:',
         value: `>>> ${displayPrompt}`,
       })
       .setFooter({
-        text: `Fly AI • Mode: ${isPrivate ? 'Privat' : 'Publik'}`,
+        text: `BotFly AI • Mode: ${isPrivate ? 'Privat' : 'Publik'} • Copyright © BotFly`,
         iconURL: interaction.client.user.displayAvatarURL(),
       })
       .setTimestamp();
