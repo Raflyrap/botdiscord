@@ -1278,7 +1278,13 @@ client.on(Events.MessageCreate, async (message) => {
           const userPrompt = message.content.trim() || (attachedImage ? 'Tolong review dan beri kritik seni visual untuk karya ini bray' : '');
 
           if (userPrompt || attachedImage) {
-            const aiRes = await askEntertainmentAI(message.author.id, userPrompt, aiType, attachedImage);
+            const aiRes = await askEntertainmentAI({
+              channelType: aiType,
+              userId: message.author.id,
+              prompt: userPrompt,
+              imageUrl: attachedImage,
+              authorName: message.member?.displayName || message.author.username || 'Temen',
+            });
             if (aiRes.success) {
               if (aiRes.reply.length <= 1900) {
                 await message.reply(aiRes.reply).catch(console.error);

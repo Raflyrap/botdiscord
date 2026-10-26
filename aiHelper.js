@@ -130,7 +130,47 @@ async function askAI(userId, prompt) {
  * @param {string} [params.authorName] - Nama pengguna
  * @returns {Promise<{success: boolean, reply?: string, error?: string, model?: string}>}
  */
-async function askEntertainmentAI({ channelType, userId, prompt, imageUrl = null, authorName = 'Temen' }) {
+async function askEntertainmentAI(firstArg, ...rest) {
+  let channelType = 'ai-generating';
+  let userId = 'anonymous';
+  let prompt = '';
+  let imageUrl = null;
+  let authorName = 'Temen';
+
+  if (typeof firstArg === 'object' && firstArg !== null && !Array.isArray(firstArg)) {
+    channelType = firstArg.channelType || 'ai-generating';
+    userId = firstArg.userId || 'anonymous';
+    prompt = firstArg.prompt || '';
+    imageUrl = firstArg.imageUrl || null;
+    authorName = firstArg.authorName || 'Temen';
+  } else {
+    // Dipanggil sebagai argumen posisi
+    const [arg2, arg3, arg4, arg5] = rest;
+    if (typeof firstArg === 'string' && (firstArg.includes('ai-') || firstArg === 'fanart' || firstArg === 'prompt' || firstArg === 'promt' || firstArg === 'generating')) {
+      channelType = firstArg;
+      userId = arg2 || 'anonymous';
+      prompt = arg3 || '';
+      imageUrl = arg4 || null;
+      authorName = arg5 || 'Temen';
+    } else {
+      userId = firstArg || 'anonymous';
+      prompt = arg2 || '';
+      channelType = arg3 || 'ai-generating';
+      imageUrl = arg4 || null;
+      authorName = arg5 || 'Temen';
+    }
+  }
+
+  // Normalisasi nama channelType
+  const cLower = String(channelType).toLowerCase();
+  if (cLower.includes('fanart')) {
+    channelType = 'ai-fanart';
+  } else if (cLower.includes('promt') || cLower.includes('prompt')) {
+    channelType = 'ai-prompt';
+  } else {
+    channelType = 'ai-generating';
+  }
+
   const client = getOpenAIClient();
   if (!client) {
     return {
