@@ -17,7 +17,7 @@
     "@distube/spotify": "^2.0.2",
     "@distube/youtube": "^1.0.4",
     "@distube/yt-dlp": "^2.0.1",
-    "@distube/ytdl-core": "^4.16.12",
+    "@distube/ytdl-core": "^5.0.2",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@gradio/client": "^2.7.1",
     "@noble/ciphers": "^2.4.0",
@@ -30,6 +30,7 @@
     "libsodium-wrappers": "^0.8.4",
     "openai": "^7.32.0",
     "opusscript": "^0.0.8",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "youtubei.js": "^18.3.0"
   }
 }
