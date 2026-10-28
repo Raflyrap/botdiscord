@@ -201,7 +201,7 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
-  // 1. Temukan atau Buat Kategori Induk: 👑︱FLYBOT MONITORING
+  // 1. Temukan atau Buat Kategori Induk: FLYBOT MONITORING
   let category = null;
   if (data.categoryId) {
     category = officialGuild.channels.cache.get(data.categoryId) || (await officialGuild.channels.fetch(data.categoryId).catch(() => null));
@@ -214,7 +214,7 @@ async function ensureMonitoringChannels(client) {
   if (!category) {
     try {
       category = await officialGuild.channels.create({
-        name: '👑︱FLYBOT MONITORING',
+        name: 'FLYBOT MONITORING',
         type: ChannelType.GuildCategory,
         permissionOverwrites: privateOverwrites,
       });
@@ -235,7 +235,7 @@ async function ensureMonitoringChannels(client) {
 
   const categoryId = category ? category.id : undefined;
 
-  // 2. Channel: 📊︱live-dashboard
+  // 2. Channel: live-dashboard
   let dashboardChannel = null;
   if (data.dashboardChannelId) {
     dashboardChannel = officialGuild.channels.cache.get(data.dashboardChannelId) || (await officialGuild.channels.fetch(data.dashboardChannelId).catch(() => null));
@@ -251,7 +251,7 @@ async function ensureMonitoringChannels(client) {
   if (!dashboardChannel) {
     try {
       dashboardChannel = await officialGuild.channels.create({
-        name: '📊︱live-dashboard',
+        name: 'live-dashboard',
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: privateOverwrites,
@@ -275,7 +275,7 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
-  // 3. Channel: 📥︱server-masuk
+  // 3. Channel: server-masuk
   let serverJoinChannel = null;
   if (data.serverJoinChannelId) {
     serverJoinChannel = officialGuild.channels.cache.get(data.serverJoinChannelId) || (await officialGuild.channels.fetch(data.serverJoinChannelId).catch(() => null));
@@ -288,7 +288,7 @@ async function ensureMonitoringChannels(client) {
   if (!serverJoinChannel) {
     try {
       serverJoinChannel = await officialGuild.channels.create({
-        name: '📥︱server-masuk',
+        name: 'server-masuk',
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: privateOverwrites,
@@ -311,7 +311,7 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
-  // 4. Channel: 📤︱server-keluar
+  // 4. Channel: server-keluar
   let serverLeaveChannel = null;
   if (data.serverLeaveChannelId) {
     serverLeaveChannel = officialGuild.channels.cache.get(data.serverLeaveChannelId) || (await officialGuild.channels.fetch(data.serverLeaveChannelId).catch(() => null));
@@ -324,7 +324,7 @@ async function ensureMonitoringChannels(client) {
   if (!serverLeaveChannel) {
     try {
       serverLeaveChannel = await officialGuild.channels.create({
-        name: '📤︱server-keluar',
+        name: 'server-keluar',
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: privateOverwrites,
@@ -347,7 +347,7 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
-  // 5. Channel: 🌐︱daftar-server
+  // 5. Channel: daftar-server
   let serverListChannel = null;
   if (data.serverListChannelId) {
     serverListChannel = officialGuild.channels.cache.get(data.serverListChannelId) || (await officialGuild.channels.fetch(data.serverListChannelId).catch(() => null));
@@ -360,7 +360,7 @@ async function ensureMonitoringChannels(client) {
   if (!serverListChannel) {
     try {
       serverListChannel = await officialGuild.channels.create({
-        name: '🌐︱daftar-server',
+        name: 'daftar-server',
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: privateOverwrites,
@@ -383,7 +383,7 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
-  // 6. Channel: 🚀︱update-logs
+  // 6. Channel: update-logs
   let updateLogsChannel = null;
   if (data.updateLogsChannelId) {
     updateLogsChannel = officialGuild.channels.cache.get(data.updateLogsChannelId) || (await officialGuild.channels.fetch(data.updateLogsChannelId).catch(() => null));
@@ -396,7 +396,7 @@ async function ensureMonitoringChannels(client) {
   if (!updateLogsChannel) {
     try {
       updateLogsChannel = await officialGuild.channels.create({
-        name: '🚀︱update-logs',
+        name: 'update-logs',
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: privateOverwrites,
@@ -595,7 +595,7 @@ async function handleGuildDelete(guild, client) {
   }
 }
 
-// Memperbarui Pesan Dashboard Status Real-Time di Channel 📊︱live-dashboard
+// Memperbarui Pesan Dashboard Status Real-Time di Channel live-dashboard
 async function updateLiveDashboard(client) {
   const channels = await ensureMonitoringChannels(client);
   if (!channels?.dashboardChannel) return;
@@ -632,7 +632,7 @@ async function updateLiveDashboard(client) {
       `> • Total Jangkauan Pengguna: **${totalMembers.toLocaleString('id-ID')} Anggota**\n` +
       `> • Total Perintah Diproses: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')} Kali**\n\n` +
       `**Kesehatan Server Host (VPS/Pterodactyl)**\n` +
-      `> • Status Layanan: **🟢 Online (Optimal)**\n` +
+      `> • Status Layanan: **Online (Optimal)**\n` +
       `> • Uptime Host: **${uptimeStr}**\n` +
       `> • Latensi Gateway Ping: **${wsPing} ms**\n` +
       `> • Penggunaan RAM (RSS): **${ramUsageMb} MB**\n` +
@@ -671,7 +671,7 @@ async function updateLiveDashboard(client) {
   }
 }
 
-// Memperbarui Direktori Server Real-Time di Channel 🌐︱daftar-server
+// Memperbarui Direktori Server Real-Time di Channel daftar-server
 async function updateServerListDashboard(client) {
   const channels = await ensureMonitoringChannels(client);
   if (!channels?.serverListChannel) return;
@@ -736,6 +736,7 @@ async function getLatestCommitDetails() {
       cwd: path.join(__dirname),
       timeout: 3000,
       encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     if (gitLog) {
       const [fullHash, shortHash, author, subject, date] = gitLog.split('|');
@@ -795,7 +796,7 @@ async function getLatestCommitDetails() {
   return null;
 }
 
-// Mengirim Embed Log Rincian Pembaruan ke Channel 🚀︱update-logs
+// Mengirim Embed Log Rincian Pembaruan ke Channel update-logs
 async function sendUpdateLog(client, logData) {
   try {
     const channels = await ensureMonitoringChannels(client);

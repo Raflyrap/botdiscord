@@ -238,8 +238,14 @@ async function ensureFeatureRequestChannel(client) {
       await panelMsg.edit({ embeds: [embed], components: [row] }).catch(() => {});
     } else {
       // Periksa pesan pin yang sudah ada
-      const pinnedMessages = await (reqChannel.messages.fetchPins ? reqChannel.messages.fetchPins() : reqChannel.messages.fetchPinned()).catch(() => null);
-      const existingPin = pinnedMessages?.find((m) => m.author.id === client.user.id && m.embeds?.[0]?.title?.includes('Kotak Saran'));
+      let existingPin = null;
+      try {
+        const pinnedMessages = await reqChannel.messages.fetchPinned().catch(() => null);
+        if (pinnedMessages) {
+          const list = Array.from(pinnedMessages.values ? pinnedMessages.values() : pinnedMessages);
+          existingPin = list.find((m) => m.author?.id === client.user.id && m.embeds?.[0]?.title?.includes('Kotak Saran'));
+        }
+      } catch (pinErr) {}
 
       if (existingPin) {
         panelMsg = existingPin;

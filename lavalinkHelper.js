@@ -93,18 +93,18 @@ function initLavalink(client) {
   // Hanya menggunakan node publik yang terbukti stabil, cepat (<2s), dan aktif
   const defaultNodes = [
     {
-      id: 'nazha-v4',
-      host: 'lavalink.nazha.online',
-      port: 443,
-      authorization: 'nazhafreelava',
-      secure: true,
-      requestTimeout: 10000,
-    },
-    {
       id: 'serenetia-v4',
       host: 'lavalink.serenetia.com',
       port: 443,
       authorization: 'youshallnotpass',
+      secure: true,
+      requestTimeout: 10000,
+    },
+    {
+      id: 'ajieblogs-v4',
+      host: 'lava-v4.ajieblogs.eu.org',
+      port: 443,
+      authorization: 'https://dsc.gg/ajidevserver',
       secure: true,
       requestTimeout: 10000,
     },
