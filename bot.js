@@ -988,7 +988,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             name: 'FlyBot System Maintenance',
             iconURL: interaction.client.user.displayAvatarURL({ dynamic: true }),
           })
-          .setTitle('🚧 Bot Sedang Dalam Pemeliharaan (Maintenance)')
+          .setTitle('Bot Sedang Dalam Pemeliharaan (Maintenance)')
           .setDescription(
             `Mohon maaf atas ketidaknyamanannya! FlyBot saat ini sedang dalam proses pemeliharaan & optimalisasi oleh Developer.\n\n` +
             `> **Catatan Pemeliharaan:**\n` +
@@ -1000,11 +1000,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const maintRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel('🌐 Website Resmi (flyneuroai.com)')
+            .setLabel('Website Resmi (flyneuroai.com)')
             .setStyle(ButtonStyle.Link)
             .setURL(websiteUrl),
           new ButtonBuilder()
-            .setLabel('🌟 Server Komunitas Discord')
+            .setLabel('Server Komunitas Discord')
             .setStyle(ButtonStyle.Link)
             .setURL(inviteUrl)
         );

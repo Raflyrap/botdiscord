@@ -14,48 +14,41 @@ const { getOfficialWebsiteUrl, getOfficialInviteUrl } = require('../ownerHelper'
 const CATEGORIES = {
   overview: {
     label: 'Ringkasan Kategori',
-    emoji: '📋',
     name: 'Pusat Panduan & Perintah FlyBot',
     description: 'Pilih kategori di bawah untuk melihat rincian perintah yang tersedia.',
   },
   music: {
     label: 'Musik HD Lavalink',
-    emoji: '🎵',
     name: 'Musik HD Lavalink',
     description: 'Pemutaran audio berkualitas tinggi dari Spotify, YouTube, dan SoundCloud dengan latensi minimal.',
     commands: ['play', 'pause', 'resume', 'skip', 'stop', 'queue', 'shuffle', 'repeat', 'volume'],
   },
   voice_ai: {
     label: 'Voice AI, Patroli & Room',
-    emoji: '🎙️',
     name: 'Voice AI, Patroli & Room',
     description: 'Percakapan suara realtime via mikrofon, bot standby 24 jam di voice channel, dan sistem voice hub mandiri.',
     commands: ['aivoice', 'ai', 'patroli', 'voice'],
   },
   economy: {
     label: 'Leveling, Ranking & Ekonomi',
-    emoji: '🏆',
     name: 'Leveling, Ranking & Ekonomi',
     description: 'Sistem perolehan XP chat/voice, kartu profil visual canvas, papan peringkat top global, dan transfer koin.',
     commands: ['profile', 'daily', 'leaderboard', 'pay', 'setlevel', 'leveltest'],
   },
   games: {
     label: 'Mini Games Interaktif',
-    emoji: '🎮',
     name: 'Mini Games Interaktif',
     description: 'Setup arena mini games seru di server berhadiah koin & XP (Tebak Koin, Tebak Angka 1-100, dan Suit Jepang).',
     commands: ['game'],
   },
   utility: {
     label: 'Utilitas & Gambar HD',
-    emoji: '🛠️',
     name: 'Utilitas & Gambar HD',
     description: 'Peningkat resolusi gambar instan (AI Upscale 2x/4x), status AFK otomatis, alarm reminder, dan informasi akun.',
     commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
-    emoji: '🛡️',
     name: 'Server Setup & Moderasi',
     description: 'All-in-One server setup template, verifikasi member, panel tiket bantuan, statistik channel, audit log, dan perapian channel.',
     commands: [
@@ -67,14 +60,12 @@ const CATEGORIES = {
   },
   owner: {
     label: 'Khusus Owner & Pemantauan',
-    emoji: '👑',
     name: 'Khusus Owner Bot',
     description: 'Panel pemantauan performa internal, server list, uptime, dan statistik operasional FlyBot.',
     commands: ['owner'],
   },
   all: {
     label: 'Tampilkan Semua Perintah',
-    emoji: '📜',
     name: 'Daftar Lengkap 54 Perintah FlyBot',
     description: 'Ringkasan seluruh slash command FlyBot yang terdaftar di server ini.',
   },
@@ -89,56 +80,56 @@ function createOverviewEmbed(guild, user, client) {
   return new EmbedBuilder()
     .setColor(0x5865F2)
     .setAuthor({
-      name: 'FlyBot  •  Panduan Bantuan Perintah',
+      name: 'FlyBot • Panduan Bantuan Perintah',
       iconURL: client.user.displayAvatarURL(),
     })
-    .setTitle('📚 Pusat Panduan & Daftar Perintah FlyBot')
+    .setTitle('Pusat Panduan & Daftar Perintah FlyBot')
     .setDescription(
       `Selamat datang di sistem bantuan **FlyBot**! Tersedia total **${totalCommands} perintah slash** yang terbagi dalam berbagai kategori.\n\n` +
-      `💡 **Tips Praktis:**\n` +
+      `**Tips Praktis:**\n` +
       `• Gunakan dropdown menu di bawah untuk menelusuri perintah per kategori.\n` +
       `• Ketik **\`/help perintah:<nama>\`** untuk melihat panduan detail suatu perintah.\n` +
       `• Kamu juga dapat mengetik **\`/menu\`** untuk membuka dashboard kontrol interaktif dengan tombol 1-klik tanpa perlu mengetik manual!`
     )
     .addFields(
       {
-        name: '🎵 Musik HD Lavalink (9 Perintah)',
+        name: 'Musik HD Lavalink (9 Perintah)',
         value: '`/play`, `/pause`, `/resume`, `/skip`, `/stop`, `/queue`, `/shuffle`, `/repeat`, `/volume`',
         inline: false,
       },
       {
-        name: '🎙️ Voice AI, Patroli & Room (4 Perintah)',
+        name: 'Voice AI, Patroli & Room (4 Perintah)',
         value: '`/aivoice`, `/ai`, `/patroli`, `/voice`',
         inline: false,
       },
       {
-        name: '🏆 Leveling & Ekonomi (6 Perintah)',
+        name: 'Leveling & Ekonomi (6 Perintah)',
         value: '`/profile`, `/daily`, `/leaderboard`, `/pay`, `/setlevel`, `/leveltest`',
         inline: false,
       },
       {
-        name: '🎮 Mini Games Interaktif (1 Perintah)',
+        name: 'Mini Games Interaktif (1 Perintah)',
         value: '`/game` *(Tebak Koin, Tebak Angka 1-100, Suit Jepang)*',
         inline: false,
       },
       {
-        name: '🛠️ Utilitas & Gambar HD (7 Perintah)',
-        value: '`/hd`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`',
+        name: 'Utilitas & Gambar HD (8 Perintah)',
+        value: '`/hd`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`',
         inline: false,
       },
       {
-        name: '🛡️ Server Setup & Moderasi (24 Perintah)',
+        name: 'Server Setup & Moderasi (24 Perintah)',
         value: '`/menu`, `/setup`, `/delete`, `/sethd`, `/setwelcome`, `/setverif`, `/verif`, `/ticket`, `/stats`, `/log`, `/antitoxic`, `/role`, dll.',
         inline: false,
       },
       {
-        name: '👑 Khusus Owner (1 Perintah)',
+        name: 'Khusus Owner (1 Perintah)',
         value: '`/owner` *(Monitoring, Uptime & Server List)*',
         inline: false,
       }
     )
     .setFooter({
-      text: `Diminta oleh ${user.tag}  •  Pilih menu di bawah untuk info detail`,
+      text: `Diminta oleh ${user.tag} • Pilih menu di bawah untuk info detail`,
       iconURL: user.displayAvatarURL(),
     })
     .setTimestamp();
@@ -160,10 +151,10 @@ function createCategoryEmbed(categoryKey, guild, user, client) {
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setAuthor({
-        name: 'FlyBot  •  Daftar Lengkap Perintah',
+        name: 'FlyBot • Daftar Lengkap Perintah',
         iconURL: client.user.displayAvatarURL(),
       })
-      .setTitle('📜 Seluruh 53 Perintah Slash FlyBot')
+      .setTitle('Daftar Lengkap 54 Perintah FlyBot')
       .setDescription(
         'Berikut daftar lengkap seluruh perintah yang terdaftar di FlyBot. Gunakan dropdown di bawah untuk melihat rincian masing-masing kategori:'
       )
@@ -178,7 +169,7 @@ function createCategoryEmbed(categoryKey, guild, user, client) {
       const c = CATEGORIES[key];
       const cmdList = c.commands.map((cmd) => `\`/${cmd}\``).join(', ');
       embed.addFields({
-        name: `${c.emoji} ${c.name} (${c.commands.length})`,
+        name: `${c.name} (${c.commands.length})`,
         value: cmdList || 'Tidak ada',
         inline: false,
       });
@@ -194,10 +185,10 @@ function createCategoryEmbed(categoryKey, guild, user, client) {
       name: `Kategori: ${cat.name}`,
       iconURL: client.user.displayAvatarURL(),
     })
-    .setTitle(`${cat.emoji} ${cat.name} (${cat.commands.length} Perintah)`)
+    .setTitle(`${cat.name} (${cat.commands.length} Perintah)`)
     .setDescription(`${cat.description}\n\n**Daftar Perintah:**`)
     .setFooter({
-      text: `Diminta oleh ${user.tag}  •  Ketik /help perintah:<nama> untuk panduan spesifik`,
+      text: `Diminta oleh ${user.tag} • Ketik /help perintah:<nama> untuk panduan spesifik`,
       iconURL: user.displayAvatarURL(),
     })
     .setTimestamp();
@@ -244,7 +235,7 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
   if (!cmd) {
     return new EmbedBuilder()
       .setColor(0xED4245)
-      .setTitle('❌ Perintah Tidak Ditemukan')
+      .setTitle('Perintah Tidak Ditemukan')
       .setDescription(
         `Perintah **\`/${cleanName}\`** tidak ditemukan di sistem FlyBot.\n\n` +
         `Ketik **\`/help\`** untuk melihat daftar lengkap seluruh perintah yang tersedia.`
@@ -259,7 +250,7 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
   let foundCategory = 'Lainnya';
   for (const [key, cat] of Object.entries(CATEGORIES)) {
     if (cat.commands && cat.commands.includes(cleanName)) {
-      foundCategory = `${cat.emoji} ${cat.name}`;
+      foundCategory = cat.name;
       break;
     }
   }
@@ -286,19 +277,19 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setAuthor({
-      name: 'FlyBot  •  Detail Panduan Perintah',
+      name: 'FlyBot • Detail Panduan Perintah',
       iconURL: client.user.displayAvatarURL(),
     })
-    .setTitle(`📖 Panduan Perintah: /${cleanName}`)
+    .setTitle(`Panduan Perintah: /${cleanName}`)
     .setDescription(desc)
     .addFields(
       {
-        name: '📌 Format Penggunaan',
+        name: 'Format Penggunaan',
         value: `\`\`\`bash\n${syntax}\n\`\`\``,
         inline: false,
       },
       {
-        name: '📂 Kategori',
+        name: 'Kategori',
         value: foundCategory,
         inline: true,
       }
@@ -306,7 +297,7 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
 
   if (optionsDesc.length > 0) {
     embed.addFields({
-      name: '⚙️ Parameter & Opsi',
+      name: 'Parameter & Opsi',
       value: optionsDesc.join('\n'),
       inline: false,
     });
@@ -314,7 +305,7 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
 
   embed
     .setFooter({
-      text: `Diminta oleh ${user.tag}  •  Gunakan format di atas di chat`,
+      text: `Diminta oleh ${user.tag} • Gunakan format di atas di chat`,
       iconURL: user.displayAvatarURL(),
     })
     .setTimestamp();
@@ -328,67 +319,58 @@ function createCommandDetailEmbed(commandName, guild, user, client) {
 function createActionComponents(currentCategory = 'overview') {
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('help_category_select')
-    .setPlaceholder('📂 Pilih kategori perintah untuk dijelajahi...')
+    .setPlaceholder('Pilih kategori perintah untuk dijelajahi...')
     .addOptions(
       {
         label: CATEGORIES.overview.label,
-        emoji: CATEGORIES.overview.emoji,
         value: 'overview',
         description: 'Kembali ke ringkasan utama semua kategori',
         default: currentCategory === 'overview',
       },
       {
         label: CATEGORIES.music.label,
-        emoji: CATEGORIES.music.emoji,
         value: 'music',
         description: 'Play, pause, skip, queue, repeat, volume, shuffle, stop',
         default: currentCategory === 'music',
       },
       {
         label: CATEGORIES.voice_ai.label,
-        emoji: CATEGORIES.voice_ai.emoji,
         value: 'voice_ai',
         description: 'Ngobrol suara realtime via mic, patroli 24 jam & voice hub',
         default: currentCategory === 'voice_ai',
       },
       {
         label: CATEGORIES.economy.label,
-        emoji: CATEGORIES.economy.emoji,
         value: 'economy',
         description: 'Profil visual, daily reward, leaderboard XP/koin & transfer',
         default: currentCategory === 'economy',
       },
       {
         label: CATEGORIES.games.label,
-        emoji: CATEGORIES.games.emoji,
         value: 'games',
         description: 'Setup arena mini games interaktif (Tebak Koin, Angka, Suit)',
         default: currentCategory === 'games',
       },
       {
         label: CATEGORIES.utility.label,
-        emoji: CATEGORIES.utility.emoji,
         value: 'utility',
         description: 'AI Upgrade Resolusi HD, AFK, reminder alarm, stalk & userinfo',
         default: currentCategory === 'utility',
       },
       {
         label: CATEGORIES.admin.label,
-        emoji: CATEGORIES.admin.emoji,
         value: 'admin',
         description: 'Setup server template, verif, tiket, log, filter toxic, role',
         default: currentCategory === 'admin',
       },
       {
         label: CATEGORIES.owner.label,
-        emoji: CATEGORIES.owner.emoji,
         value: 'owner',
         description: 'Panel monitoring performa internal dan statistik developer',
         default: currentCategory === 'owner',
       },
       {
         label: CATEGORIES.all.label,
-        emoji: CATEGORIES.all.emoji,
         value: 'all',
         description: 'Lihat daftar nama seluruh 54 perintah sekaligus',
         default: currentCategory === 'all',
@@ -398,11 +380,11 @@ function createActionComponents(currentCategory = 'overview') {
   const selectRow = new ActionRowBuilder().addComponents(selectMenu);
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('🌐 Website Resmi (flyneuroai.com)')
+      .setLabel('Website Resmi (flyneuroai.com)')
       .setStyle(ButtonStyle.Link)
       .setURL(getOfficialWebsiteUrl()),
     new ButtonBuilder()
-      .setLabel('👑 Server Komunitas Discord')
+      .setLabel('Server Komunitas Discord')
       .setStyle(ButtonStyle.Link)
       .setURL(getOfficialInviteUrl())
   );
@@ -428,15 +410,15 @@ module.exports = {
         .setDescription('Pilih kategori perintah yang ingin langsung dibuka')
         .setRequired(false)
         .addChoices(
-          { name: '📋 Ringkasan Kategori', value: 'overview' },
-          { name: '🎵 Musik HD Lavalink', value: 'music' },
-          { name: '🎙️ Voice AI, Patroli & Room', value: 'voice_ai' },
-          { name: '🏆 Leveling, Ranking & Ekonomi', value: 'economy' },
-          { name: '🎮 Mini Games Interaktif', value: 'games' },
-          { name: '🛠️ Utilitas & Gambar HD', value: 'utility' },
-          { name: '🛡️ Server Setup & Moderasi', value: 'admin' },
-          { name: '👑 Khusus Owner Bot', value: 'owner' },
-          { name: '📜 Tampilkan Semua Perintah', value: 'all' }
+          { name: 'Ringkasan Kategori', value: 'overview' },
+          { name: 'Musik HD Lavalink', value: 'music' },
+          { name: 'Voice AI, Patroli & Room', value: 'voice_ai' },
+          { name: 'Leveling, Ranking & Ekonomi', value: 'economy' },
+          { name: 'Mini Games Interaktif', value: 'games' },
+          { name: 'Utilitas & Gambar HD', value: 'utility' },
+          { name: 'Server Setup & Moderasi', value: 'admin' },
+          { name: 'Khusus Owner Bot', value: 'owner' },
+          { name: 'Tampilkan Semua Perintah', value: 'all' }
         )
     ),
 
@@ -502,7 +484,7 @@ module.exports = {
       // Pastikan hanya pemanggil command yang dapat mengubah tampilan
       if (i.user.id !== interaction.user.id) {
         return i.reply({
-          content: '⚠️ Gunakan perintah `/help` secara mandiri untuk membuka menu bantuan kamu.',
+          content: 'Gunakan perintah `/help` secara mandiri untuk membuka menu bantuan kamu.',
           flags: MessageFlags.Ephemeral,
         });
       }

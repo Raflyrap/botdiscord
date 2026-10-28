@@ -505,22 +505,22 @@ async function handleGuildCreate(guild, client) {
             name: 'FlyBot Multi-Purpose • Official System',
             iconURL: client.user.displayAvatarURL({ dynamic: true }),
           })
-          .setTitle(`🎉 Halo ${guild.name}! Terima Kasih Telah Mengundang FlyBot!`)
+          .setTitle(`Halo ${guild.name}! Terima Kasih Telah Mengundang FlyBot`)
           .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
           .setDescription(
-            `Hai semuanya! **FlyBot** kini resmi hadir untuk memeriahkan dan membantu mengelola server **${guild.name}**.\n\n` +
-            `✨ **Fitur-Fitur Unggulan FlyBot:**\n` +
-            `> 🎵 **Music Studio**: Suara HQ jernih Lavalink v4, playlist, bassboost, dan autoplay.\n` +
-            `> 🤖 **AI Assistant & Voice AI**: Asisten obrolan cerdas di teks dan voice room.\n` +
-            `> 🛡️ **Auto Moderation & Anti-Toxic**: Perlindungan otomatis terhadap spam & kata kasar.\n` +
-            `> 🔊 **Dynamic Temp Voice**: Otomatisasi ruang voice pribadi (Join-to-Create).\n` +
-            `> 🎫 **Support Ticket**: Sistem tiket komprehensif untuk pengaduan & support member.\n` +
-            `> 📊 **Server Stats & Leveling**: Kartu profil XP, leaderboard, dan statistik otomatis.\n\n` +
-            `🚀 **Mulai Menjelajah:**\n` +
+            `Hai semuanya! **FlyBot** kini resmi hadir untuk membantu mengelola dan meramaikan server **${guild.name}**.\n\n` +
+            `**Fitur-Fitur Unggulan FlyBot:**\n` +
+            `> • **Music Studio**: Suara HQ jernih Lavalink v4, playlist, bassboost, dan autoplay.\n` +
+            `> • **AI Assistant & Voice AI**: Asisten obrolan cerdas di teks dan voice room.\n` +
+            `> • **Auto Moderation & Anti-Toxic**: Perlindungan otomatis terhadap spam & kata kasar.\n` +
+            `> • **Dynamic Temp Voice**: Otomatisasi ruang voice pribadi (Join-to-Create).\n` +
+            `> • **Support Ticket**: Sistem tiket komprehensif untuk pengaduan & support member.\n` +
+            `> • **Server Stats & Leveling**: Kartu profil XP, leaderboard, dan statistik otomatis.\n\n` +
+            `**Mulai Menjelajah:**\n` +
             `> • Gunakan \`/help\` untuk melihat seluruh menu dan tutorial perintah.\n` +
             `> • Gunakan \`/setup\` untuk memasang channel server otomatis sekali klik.\n\n` +
-            `👑 **Komunitas Resmi FlyBot:**\n` +
-            `Ingin request fitur, lapor kendala, diskusi teknis, atau mabar bareng? Yuk langsung merapat ke Server Official FlyBot!`
+            `**Komunitas Resmi FlyBot:**\n` +
+            `Ingin request fitur, lapor kendala, diskusi teknis, atau berdiskusi dengan sesama pengguna? Kunjungi website resmi atau server official kami.`
           )
           .setFooter({ text: 'FlyBot • The All-in-One Discord Experience' })
           .setTimestamp();
@@ -529,11 +529,11 @@ async function handleGuildCreate(guild, client) {
         const websiteUrl = getOfficialWebsiteUrl();
         const actionRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel('🌐 Website Resmi (flyneuroai.com)')
+            .setLabel('Website Resmi (flyneuroai.com)')
             .setStyle(ButtonStyle.Link)
             .setURL(websiteUrl),
           new ButtonBuilder()
-            .setLabel('🌟 Gabung Server Resmi FlyBot')
+            .setLabel('Gabung Server Resmi FlyBot')
             .setStyle(ButtonStyle.Link)
             .setURL(inviteUrl)
         );
@@ -810,24 +810,24 @@ async function sendUpdateLog(client, logData) {
         name: 'FlyBot System • Auto Update & Deploy Tracker',
         iconURL: client.user.displayAvatarURL({ dynamic: true }),
       })
-      .setTitle(logData.title || '🚀 Pembaruan Sistem FlyBot Berhasil Diterapkan!')
+      .setTitle(logData.title || 'Pembaruan Sistem FlyBot Berhasil Diterapkan')
       .setDescription(logData.description || 'Kode bot telah diperbarui ke commit terbaru dan seluruh layanan aktif optimal.')
       .addFields(
-        { name: '🔖 Commit SHA', value: `\`${logData.commitSha || 'Unknown'}\``, inline: true },
-        { name: '👤 Pengembang', value: `\`${logData.author || 'Raflyrap'}\``, inline: true },
-        { name: '⏰ Waktu Deploy', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
+        { name: 'Commit SHA', value: `\`${logData.commitSha || 'Unknown'}\``, inline: true },
+        { name: 'Pengembang', value: `\`${logData.author || 'Raflyrap'}\``, inline: true },
+        { name: 'Waktu Deploy', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
       );
 
     if (logData.commitMessage) {
       embed.addFields({
-        name: '📝 Catatan Pembaruan (Changelog)',
+        name: 'Catatan Pembaruan (Changelog)',
         value: `\`\`\`git\n${logData.commitMessage.substring(0, 1000)}\n\`\`\``,
         inline: false,
       });
     }
 
     embed.addFields({
-      name: '📊 Status Jaringan Saat Ini',
+      name: 'Status Jaringan Saat Ini',
       value: `> Server Aktif: **${client.guilds.cache.size} Server**\n> Uptime Host: **${formatUptime(process.uptime())}**`,
       inline: false,
     });

@@ -106,10 +106,10 @@ module.exports = {
             .setDescription('Status online bot')
             .setRequired(true)
             .addChoices(
-              { name: '🟢 Online', value: 'online' },
-              { name: '🟡 Idle', value: 'idle' },
-              { name: '🔴 Do Not Disturb (DND)', value: 'dnd' },
-              { name: '⚪ Invisible', value: 'invisible' }
+              { name: 'Online', value: 'online' },
+              { name: 'Idle', value: 'idle' },
+              { name: 'Do Not Disturb (DND)', value: 'dnd' },
+              { name: 'Invisible', value: 'invisible' }
             )
         )
         .addStringOption((opt) =>
@@ -260,7 +260,7 @@ module.exports = {
     if (sub === 'broadcast') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const messageText = interaction.options.getString('pesan');
-      const title = interaction.options.getString('judul') || '📢 Pengumuman Resmi FlyBot';
+      const title = interaction.options.getString('judul') || 'Pengumuman Resmi FlyBot';
       const imageUrl = interaction.options.getString('gambar_url');
 
       const client = interaction.client;
@@ -285,11 +285,11 @@ module.exports = {
       const websiteUrl = getOfficialWebsiteUrl();
       const actionRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setLabel('🌐 Website Resmi (flyneuroai.com)')
+          .setLabel('Website Resmi (flyneuroai.com)')
           .setStyle(ButtonStyle.Link)
           .setURL(websiteUrl),
         new ButtonBuilder()
-          .setLabel('🌟 Gabung Server Resmi FlyBot')
+          .setLabel('Gabung Server Resmi FlyBot')
           .setStyle(ButtonStyle.Link)
           .setURL(inviteUrl)
       );
@@ -338,7 +338,7 @@ module.exports = {
       }
 
       return interaction.editReply({
-        content: `✅ **Broadcast Selesai!**\n> • Berhasil dikirim ke: **${successCount} Server**\n> • Gagal / Tidak ada channel yang terbuka: **${failedCount} Server**`,
+        content: `**Broadcast Selesai!**\n> • Berhasil dikirim ke: **${successCount} Server**\n> • Gagal / Tidak ada channel yang terbuka: **${failedCount} Server**`,
       });
     }
 
@@ -362,7 +362,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
-        .setTitle('✅ Status Bot Berhasil Diperbarui')
+        .setTitle('Status Bot Berhasil Diperbarui')
         .setDescription(
           `Status bot telah berhasil diubah dan disimpan secara permanen:\n\n` +
           `> • **Tipe Aktivitas**: \`${type}\`\n` +
@@ -393,7 +393,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(isEnabled ? 0xED4245 : 0x57F287)
-        .setTitle(isEnabled ? '🚧 Mode Maintenance DIAKTIFKAN' : '🟢 Mode Maintenance DINONAKTIFKAN')
+        .setTitle(isEnabled ? 'Mode Maintenance DIAKTIFKAN' : 'Mode Maintenance DINONAKTIFKAN')
         .setDescription(
           isEnabled
             ? `FlyBot sekarang berada dalam mode **Pemeliharaan (Maintenance)**.\n\n` +
