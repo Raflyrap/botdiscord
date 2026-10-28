@@ -45,7 +45,7 @@ const CATEGORIES = {
     label: 'Utilitas & Gambar HD',
     name: 'Utilitas & Gambar HD',
     description: 'Peningkat resolusi gambar instan (AI Upscale 2x/4x), status AFK otomatis, alarm reminder, dan informasi akun.',
-    commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite'],
+    commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
@@ -113,8 +113,8 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Utilitas & Gambar HD (8 Perintah)',
-        value: '`/hd`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`',
+        name: 'Utilitas & Gambar HD (9 Perintah)',
+        value: '`/hd`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`, `/request-fitur`',
         inline: false,
       },
       {

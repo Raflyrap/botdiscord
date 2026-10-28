@@ -83,6 +83,15 @@ const {
   getOfficialInviteUrl,
   getOfficialWebsiteUrl,
 } = require('./ownerHelper');
+const {
+  ensureFeatureRequestChannel,
+  createRequestModal,
+  handleFeatureRequestModal,
+  handleFeatureRequestVote,
+  handleFeatureRequestStatusButton,
+  handleFeatureRequestStatusSelect,
+  handleRawMessageInRequestChannel,
+} = require('./featureRequestHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -236,6 +245,13 @@ client.once(Events.ClientReady, async (readyClient) => {
     console.error('[BOT PRESENCE INIT] Error:', err.message);
   }
 
+  // Inisialisasi Channel Request Fitur Server Official
+  try {
+    ensureFeatureRequestChannel(readyClient);
+  } catch (err) {
+    console.error('[FEATURE REQUEST INIT] Error:', err.message);
+  }
+
   // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
   setTimeout(async () => {
     try {
@@ -272,6 +288,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (handledVoice) return;
   } catch (err) {
     console.error('Error saat handleVoiceControlInteraction:', err);
+  }
+
+  // Handler interaktif Fitur Request Fitur (Khusus Server Official)
+  try {
+    if (interaction.isButton() && interaction.customId === 'btn_open_request_modal') {
+      const modal = createRequestModal();
+      await interaction.showModal(modal);
+      return;
+    }
+    if (await handleFeatureRequestVote(interaction)) return;
+    if (await handleFeatureRequestStatusButton(interaction)) return;
+    if (await handleFeatureRequestStatusSelect(interaction)) return;
+    if (await handleFeatureRequestModal(interaction)) return;
+  } catch (err) {
+    console.error('Error saat handle interaksi request fitur:', err);
   }
 
   // Handler dropdown menu setup
@@ -1448,6 +1479,14 @@ client.on(Events.MessageCreate, async (message) => {
       console.error('Error saat respon DM AI:', err);
     }
     return;
+  }
+
+  // === FITUR REQUEST FITUR DI SERVER OFFICIAL (OTOMATIS KONVERSI PESAN KE TIKET USULAN) ===
+  try {
+    const isHandledRequest = await handleRawMessageInRequestChannel(message);
+    if (isHandledRequest) return;
+  } catch (err) {
+    console.error('Error saat handleRawMessageInRequestChannel:', err);
   }
 
   // === FITUR AUTOMOD: 1. ANTI-PHISHING & SCAM LINKS ===
