@@ -17,6 +17,7 @@ const DATA_PATH = path.join(__dirname, 'botMonitorData.json');
 const DEFAULT_OFFICIAL_GUILD_ID = '1563902604394627074';
 const DEFAULT_LOG_CHANNEL_ID = '1563922512016965764';
 const DEFAULT_OFFICIAL_INVITE_URL = 'https://discord.com/invite/flybot';
+const DEFAULT_OFFICIAL_WEBSITE_URL = 'https://flyneuroai.com/';
 
 function getOfficialGuildId() {
   return process.env.OFFICIAL_GUILD_ID || DEFAULT_OFFICIAL_GUILD_ID;
@@ -24,6 +25,10 @@ function getOfficialGuildId() {
 
 function getOfficialInviteUrl() {
   return process.env.OFFICIAL_INVITE_URL || DEFAULT_OFFICIAL_INVITE_URL;
+}
+
+function getOfficialWebsiteUrl() {
+  return process.env.OFFICIAL_WEBSITE_URL || DEFAULT_OFFICIAL_WEBSITE_URL;
 }
 
 // Membaca file data monitor
@@ -521,13 +526,14 @@ async function handleGuildCreate(guild, client) {
           .setTimestamp();
 
         const inviteUrl = getOfficialInviteUrl();
+        const websiteUrl = getOfficialWebsiteUrl();
         const actionRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel('🌟 Gabung Server Resmi FlyBot')
+            .setLabel('🌐 Website Resmi (flyneuroai.com)')
             .setStyle(ButtonStyle.Link)
-            .setURL(inviteUrl),
+            .setURL(websiteUrl),
           new ButtonBuilder()
-            .setLabel('📖 Panduan & Support')
+            .setLabel('🌟 Gabung Server Resmi FlyBot')
             .setStyle(ButtonStyle.Link)
             .setURL(inviteUrl)
         );
@@ -891,6 +897,7 @@ function initBotMonitoring(client) {
 module.exports = {
   getOfficialGuildId,
   getOfficialInviteUrl,
+  getOfficialWebsiteUrl,
   ensureMonitoringChannels,
   handleGuildCreate,
   handleGuildDelete,

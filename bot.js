@@ -81,6 +81,7 @@ const {
   getMaintenanceConfig,
   applyBotPresence,
   getOfficialInviteUrl,
+  getOfficialWebsiteUrl,
 } = require('./ownerHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
@@ -980,6 +981,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const isOwner = await isBotOwner(interaction);
       if (!isOwner) {
         const inviteUrl = getOfficialInviteUrl();
+        const websiteUrl = getOfficialWebsiteUrl();
         const maintEmbed = new EmbedBuilder()
           .setColor(0xed4245)
           .setAuthor({
@@ -991,14 +993,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
             `Mohon maaf atas ketidaknyamanannya! FlyBot saat ini sedang dalam proses pemeliharaan & optimalisasi oleh Developer.\n\n` +
             `> **Catatan Pemeliharaan:**\n` +
             `> *${maintenance.reason || 'Pembaruan sistem & optimalisasi jaringan bot.'}*\n\n` +
-            `Silakan pantau pengumuman status pemulihan bot di Server Resmi FlyBot.`
+            `Silakan kunjungi website resmi atau pantau pengumuman status pemulihan bot di Server Komunitas FlyBot.`
           )
           .setFooter({ text: 'FlyBot Maintenance System • Developer Only' })
           .setTimestamp();
 
         const maintRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel('🌟 Pantau di Server Resmi FlyBot')
+            .setLabel('🌐 Website Resmi (flyneuroai.com)')
+            .setStyle(ButtonStyle.Link)
+            .setURL(websiteUrl),
+          new ButtonBuilder()
+            .setLabel('🌟 Server Komunitas Discord')
             .setStyle(ButtonStyle.Link)
             .setURL(inviteUrl)
         );

@@ -5,9 +5,14 @@ const { ActivityType } = require('discord.js');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenanceConfig.json');
 const PRESENCE_FILE = path.join(__dirname, 'botPresenceConfig.json');
 const DEFAULT_OFFICIAL_INVITE_URL = 'https://discord.com/invite/flybot';
+const DEFAULT_OFFICIAL_WEBSITE_URL = 'https://flyneuroai.com/';
 
 function getOfficialInviteUrl() {
   return process.env.OFFICIAL_INVITE_URL || DEFAULT_OFFICIAL_INVITE_URL;
+}
+
+function getOfficialWebsiteUrl() {
+  return process.env.OFFICIAL_WEBSITE_URL || DEFAULT_OFFICIAL_WEBSITE_URL;
 }
 
 // Cek apakah user adalah Owner Bot
@@ -159,4 +164,5 @@ module.exports = {
   setPresenceConfig,
   applyBotPresence,
   getOfficialInviteUrl,
+  getOfficialWebsiteUrl,
 };

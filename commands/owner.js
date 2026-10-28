@@ -20,6 +20,7 @@ const {
   setPresenceConfig,
   applyBotPresence,
   getOfficialInviteUrl,
+  getOfficialWebsiteUrl,
 } = require('../ownerHelper');
 
 module.exports = {
@@ -281,7 +282,12 @@ module.exports = {
       }
 
       const inviteUrl = getOfficialInviteUrl();
+      const websiteUrl = getOfficialWebsiteUrl();
       const actionRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('🌐 Website Resmi (flyneuroai.com)')
+          .setStyle(ButtonStyle.Link)
+          .setURL(websiteUrl),
         new ButtonBuilder()
           .setLabel('🌟 Gabung Server Resmi FlyBot')
           .setStyle(ButtonStyle.Link)

@@ -8,8 +8,9 @@ const {
   MessageFlags,
   ComponentType,
 } = require('discord.js');
+const { getOfficialWebsiteUrl, getOfficialInviteUrl } = require('../ownerHelper');
 
-// Metadata dan pengelompokan lengkap 53 perintah FlyBot ke dalam 7 kategori
+// Metadata dan pengelompokan lengkap 54 perintah FlyBot ke dalam 7 kategori
 const CATEGORIES = {
   overview: {
     label: 'Ringkasan Kategori',
@@ -50,7 +51,7 @@ const CATEGORIES = {
     emoji: '🛠️',
     name: 'Utilitas & Gambar HD',
     description: 'Peningkat resolusi gambar instan (AI Upscale 2x/4x), status AFK otomatis, alarm reminder, dan informasi akun.',
-    commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping'],
+    commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
@@ -74,7 +75,7 @@ const CATEGORIES = {
   all: {
     label: 'Tampilkan Semua Perintah',
     emoji: '📜',
-    name: 'Daftar Lengkap 53 Perintah FlyBot',
+    name: 'Daftar Lengkap 54 Perintah FlyBot',
     description: 'Ringkasan seluruh slash command FlyBot yang terdaftar di server ini.',
   },
 };
@@ -389,13 +390,24 @@ function createActionComponents(currentCategory = 'overview') {
         label: CATEGORIES.all.label,
         emoji: CATEGORIES.all.emoji,
         value: 'all',
-        description: 'Lihat daftar nama seluruh 53 perintah sekaligus',
+        description: 'Lihat daftar nama seluruh 54 perintah sekaligus',
         default: currentCategory === 'all',
       }
     );
 
-  const row = new ActionRowBuilder().addComponents(selectMenu);
-  return [row];
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+  const buttonRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('🌐 Website Resmi (flyneuroai.com)')
+      .setStyle(ButtonStyle.Link)
+      .setURL(getOfficialWebsiteUrl()),
+    new ButtonBuilder()
+      .setLabel('👑 Server Komunitas Discord')
+      .setStyle(ButtonStyle.Link)
+      .setURL(getOfficialInviteUrl())
+  );
+
+  return [selectRow, buttonRow];
 }
 
 module.exports = {
