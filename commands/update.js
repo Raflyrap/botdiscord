@@ -1,10 +1,21 @@
 const {
   SlashCommandBuilder,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   MessageFlags,
 } = require('discord.js');
 const { isBotOwner } = require('../ownerHelper');
 const { pullLatestCode, reloadModulesAndCommands } = require('../hotReloadHelper');
+
+function createRestartButtonRow() {
+  const btn = new ButtonBuilder()
+    .setCustomId('btn_trigger_bot_restart')
+    .setLabel('Restart Proses Bot (Jika Perlu)')
+    .setStyle(ButtonStyle.Secondary);
+  return new ActionRowBuilder().addComponents(btn);
+}
 
 /**
  * Mengirim notifikasi log pembaruan ke channel server logs (audit-log, update-logs, server-logs)
@@ -25,10 +36,11 @@ async function sendServerLogsNotification(interaction, { title, description, col
       }
     } catch (e) {}
 
+    // Cari channel yang namanya mengandung log atau update
     const guildLogCh = guild.channels.cache.find((c) => {
       if (!c.isTextBased()) return false;
-      const cleanName = c.name.toLowerCase().replace(/[^a-z]/g, '');
-      return ['serverlogs', 'serverlog', 'updatelogs', 'updatelog', 'botlogs', 'botlog', 'auditlog', 'auditlogs', 'logs'].includes(cleanName);
+      const lower = c.name.toLowerCase();
+      return lower.includes('log') || lower.includes('update');
     });
     if (guildLogCh) {
       targetChannels.set(guildLogCh.id, guildLogCh);
@@ -48,14 +60,19 @@ async function sendServerLogsNotification(interaction, { title, description, col
     if (officialGuild) {
       const offLogCh = officialGuild.channels.cache.find((c) => {
         if (!c.isTextBased()) return false;
-        const cleanName = c.name.toLowerCase().replace(/[^a-z]/g, '');
-        return ['serverlogs', 'serverlog', 'updatelogs', 'updatelog', 'botlogs', 'botlog', 'auditlog'].includes(cleanName);
+        const lower = c.name.toLowerCase();
+        return lower.includes('log') || lower.includes('update');
       });
       if (offLogCh) {
         targetChannels.set(offLogCh.id, offLogCh);
       }
     }
   } catch (e) {}
+
+  // 3. Fallback: jika tidak ada channel logs khusus di server, kirimkan ke channel tempat perintah dijalankan
+  if (targetChannels.size === 0 && interaction.channel && interaction.channel.isTextBased()) {
+    targetChannels.set(interaction.channel.id, interaction.channel);
+  }
 
   if (targetChannels.size === 0) return [];
 
@@ -194,7 +211,7 @@ module.exports = {
           });
         }
 
-        return interaction.editReply({ embeds: [upToDateEmbed] });
+        return interaction.editReply({ embeds: [upToDateEmbed], components: [createRestartButtonRow()] });
       }
 
       // KONDISI B: Ditemukan pembaruan baru dari GitHub
@@ -223,7 +240,7 @@ module.exports = {
           ],
         });
 
-        return interaction.editReply({ embeds: [reloadErrEmbed] });
+        return interaction.editReply({ embeds: [reloadErrEmbed], components: [createRestartButtonRow()] });
       }
 
       // Kirim notifikasi lengkap ke server logs
@@ -282,7 +299,7 @@ module.exports = {
         });
       }
 
-      return interaction.editReply({ embeds: [successEmbed] });
+      return interaction.editReply({ embeds: [successEmbed], components: [createRestartButtonRow()] });
     }
 
     // 3. Mode Graceful Restart

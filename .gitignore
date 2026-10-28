@@ -8,3 +8,5 @@ reminderData.json
 botMonitorData.json
 maintenanceConfig.json
 botPresenceConfig.json
+featureRequests.json
+logConfig.json

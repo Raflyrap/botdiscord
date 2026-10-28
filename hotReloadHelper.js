@@ -211,26 +211,61 @@ async function pullLatestCode() {
     }
   }
 
-  // Jika folder .git sudah ada, gunakan alur standar Git CLI
+  // Jika folder .git sudah ada, gunakan alur standar Git CLI yang handal
   try {
     const beforeLog = await runShell('git rev-parse --short HEAD');
     const beforeCommit = beforeLog.stdout || '';
 
+    // Selalu fetch commit terbaru dari origin main terlebih dahulu
+    await runShell('git fetch origin main');
+    const remoteLog = await runShell('git rev-parse --short origin/main');
+    const remoteCommit = remoteLog.stdout || '';
+
+    // Jika commit lokal sudah sama persis dengan origin/main
+    if (beforeCommit && remoteCommit && beforeCommit === remoteCommit) {
+      const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+      return {
+        success: true,
+        hasUpdates: false,
+        method: 'git',
+        details: 'Kode bot sudah berada di versi paling terbaru.',
+        beforeCommit,
+        afterCommit: beforeCommit,
+        latestCommit: logRes.stdout || beforeCommit || 'Versi saat ini',
+      };
+    }
+
+    // Jika ada perbedaan commit, reset hard ke origin/main (bebas konflik file lokal)
+    const resetRes = await runShell('git reset --hard origin/main');
+    if (resetRes.success) {
+      const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+      const afterLog = await runShell('git rev-parse --short HEAD');
+      const afterCommit = afterLog.stdout || remoteCommit || '';
+
+      return {
+        success: true,
+        hasUpdates: true,
+        method: 'git-reset',
+        details: resetRes.stdout || 'Kode berhasil disinkronkan ke origin/main.',
+        beforeCommit,
+        afterCommit,
+        latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
+      };
+    }
+
+    // Fallback: coba git pull standar jika reset gagal
     const gitRes = await runShell('git pull origin main');
     if (gitRes.success) {
       const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
       const afterLog = await runShell('git rev-parse --short HEAD');
       const afterCommit = afterLog.stdout || '';
 
-      const isAlreadyUpToDate =
-        gitRes.stdout.toLowerCase().includes('already up to date') ||
-        gitRes.stdout.toLowerCase().includes('already up-to-date') ||
-        (beforeCommit && afterCommit && beforeCommit === afterCommit);
+      const isAlreadyUpToDate = beforeCommit && afterCommit && beforeCommit === afterCommit;
 
       return {
         success: true,
         hasUpdates: !isAlreadyUpToDate,
-        method: 'git',
+        method: 'git-pull',
         details: gitRes.stdout || 'Kode berhasil diperiksa.',
         beforeCommit,
         afterCommit,
@@ -238,30 +273,7 @@ async function pullLatestCode() {
       };
     }
 
-    // Jika ada konflik local files, coba git stash lalu pull
-    const stashRes = await runShell('git stash && git pull origin main');
-    if (stashRes.success) {
-      const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
-      const afterLog = await runShell('git rev-parse --short HEAD');
-      const afterCommit = afterLog.stdout || '';
-
-      const isAlreadyUpToDate =
-        stashRes.stdout.toLowerCase().includes('already up to date') ||
-        stashRes.stdout.toLowerCase().includes('already up-to-date') ||
-        (beforeCommit && afterCommit && beforeCommit === afterCommit);
-
-      return {
-        success: true,
-        hasUpdates: !isAlreadyUpToDate,
-        method: 'git-stash-pull',
-        details: stashRes.stdout,
-        beforeCommit,
-        afterCommit,
-        latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
-      };
-    }
-
-    // Fallback ke GitHub API jika git pull gagal
+    // Fallback ke GitHub Direct API jika Git CLI bermasalah
     return await pullViaGitHubApi();
   } catch (err) {
     try {

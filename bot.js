@@ -290,17 +290,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error('Error saat handleVoiceControlInteraction:', err);
   }
 
-  // Handler interaktif Fitur Request Fitur (Khusus Server Official)
+  // Handler tombol restart bot (Triggered via /update button)
+  if (interaction.isButton() && interaction.customId === 'btn_trigger_bot_restart') {
+    const { isBotOwner } = require('./ownerHelper');
+    const isOwner = await isBotOwner(interaction);
+    if (!isOwner) {
+      return interaction.reply({
+        content: 'Hanya Owner Bot yang dapat me-restart bot.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+    await interaction.reply({
+      content: 'Memulai ulang proses bot dalam 2 detik. Server Pterodactyl akan menyalakan bot kembali...',
+      flags: MessageFlags.Ephemeral,
+    });
+    setTimeout(() => {
+      process.exit(0);
+    }, 2000);
+    return;
+  }
+
+  // Handler interaktif Fitur Request Fitur (Khusus Server Official - Dynamic Require)
   try {
+    const fr = require('./featureRequestHelper');
     if (interaction.isButton() && interaction.customId === 'btn_open_request_modal') {
-      const modal = createRequestModal();
+      const modal = fr.createRequestModal();
       await interaction.showModal(modal);
       return;
     }
-    if (await handleFeatureRequestVote(interaction)) return;
-    if (await handleFeatureRequestStatusButton(interaction)) return;
-    if (await handleFeatureRequestStatusSelect(interaction)) return;
-    if (await handleFeatureRequestModal(interaction)) return;
+    if (await fr.handleFeatureRequestVote(interaction)) return;
+    if (await fr.handleFeatureRequestStatusButton(interaction)) return;
+    if (await fr.handleFeatureRequestStatusSelect(interaction)) return;
+    if (await fr.handleFeatureRequestModal(interaction)) return;
   } catch (err) {
     console.error('Error saat handle interaksi request fitur:', err);
   }
@@ -1482,7 +1503,7 @@ client.on(Events.MessageCreate, async (message) => {
 
   // === FITUR REQUEST FITUR DI SERVER OFFICIAL (OTOMATIS KONVERSI PESAN KE TIKET USULAN) ===
   try {
-    const isHandledRequest = await handleRawMessageInRequestChannel(message);
+    const isHandledRequest = await require('./featureRequestHelper').handleRawMessageInRequestChannel(message);
     if (isHandledRequest) return;
   } catch (err) {
     console.error('Error saat handleRawMessageInRequestChannel:', err);
