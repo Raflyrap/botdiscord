@@ -1538,6 +1538,7 @@ async function setupFullTemplate(guild) {
       coinId: miniGames.coinChannel.id,
       numberId: miniGames.numberChannel.id,
       rpsId: miniGames.rpsChannel.id,
+      slotId: miniGames.slotChannel.id,
       hubVoiceId: voiceLounges.hubChannel.id,
     },
     categories: {
