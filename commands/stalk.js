@@ -77,47 +77,22 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    // 1. Pengecekan Channel Khusus Stalk (#stalk atau #stalk-game)
-    let stalkChannel = interaction.guild?.channels.cache.find(
-      (c) =>
-        c.isTextBased() &&
-        (c.name.toLowerCase() === 'stalk' ||
-          c.name.toLowerCase() === 'stalk-game' ||
-          c.name.toLowerCase() === 'game-stalk')
-    );
+    // 1. Pengecekan Channel Khusus Stalk
+    const currentChannelName = interaction.channel?.name ? interaction.channel.name.toLowerCase() : '';
+    const isCurrentChannelStalk = currentChannelName.includes('stalk');
 
-    // Coba buat channel stalk otomatis jika belum ada di server
-    if (!stalkChannel && interaction.guild) {
-      try {
-        const botMember =
-          interaction.guild.members.me ||
-          (await interaction.guild.members.fetchMe().catch(() => null));
-        if (botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-          const parentCat = interaction.guild.channels.cache.find(
-            (c) =>
-              c.type === ChannelType.GuildCategory &&
-              (c.name.toLowerCase().includes('game') ||
-                c.name.toLowerCase().includes('entertainment') ||
-                c.name.toLowerCase().includes('komunitas'))
-          );
+    // Jika user menjalankan perintah di luar channel stalk, arahkan ke channel stalk yang ada di server
+    if (!isCurrentChannelStalk && interaction.guild) {
+      const stalkChannel = interaction.guild.channels.cache.find(
+        (c) => c.isTextBased() && c.name.toLowerCase().includes('stalk')
+      );
 
-          stalkChannel = await interaction.guild.channels.create({
-            name: 'stalk',
-            type: ChannelType.GuildText,
-            parent: parentCat ? parentCat.id : undefined,
-            topic: 'Channel khusus stalk akun game dan media sosial (Mobile Legends, Roblox, GitHub, dll). Gunakan /stalk di sini.',
-            reason: 'Auto-create channel stalk FlyBot',
-          });
-        }
-      } catch (e) {}
-    }
-
-    // Jika channel stalk tersedia dan perintah dijalankan di channel lain, arahkan user ke channel stalk
-    if (stalkChannel && interaction.channelId !== stalkChannel.id) {
-      return interaction.reply({
-        content: `Perintah stalk hanya dapat dijalankan di channel <#${stalkChannel.id}>. Silakan beralih ke channel tersebut agar percakapan tetap teratur.`,
-        flags: MessageFlags.Ephemeral,
-      });
+      if (stalkChannel && interaction.channelId !== stalkChannel.id) {
+        return interaction.reply({
+          content: `Perintah stalk hanya dapat dijalankan di channel <#${stalkChannel.id}>. Silakan beralih ke channel tersebut agar percakapan tetap teratur.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
 
     const subcommand = interaction.options.getSubcommand();
