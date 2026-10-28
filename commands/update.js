@@ -12,8 +12,8 @@ const { pullLatestCode, reloadModulesAndCommands } = require('../hotReloadHelper
 function createRestartButtonRow() {
   const btn = new ButtonBuilder()
     .setCustomId('btn_trigger_bot_restart')
-    .setLabel('Restart Proses Bot (Jika Perlu)')
-    .setStyle(ButtonStyle.Secondary);
+    .setLabel('Restart Bot / Container Pterodactyl')
+    .setStyle(ButtonStyle.Primary);
   return new ActionRowBuilder().addComponents(btn);
 }
 

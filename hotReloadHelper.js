@@ -331,14 +331,22 @@ async function reloadModulesAndCommands(client) {
     // 3. Daftarkan dan sinkronkan slash commands ke Discord REST API secara realtime
     try {
       const token = process.env.TOKEN;
-      const clientId = process.env.CLIENT_ID;
+      const clientId = client.user?.id || process.env.CLIENT_ID;
       if (token && clientId) {
         const rest = new REST({ version: '10' }).setToken(token);
         const apiPayload = [];
         for (const [, cmd] of client.commands) {
           apiPayload.push(cmd.data.toJSON());
         }
+        // Daftarkan global commands
         await rest.put(Routes.applicationCommands(clientId), { body: apiPayload });
+
+        // Daftarkan juga langsung ke seluruh guild aktif agar instan tanpa nunggu delay propagasi global
+        for (const [gId] of client.guilds.cache) {
+          try {
+            await rest.put(Routes.applicationGuildCommands(clientId, gId), { body: apiPayload });
+          } catch (gErr) {}
+        }
       }
     } catch (restErr) {
       console.warn('[HOT RELOAD REST WARN] Pendaftaran REST API dilewati:', restErr.message);

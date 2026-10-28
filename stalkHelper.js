@@ -24,18 +24,86 @@ const COUNTRY_NAMES = {
 function cleanStatusSymbol(val) {
   if (!val) return 'Tidak Tersedia';
   const str = String(val).trim();
-  if (str.includes('🟢') || str.toLowerCase() === 'true' || str.toLowerCase() === 'tersedia') {
+  if (str.includes('\u{1F7E2}') || str.toLowerCase() === 'true' || str.toLowerCase() === 'tersedia') {
     return 'Tersedia';
   }
-  if (str.includes('🔴') || str.toLowerCase() === 'false' || str.toLowerCase() === 'tidak tersedia') {
+  if (str.includes('\u{1F534}') || str.toLowerCase() === 'false' || str.toLowerCase() === 'tidak tersedia') {
     return 'Sudah Diklaim / Tidak Tersedia';
   }
-  return str.replace(/[🟢🔴]/g, '').trim() || 'Tidak Tersedia';
+  return str.replace(/[\u{1F7E2}\u{1F534}]/gu, '').trim() || 'Tidak Tersedia';
+}
+
+/**
+ * Mencari nickname Mobile Legends melalui resolver terpercaya
+ * Menggunakan endpoint isan.eu.org dengan fallback GoPay Games API
+ */
+async function resolveMlbbNickname(userId, zoneId) {
+  const cleanId = String(userId).trim();
+  const cleanZone = String(zoneId).trim();
+
+  // 1. Coba resolver primer: isan.eu.org
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`https://mlbb-api.isan.eu.org/find?id=${encodeURIComponent(cleanId)}&zone=${encodeURIComponent(cleanZone)}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'FlyBot-Discord/2.0',
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.name && data.name !== 'N/A') {
+        return {
+          nickname: String(data.name).trim(),
+          countryCode: data.countryCode ? String(data.countryCode).toUpperCase() : null,
+          countryName: data.countryName || null,
+        };
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fallback ke GoPay Games API
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch('https://gopay.co.id/games/v1/order/user-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'FlyBot-Discord/2.0',
+      },
+      body: JSON.stringify({
+        code: 'mobile-legends',
+        data: { userId: cleanId, zoneId: cleanZone },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const username = data?.data?.username;
+      if (username && username !== `${cleanId}${cleanZone}`) {
+        return {
+          nickname: String(username).trim(),
+          countryCode: null,
+          countryName: null,
+        };
+      }
+    }
+  } catch (e) {}
+
+  return null;
 }
 
 /**
  * Stalk akun Mobile Legends (MLBB)
- * Menggunakan API theresav.eu dengan fallback timeout 20 detik
+ * Menggabungkan nickname resolver dan status bundle & event promo top-up
  */
 async function stalkMlbb(userId, serverId) {
   const cleanUser = String(userId).trim();
@@ -48,83 +116,90 @@ async function stalkMlbb(userId, serverId) {
     };
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const startTime = Date.now();
 
-  try {
-    const url = `https://api.theresav.eu/api/stalk/mlbb?userId=${encodeURIComponent(cleanUser)}&serverId=${encodeURIComponent(cleanServer)}`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-apikey': MLBB_API_KEY,
-        'User-Agent': 'FlyBot-Discord/2.0',
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+  // Eksekusi paralel: Nickname Resolver dan Theresav API (untuk bundle & promo)
+  const [nickResult, theresavResult] = await Promise.allSettled([
+    resolveMlbbNickname(cleanUser, cleanServer),
+    (async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      try {
+        const url = `https://api.theresav.eu/api/stalk/mlbb?userId=${encodeURIComponent(cleanUser)}&serverId=${encodeURIComponent(cleanServer)}`;
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'x-apikey': MLBB_API_KEY,
+            'User-Agent': 'FlyBot-Discord/2.0',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (err) {
+        clearTimeout(timeoutId);
+        return null;
+      }
+    })(),
+  ]);
 
-    if (!res.ok) {
-      return {
-        success: false,
-        error: `Server penyedia API merespons dengan status HTTP ${res.status}.`,
-      };
-    }
+  const nickData = nickResult.status === 'fulfilled' ? nickResult.value : null;
+  const thData = theresavResult.status === 'fulfilled' ? theresavResult.value : null;
 
-    const data = await res.json();
-    if (!data || !data.result) {
-      return {
-        success: false,
-        error: data?.error || 'Gagal memproses data akun Mobile Legends dari server penyedia.',
-      };
-    }
-
-    const result = data.result;
-    const profile = result.profile || {};
-    const events = result.events || {};
-    const rawRegion = events.region || result.region || 'ID';
-    const regionName = COUNTRY_NAMES[rawRegion.toUpperCase()] || rawRegion.toUpperCase();
-
-    // Mapping Status Bundle
-    const bundles = events.bundlesStatus || {};
-    const weeklyElite = cleanStatusSymbol(bundles['Weekly Elite Bundle']);
-    const monthlyEpic = cleanStatusSymbol(bundles['Monthly Epic Bundle']);
-
-    // Mapping Status Promo Event Top-Up
-    const statusEvents = events.status || {};
-    const eventList = [];
-    for (const [tier, statusVal] of Object.entries(statusEvents)) {
-      eventList.push(`• Paket Diamond ${tier}: **${cleanStatusSymbol(statusVal)}**`);
-    }
-
-    const nickname = profile.nickname && profile.nickname !== 'N/A' ? profile.nickname : 'Privat / Tidak Ditemukan';
-
-    return {
-      success: true,
-      data: {
-        userId: cleanUser,
-        serverId: cleanServer,
-        nickname,
-        regionCode: rawRegion.toUpperCase(),
-        regionName,
-        weeklyElite,
-        monthlyEpic,
-        eventList,
-        timeTaken: data.time_taken || 'Selesai',
-      },
-    };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      return {
-        success: false,
-        error: 'Pencarian akun MLBB memakan waktu terlalu lama (batas waktu 20 detik terlampaui). Silakan coba lagi.',
-      };
-    }
+  // Jika kedua API tidak mengembalikan hasil apapun
+  if (!nickData && (!thData || !thData.result)) {
     return {
       success: false,
-      error: `Terjadi kendala koneksi ke server API: ${err.message}`,
+      error: 'Akun Mobile Legends dengan ID tersebut tidak ditemukan atau server penyedia data sedang sibuk. Pastikan User ID dan Server ID sudah benar.',
     };
   }
+
+  const thResult = thData?.result || {};
+  const thProfile = thResult.profile || {};
+  const thEvents = thResult.events || {};
+
+  // Prioritaskan Nickname dari resolver (isan.eu.org / gopay)
+  let nickname = nickData?.nickname;
+  if (!nickname && thProfile.nickname && thProfile.nickname !== 'N/A') {
+    nickname = thProfile.nickname;
+  }
+  if (!nickname) {
+    nickname = 'Tidak Ditemukan / Privat';
+  }
+
+  // Tentukan Region / Negara
+  const rawRegion = nickData?.countryCode || thEvents.region || thResult.region || 'ID';
+  const regionName = nickData?.countryName || COUNTRY_NAMES[rawRegion.toUpperCase()] || rawRegion.toUpperCase();
+
+  // Mapping Status Bundle
+  const bundles = thEvents.bundlesStatus || {};
+  const weeklyElite = cleanStatusSymbol(bundles['Weekly Elite Bundle']);
+  const monthlyEpic = cleanStatusSymbol(bundles['Monthly Epic Bundle']);
+
+  // Mapping Status Promo Event Top-Up
+  const statusEvents = thEvents.status || {};
+  const eventList = [];
+  for (const [tier, statusVal] of Object.entries(statusEvents)) {
+    eventList.push(`• Paket Diamond ${tier}: **${cleanStatusSymbol(statusVal)}**`);
+  }
+
+  const timeElapsed = `${((Date.now() - startTime) / 1000).toFixed(2)} detik`;
+
+  return {
+    success: true,
+    data: {
+      userId: cleanUser,
+      serverId: cleanServer,
+      nickname,
+      regionCode: rawRegion.toUpperCase(),
+      regionName,
+      weeklyElite,
+      monthlyEpic,
+      eventList,
+      timeTaken: thData?.time_taken || timeElapsed,
+    },
+  };
 }
 
 /**

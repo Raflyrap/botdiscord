@@ -13,7 +13,7 @@ const { stalkMlbb, stalkRoblox } = require('../stalkHelper');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('stalk')
-    .setDescription('Stalk profil dan status akun game atau media sosial (MLBB, Roblox, dll)')
+    .setDescription('Stalk akun Mobile Legends (MLBB), Roblox, GitHub, Twitter, Minecraft')
     .addSubcommand((sub) =>
       sub
         .setName('mlbb')
@@ -21,13 +21,13 @@ module.exports = {
         .addStringOption((opt) =>
           opt
             .setName('user_id')
-            .setDescription('User ID akun Mobile Legends (contoh: 1710074029)')
+            .setDescription('User ID akun Mobile Legends (contoh: 111111111)')
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName('server_id')
-            .setDescription('Server / Zone ID akun Mobile Legends (contoh: 1712)')
+            .setDescription('Server / Zone ID akun Mobile Legends (contoh: 2222)')
             .setRequired(true)
         )
     )
@@ -96,7 +96,8 @@ module.exports = {
     }
 
     const subcommand = interaction.options.getSubcommand();
-    await interaction.deferReply();
+    // Respon stalk dibuat Ephemeral (Only you can see this • Dismiss message) demi keamanan dan privasi
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // 2. Subcommand: Mobile Legends (MLBB)
     if (subcommand === 'mlbb') {
