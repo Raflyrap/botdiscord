@@ -47,43 +47,55 @@ async function resolveChannel(guild, type = 'welcome') {
   const guildConfig = getGuildConfig(guild.id);
   const targetChannelId = type === 'welcome' ? guildConfig.welcomeChannel : guildConfig.leaveChannel;
 
-  // 1. Jika sudah diatur secara manual oleh admin lewat /setwelcome
+  // 1. Cek channel ID yang sudah disimpan
   if (targetChannelId) {
     const channel = guild.channels.cache.get(targetChannelId) || await guild.channels.fetch(targetChannelId).catch(() => null);
     if (channel && channel.isTextBased()) return channel;
   }
 
-  // 2. Gunakan channel bawaan Discord (System Channel) jika ada
-  if (guild.systemChannel && guild.systemChannel.permissionsFor(guild.client.user)?.has(PermissionFlagsBits.SendMessages)) {
-    return guild.systemChannel;
-  }
-
-  // 3. Fallback: Cari text channel khusus berdasarkan nama spesifik (welcome / leave)
+  // 2. Fallback: Cari channel teks berdasarkan nama (welcome / leave / left)
   const keywords = type === 'welcome' 
     ? ['welcome', 'selamat-datang', 'sambutan', 'member-join']
-    : ['leave', 'goodbye', 'sampai-jumpa', 'keluar', 'member-left'];
+    : ['leave', 'left', 'goodbye', 'sampai-jumpa', 'keluar', 'member-left'];
 
   const channels = await guild.channels.fetch().catch(() => guild.channels.cache);
   for (const [, ch] of channels) {
     if (ch && ch.type === ChannelType.GuildText) {
       const name = ch.name.toLowerCase();
       if (keywords.some((k) => name.includes(k)) && ch.permissionsFor(guild.client.user)?.has(PermissionFlagsBits.SendMessages)) {
+        // Otomatis sinkronkan ID channel yang ditemukan
+        if (type === 'welcome') {
+          setGuildConfig(guild.id, { welcomeChannel: ch.id });
+        } else {
+          setGuildConfig(guild.id, { leaveChannel: ch.id });
+        }
         return ch;
       }
     }
   }
 
+  // 3. Fallback: Gunakan channel bawaan Discord (System Channel) jika ada
+  if (guild.systemChannel && guild.systemChannel.permissionsFor(guild.client.user)?.has(PermissionFlagsBits.SendMessages)) {
+    return guild.systemChannel;
+  }
+
   return null;
 }
 
-// Format durasi (ms) menjadi teks singkat, contoh: "1 tahun 2 bulan", "3 hari"
+// Format durasi (ms) menjadi teks singkat
 function formatDuration(ms) {
+  if (!ms || ms <= 0) return 'Belum diketahui';
   const d = Math.floor(ms / 86400000);
   if (d >= 365) {
-    const y = Math.floor(d / 365), m = Math.floor((d % 365) / 30);
+    const y = Math.floor(d / 365);
+    const m = Math.floor((d % 365) / 30);
     return `${y} tahun${m ? ` ${m} bulan` : ''}`;
   }
-  if (d >= 30) return `${Math.floor(d / 30)} bulan${d % 30 ? ` ${d % 30} hari` : ''}`;
+  if (d >= 30) {
+    const m = Math.floor(d / 30);
+    const remD = d % 30;
+    return `${m} bulan${remD ? ` ${remD} hari` : ''}`;
+  }
   if (d >= 1) return `${d} hari`;
   const h = Math.floor(ms / 3600000);
   if (h >= 1) return `${h} jam`;
@@ -91,90 +103,135 @@ function formatDuration(ms) {
 }
 
 function memberAvatar(member, size = 512) {
-  return member.displayAvatarURL({ extension: 'png', forceStatic: false, size });
+  if (!member) return undefined;
+  if (member.displayAvatarURL) {
+    return member.displayAvatarURL({ extension: 'png', forceStatic: false, size });
+  }
+  if (member.user && member.user.displayAvatarURL) {
+    return member.user.displayAvatarURL({ extension: 'png', forceStatic: false, size });
+  }
+  return undefined;
+}
+
+// Mendapatkan URL banner resmi Discord Server
+function getServerBanner(guild) {
+  if (!guild) return null;
+  return (
+    guild.bannerURL({ extension: 'png', size: 1024 }) ||
+    guild.splashURL({ extension: 'png', size: 1024 }) ||
+    guild.discoverySplashURL({ extension: 'png', size: 1024 }) ||
+    null
+  );
 }
 
 // Membuat embed pesan selamat datang
 function createWelcomeEmbed(member) {
   const guild = member.guild;
-  const created = Math.floor(member.user.createdTimestamp / 1000);
-  const avatar = memberAvatar(member);
+  const user = member.user || member;
+  const createdTimestamp = user.createdTimestamp ? Math.floor(user.createdTimestamp / 1000) : null;
+  const avatar = memberAvatar(member, 512);
+  const serverBanner = getServerBanner(guild);
 
-  return new EmbedBuilder()
+  const displayName = member.displayName || user.globalName || user.username;
+  const username = user.username;
+  const memberCountFormatted = guild.memberCount ? guild.memberCount.toLocaleString('id-ID') : '-';
+
+  const descLines = [
+    `Halo <@${user.id}>, selamat datang di **${guild.name}**!`,
+    `Selamat bergabung dan semoga betah bersama kami.`,
+    ``,
+    `**Informasi Member:**`,
+    `• **Nama:** ${displayName} (\`${username}\`)`,
+    `• **ID Akun:** \`${user.id}\``,
+    `• **Member Ke:** \`#${memberCountFormatted}\``,
+  ];
+
+  if (createdTimestamp) {
+    descLines.push(`• **Akun Dibuat:** <t:${createdTimestamp}:F> (<t:${createdTimestamp}:R>)`);
+  }
+
+  const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setAuthor({ name: `${member.user.username} bergabung`, iconURL: memberAvatar(member, 128) })
+    .setAuthor({
+      name: `${username} bergabung ke server`,
+      iconURL: memberAvatar(member, 128),
+    })
     .setTitle(`Selamat Datang di ${guild.name}`)
-    .setDescription(
-      `Halo <@${member.id}>, selamat datang di **${guild.name}**! Selamat bergabung dan semoga betah!`
-    )
-    .addFields(
-      { name: 'Member Ke', value: `\`#${guild.memberCount.toLocaleString('id-ID')}\``, inline: true },
-      { name: 'Akun Dibuat', value: `<t:${created}:R>`, inline: true }
-    )
+    .setDescription(descLines.join('\n'))
     .setThumbnail(avatar)
-    .setFooter({ text: `${guild.name} • Selamat bergabung`, iconURL: guild.iconURL() || undefined })
+    .setFooter({
+      text: `${guild.name} • Selamat bergabung`,
+      iconURL: guild.iconURL() || undefined,
+    })
     .setTimestamp();
+
+  if (serverBanner) {
+    embed.setImage(serverBanner);
+  }
+
+  return embed;
 }
 
 // Membuat embed pesan perpisahan (member left)
 function createLeaveEmbed(member) {
   const guild = member.guild;
-  const avatar = memberAvatar(member);
-  const joined = member.joinedTimestamp;
+  const user = member.user || member;
+  const avatar = memberAvatar(member, 512);
+  const serverBanner = getServerBanner(guild);
 
-  const fields = [
-    { name: 'Sisa Member', value: `\`${guild.memberCount.toLocaleString('id-ID')} orang\``, inline: true },
-  ];
-  if (joined) {
-    fields.push({
-      name: 'Bergabung',
-      value: `<t:${Math.floor(joined / 1000)}:R>`,
-      inline: true,
-    });
+  const displayName = member.displayName || user.globalName || user.username;
+  const username = user.username;
+  const memberCountFormatted = guild.memberCount ? guild.memberCount.toLocaleString('id-ID') : '-';
+
+  let durationText = 'Tidak tercatat';
+  if (member.joinedTimestamp) {
+    const durationMs = Date.now() - member.joinedTimestamp;
+    durationText = `${formatDuration(durationMs)} yang lalu (<t:${Math.floor(member.joinedTimestamp / 1000)}:R>)`;
   }
 
-  return new EmbedBuilder()
+  const descLines = [
+    `**${displayName}** (\`${username}\`) telah meninggalkan server **${guild.name}**.`,
+    `Terima kasih atas waktu dan kebersamaannya selama ini.`,
+    ``,
+    `**Informasi Member:**`,
+    `• **Nama:** ${displayName} (\`${username}\`)`,
+    `• **ID Akun:** \`${user.id}\``,
+    `• **Sisa Member:** \`${memberCountFormatted} orang\``,
+    `• **Lama Bergabung:** ${durationText}`,
+  ];
+
+  const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setAuthor({ name: `${member.user.username} keluar`, iconURL: memberAvatar(member, 128) })
+    .setAuthor({
+      name: `${username} keluar dari server`,
+      iconURL: memberAvatar(member, 128),
+    })
     .setTitle('Sampai Jumpa Lagi')
-    .setDescription(
-      `**${member.displayName || member.user.username}** telah meninggalkan server.`
-    )
-    .addFields(fields)
+    .setDescription(descLines.join('\n'))
     .setThumbnail(avatar)
-    .setFooter({ text: `${guild.name} • Semoga sukses selalu`, iconURL: guild.iconURL() || undefined })
+    .setFooter({
+      text: `${guild.name} • Semoga sukses selalu`,
+      iconURL: guild.iconURL() || undefined,
+    })
     .setTimestamp();
+
+  if (serverBanner) {
+    embed.setImage(serverBanner);
+  }
+
+  return embed;
 }
 
-const { AttachmentBuilder } = require('discord.js');
-const { generateWelcomeBanner, generateLeaveBanner } = require('./welcomeCardHelper');
-
-// Membangun payload lengkap pesan selamat datang (Embed + Banner Gambar Kustom)
+// Membangun payload lengkap pesan selamat datang (menggunakan banner server Discord)
 async function buildWelcomePayload(member) {
   const embed = createWelcomeEmbed(member);
-  try {
-    const cardBuffer = await generateWelcomeBanner(member);
-    const attachment = new AttachmentBuilder(cardBuffer, { name: 'welcome-card.png' });
-    embed.setImage('attachment://welcome-card.png');
-    return { embed, files: [attachment] };
-  } catch (err) {
-    console.error('Error generating welcome banner:', err);
-    return { embed, files: [] };
-  }
+  return { embed, files: [] };
 }
 
-// Membangun payload lengkap pesan perpisahan (Embed + Banner Gambar Kustom)
+// Membangun payload lengkap pesan perpisahan (menggunakan banner server Discord)
 async function buildLeavePayload(member) {
   const embed = createLeaveEmbed(member);
-  try {
-    const cardBuffer = await generateLeaveBanner(member);
-    const attachment = new AttachmentBuilder(cardBuffer, { name: 'leave-card.png' });
-    embed.setImage('attachment://leave-card.png');
-    return { embed, files: [attachment] };
-  } catch (err) {
-    console.error('Error generating leave banner:', err);
-    return { embed, files: [] };
-  }
+  return { embed, files: [] };
 }
 
 module.exports = {
@@ -185,6 +242,4 @@ module.exports = {
   createLeaveEmbed,
   buildWelcomePayload,
   buildLeavePayload,
-  generateWelcomeBanner,
-  generateLeaveBanner,
 };

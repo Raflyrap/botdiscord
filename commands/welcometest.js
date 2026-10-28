@@ -4,7 +4,7 @@ const { buildWelcomePayload, buildLeavePayload, resolveChannel } = require('../w
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('welcometest')
-    .setDescription('Menguji dan melihat preview pesan welcome dan leave ber-banner kustom di server ini')
+    .setDescription('Menguji dan melihat preview pesan welcome dan leave dengan banner server di server ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption((option) =>
       option
@@ -12,8 +12,8 @@ module.exports = {
         .setDescription('Pilih tipe tes: welcome atau leave')
         .setRequired(true)
         .addChoices(
-          { name: 'Pesan Welcome (Member Baru + Banner Kustom)', value: 'welcome' },
-          { name: 'Pesan Leave (Member Keluar + Banner Kustom)', value: 'leave' }
+          { name: 'Pesan Welcome (Member Baru)', value: 'welcome' },
+          { name: 'Pesan Leave (Member Keluar)', value: 'leave' }
         )
     ),
 
