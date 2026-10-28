@@ -619,22 +619,34 @@ async function setupCommunity(guild, roles) {
     permissionOverwrites: standardOverwrites,
   });
 
-  // Kirim info penggunaan /stalk jika channel stalk masih kosong
-  const stalkMsgs = await stalk.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!stalkMsgs || stalkMsgs.size === 0) {
-    const stalkEmbed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setTitle('Arena Khusus Stalk Profil Akun')
-      .setDescription(
-        'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
-        '**Platform yang Didukung:**\n' +
-        '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
-        '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
-        '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
-        '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
-        '*Hasil stalk bersifat privat (ephemeral) dan hanya bisa dilihat oleh kamu.*'
+  // Kirim atau perbarui info penggunaan /stalk jika channel stalk masih kosong atau sudah ada pesan panduan lama
+  const stalkEmbed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('Arena Khusus Stalk Profil Akun')
+    .setDescription(
+      'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
+      '**Platform yang Didukung:**\n' +
+      '• **Mobile Legends (MLBB)**: Nickname akun, region server, status bundle & promo event top-up\n' +
+      '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
+      '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
+      '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
+      '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
+      '*Hasil stalk bersifat privat (ephemeral) dan hanya bisa dilihat oleh kamu.*'
+    )
+    .setFooter({ text: 'Ketik /stalk untuk mulai mencari profil' });
+
+  const stalkMsgs = await stalk.messages.fetch({ limit: 10 }).catch(() => null);
+  const existingStalkMsg = stalkMsgs
+    ? stalkMsgs.find(
+        (m) =>
+          m.author?.id === guild.client.user?.id &&
+          m.embeds?.some((e) => e.title && e.title.includes('Arena Khusus Stalk'))
       )
-      .setFooter({ text: 'Ketik /stalk untuk mulai mencari profil' });
+    : null;
+
+  if (existingStalkMsg) {
+    await existingStalkMsg.edit({ embeds: [stalkEmbed] }).catch(() => {});
+  } else if (!stalkMsgs || stalkMsgs.size === 0) {
     await stalk.send({ embeds: [stalkEmbed] }).catch(() => {});
   }
 
