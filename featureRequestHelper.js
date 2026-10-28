@@ -65,8 +65,10 @@ function createMainPanelEmbed() {
       `Sampaikan usulan kamu langsung di channel ini!\n\n` +
       `**Ketentuan & Cara Kerja:**\n` +
       `• Setiap usulan akan ditinjau langsung oleh tim developer FlyBot.\n` +
+      `• Berikan deskripsi dan penjelasan ide secara detail agar mudah dipahami.\n` +
       `• Member lain dapat memberikan dukungan suara (voting) menggunakan tombol dukung.\n` +
-      `• Bot otomatis menyediakan thread diskusi di setiap usulan agar komunitas bisa berdiskusi.\n\n` +
+      `• Bot otomatis menyediakan thread diskusi di setiap usulan agar komunitas bisa berdiskusi.\n` +
+      `• Usulan yang ditolak akan otomatis dihapus oleh sistem agar channel selalu bersih dan rapi dari spam.\n\n` +
       `**Cara Mengajukan:**\n` +
       `Klik tombol **Buat Request Fitur** di bawah untuk mengisi formulir usulan kamu.`
     )
@@ -102,8 +104,8 @@ function createRequestModal() {
 
   const descInput = new TextInputBuilder()
     .setCustomId('request_desc')
-    .setLabel('Penjelasan Ide & Manfaat Fitur')
-    .setPlaceholder('Jelaskan cara kerja fitur, perintah yang diinginkan, dan kenapa fitur ini bermanfaat...')
+    .setLabel('Deskripsi & Penjelasan Ide Fitur')
+    .setPlaceholder('Jelaskan deskripsi cara kerja fitur, fungsi perintah, dan kenapa fitur ini bermanfaat...')
     .setStyle(TextInputStyle.Paragraph)
     .setMinLength(15)
     .setMaxLength(1500)
@@ -148,13 +150,16 @@ function createRequestCard(req) {
       iconURL: req.authorAvatar || undefined,
     })
     .setTitle(`[#REQ-${req.id}] ${req.title}`)
-    .setDescription(`>>> ${req.description}`)
+    .setDescription(
+      `**Deskripsi Usulan Fitur:**\n` +
+      `>>> ${req.description || 'Tidak ada deskripsi tambahan.'}`
+    )
     .addFields(
-      { name: 'Status', value: `**${req.status}**`, inline: true },
+      { name: 'Status Usulan', value: `**${req.status}**`, inline: true },
       { name: 'Dukungan Komunitas', value: `**${votesCount} Suara**`, inline: true },
       { name: 'Pengusul', value: `<@${req.authorId}>`, inline: true }
     )
-    .setFooter({ text: 'Gunakan tombol di bawah untuk memberikan dukungan atau mengelola usulan' })
+    .setFooter({ text: 'FlyBot Request Fitur • Usulan yang ditolak otomatis dibersihkan dari channel' })
     .setTimestamp(req.createdAt ? new Date(req.createdAt) : new Date());
 
   const voteBtn = new ButtonBuilder()
@@ -457,8 +462,8 @@ async function handleFeatureRequestStatusButton(interaction) {
         .setDescription('Fitur telah selesai dibuat dan sudah aktif di bot')
         .setValue('Selesai & Dirilis'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('Ditolak')
-        .setDescription('Usulan belum dapat diimplementasikan saat ini')
+        .setLabel('Ditolak (Hapus Chat Otomatis)')
+        .setDescription('Tolak usulan dan hapus otomatis pesan serta thread agar channel bersih')
         .setValue('Ditolak')
     );
 
@@ -503,10 +508,68 @@ async function handleFeatureRequestStatusSelect(interaction) {
   }
 
   const oldStatus = reqItem.status;
+
+  // Jika usulan ditolak, otomatis bersihkan pesan kartu dan thread diskusi agar channel bebas spam
+  if (newStatus === 'Ditolak') {
+    reqItem.status = 'Ditolak';
+    reqItem.rejectedAt = Date.now();
+    reqItem.rejectedBy = interaction.user.id;
+
+    // 1. Kirim notifikasi DM pemberitahuan ke pengusul fitur jika memungkinkan
+    try {
+      const author = await interaction.client.users.fetch(reqItem.authorId).catch(() => null);
+      if (author) {
+        await author.send({
+          content:
+            `Pemberitahuan Usulan Fitur FlyBot:\n` +
+            `Usulan fitur kamu **#REQ-${reqId}: ${reqItem.title}** telah ditinjau dan dinyatakan **Ditolak** oleh administrator/developer.\n` +
+            `Pesan usulan beserta thread diskusinya di channel telah dihapus otomatis oleh sistem agar channel tetap rapi, bersih, dan bebas spam.\n` +
+            `Terima kasih atas partisipasi dan kontribusi ide yang telah kamu sampaikan!`,
+        }).catch(() => {});
+      }
+    } catch (dmErr) {}
+
+    // 2. Hapus thread diskusi terlebih dahulu jika ada
+    try {
+      if (reqItem.threadId) {
+        const thread = interaction.guild.channels.cache.get(reqItem.threadId) || (await interaction.guild.channels.fetch(reqItem.threadId).catch(() => null));
+        if (thread) {
+          await thread.delete('Usulan fitur ditolak oleh admin (pembersihan otomatis agar channel bersih)').catch(() => {});
+        }
+      }
+    } catch (threadDelErr) {
+      console.warn('[FEATURE REQUEST THREAD DELETE WARN]:', threadDelErr.message);
+    }
+
+    // 3. Hapus pesan kartu usulan di channel agar tampilan channel kembali bersih
+    try {
+      const channel = interaction.guild.channels.cache.get(reqItem.channelId) || (await interaction.guild.channels.fetch(reqItem.channelId).catch(() => null));
+      if (channel && reqItem.messageId) {
+        const msg = await channel.messages.fetch(reqItem.messageId).catch(() => null);
+        if (msg) {
+          await msg.delete().catch(() => {});
+        }
+      }
+    } catch (msgDelErr) {
+      console.warn('[FEATURE REQUEST MSG DELETE WARN]:', msgDelErr.message);
+    }
+
+    reqItem.messageId = null;
+    reqItem.threadId = null;
+    saveRequestsData(data);
+
+    return interaction.update({
+      content:
+        `Usulan fitur **#REQ-${reqId}: ${reqItem.title}** telah ditolak.\n` +
+        `Pesan kartu usulan beserta thread diskusinya telah otomatis dihapus dari channel request-fitur sehingga channel kembali bersih dan bebas dari spam.`,
+      components: [],
+    });
+  }
+
   reqItem.status = newStatus;
   saveRequestsData(data);
 
-  // Update kartu pesan asli
+  // Update kartu pesan asli untuk status selain ditolak
   try {
     const channel = interaction.guild.channels.cache.get(reqItem.channelId) || (await interaction.guild.channels.fetch(reqItem.channelId).catch(() => null));
     if (channel && reqItem.messageId) {
@@ -569,7 +632,8 @@ async function handleRawMessageInRequestChannel(message) {
   // Pisahkan baris pertama sebagai judul jika ada
   const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
   let title = lines[0].slice(0, 95);
-  let desc = lines.length > 1 ? lines.slice(1).join('\n') : content;
+  let desc = lines.length > 1 ? lines.slice(1).join('\n').trim() : content;
+  if (!desc) desc = content;
   if (title.length < 5) title = `Usulan dari ${message.author.username}`;
 
   // Hapus pesan teks asli agar channel tetap rapi
