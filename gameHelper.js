@@ -232,28 +232,36 @@ function playSlotMachine(guildId, userId, bet = 20) {
 }
 
 function getSlotGameRow(bet = 20) {
-  return new ActionRowBuilder().addComponents(
+  const row = new ActionRowBuilder();
+
+  // Tombol putar ulang dengan taruhan yang sama
+  row.addComponents(
     new ButtonBuilder()
       .setCustomId(`btn_game_slot_spin_${bet}`)
       .setLabel(`Putar Lagi (${bet} Koin)`)
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('btn_game_slot_spin_20')
-      .setLabel('Taruhan 20')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('btn_game_slot_spin_50')
-      .setLabel('Taruhan 50')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('btn_game_slot_spin_100')
-      .setLabel('Taruhan 100')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Success)
+  );
+
+  // Ambil pilihan taruhan lain tanpa menduplikasi customId
+  const otherBets = [10, 20, 50, 100].filter((b) => b !== bet).slice(0, 3);
+  for (const b of otherBets) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`btn_game_slot_spin_${b}`)
+        .setLabel(`Taruhan ${b}`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  // Tombol cek saldo koin
+  row.addComponents(
     new ButtonBuilder()
       .setCustomId('btn_game_slot_balance')
       .setLabel('Cek Saldo')
       .setStyle(ButtonStyle.Secondary)
   );
+
+  return row;
 }
 
 function getSlotChannelRow() {
