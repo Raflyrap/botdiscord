@@ -937,6 +937,100 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // === MINI GAMES: 4. GACHA SLOT KOIN ===
+    if (interaction.customId === 'btn_game_slot_balance') {
+      try {
+        const { getUserData } = require('./levelingHelper');
+        const u = getUserData(interaction.guildId, interaction.user.id);
+        const coins = u.coins || 0;
+        return await interaction.reply({
+          content: `Saldo Koin kamu saat ini: **${coins.toLocaleString('id-ID')} Koin**.\nGunakan koin ini untuk memutar mesin slot atau pasang taruhan!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (err) {
+        return await interaction.reply({ content: 'Gagal mengecek saldo koin.', flags: MessageFlags.Ephemeral });
+      }
+    }
+
+    if (interaction.customId.startsWith('btn_game_slot_spin_')) {
+      try {
+        const bet = parseInt(interaction.customId.replace('btn_game_slot_spin_', ''), 10) || 20;
+        const { playSlotMachine, getSlotGameRow } = require('./gameHelper');
+        const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
+
+        const res = playSlotMachine(interaction.guildId, interaction.user.id, bet);
+
+        if (!res.success && res.reason === 'INSUFFICIENT_COINS') {
+          return await interaction.reply({
+            content: `Saldo Koin kamu tidak cukup untuk memutar slot dengan taruhan **${bet} Koin**.\nSaldo kamu saat ini: **${res.currentCoins} Koin**.\nDapatkan koin dari \`/daily\`, aktif mengobrol, atau menang mini game lain!`,
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+
+        const [r1, r2, r3] = res.reels;
+        const isWin = res.isWin;
+        const color = res.winType === 'SUPER_JACKPOT' ? 0xFEE75C : isWin ? 0x57F287 : 0xED4245;
+
+        let resultDesc =
+          `> ┌───────────────────────────┐\n` +
+          `> │   ${r1.tag}  :  ${r2.tag}  :  ${r3.tag}   │\n` +
+          `> └───────────────────────────┘\n\n` +
+          `**Hasil:** ${res.winTitle}\n\n`;
+
+        if (isWin) {
+          resultDesc +=
+            `• Taruhan: **${res.bet} Koin**\n` +
+            `• Pengali: **${res.multiplier}x**\n` +
+            `• Kemenangan: **+${res.winnings} Koin** (Laba: **+${res.netProfit} Koin**)\n` +
+            `• Bonus XP: **+${res.xpEarned} XP**\n` +
+            `• Sisa Saldo: **${res.finalCoins.toLocaleString('id-ID')} Koin**`;
+        } else {
+          resultDesc +=
+            `• Taruhan: **${res.bet} Koin** (Hangus)\n` +
+            `• XP Partisipasi: **+${res.xpEarned} XP**\n` +
+            `• Sisa Saldo: **${res.finalCoins.toLocaleString('id-ID')} Koin**\n\n` +
+            `*Belum beruntung kali ini, coba putar lagi untuk memburu Super Jackpot!*`;
+        }
+
+        if (res.reward?.leveledUp) {
+          resultDesc += `\n\n**LEVEL UP!** Selamat naik ke **Level ${res.reward.newLevel}**!`;
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(color)
+          .setAuthor({
+            name: `${interaction.user.username}  •  Mesin Slot Gacha`,
+            iconURL: interaction.user.displayAvatarURL(),
+          })
+          .setTitle(`Mesin Slot: ${res.winTitle}`)
+          .setDescription(resultDesc)
+          .setFooter({ text: `Taruhan: ${res.bet} Koin • Putar lagi dengan tombol di bawah` })
+          .setTimestamp();
+
+        await interaction.reply({
+          embeds: [embed],
+          components: [getSlotGameRow(res.bet)],
+        });
+
+        if (res.reward) {
+          dispatchLevelUpAndAchievements(
+            interaction.guild,
+            interaction.member,
+            interaction.user,
+            interaction.channel,
+            res.reward
+          ).catch(() => {});
+        }
+        return;
+      } catch (err) {
+        console.error('Error saat tombol slot spin:', err);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: 'Gagal memproses putaran slot. Coba lagi!', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
+      }
+    }
+
     // === PROFILE & LEADERBOARD BUTTONS ===
     if (interaction.customId.startsWith('btn_profile_ach_')) {
       const targetId = interaction.customId.replace('btn_profile_ach_', '');

@@ -131,6 +131,156 @@ function getNumberGameRow() {
   );
 }
 
+// ==========================================
+// MESIN SLOT GACHA KOIN
+// ==========================================
+const SLOT_SYMBOLS = [
+  { tag: '[ 7 ]', name: 'Lucky Seven', weight: 1, multiplier: 15, xp: 100 },
+  { tag: '[BAR]', name: 'Gold Bar', weight: 2, multiplier: 10, xp: 75 },
+  { tag: '[CRN]', name: 'Crown', weight: 3, multiplier: 7, xp: 60 },
+  { tag: '[DIA]', name: 'Diamond', weight: 4, multiplier: 5, xp: 50 },
+  { tag: '[STR]', name: 'Star', weight: 5, multiplier: 4, xp: 40 },
+  { tag: '[BLS]', name: 'Bell', weight: 6, multiplier: 3, xp: 30 },
+  { tag: '[HRT]', name: 'Heart', weight: 7, multiplier: 3, xp: 30 },
+];
+
+function getRandomSlotSymbol() {
+  const totalWeight = SLOT_SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
+  let random = Math.floor(Math.random() * totalWeight);
+  for (const sym of SLOT_SYMBOLS) {
+    if (random < sym.weight) return sym;
+    random -= sym.weight;
+  }
+  return SLOT_SYMBOLS[SLOT_SYMBOLS.length - 1];
+}
+
+function playSlotMachine(guildId, userId, bet = 20) {
+  const { getUserData, removeCoins, addReward } = require('./levelingHelper');
+  const uData = getUserData(guildId, userId);
+  const currentCoins = uData.coins || 0;
+
+  if (currentCoins < bet) {
+    return {
+      success: false,
+      reason: 'INSUFFICIENT_COINS',
+      currentCoins,
+      requiredCoins: bet,
+    };
+  }
+
+  // Potong taruhan koin
+  removeCoins(guildId, userId, bet);
+
+  // Putar 3 gulungan
+  const reel1 = getRandomSlotSymbol();
+  const reel2 = getRandomSlotSymbol();
+  const reel3 = getRandomSlotSymbol();
+
+  let isWin = false;
+  let multiplier = 0;
+  let winType = 'ZONK';
+  let winTitle = 'Belum Beruntung';
+  let xpEarned = 5;
+
+  // Cek 3 simbol kembar (Jackpot)
+  if (reel1.tag === reel2.tag && reel2.tag === reel3.tag) {
+    isWin = true;
+    multiplier = reel1.multiplier;
+    xpEarned = reel1.xp;
+    if (reel1.tag === '[ 7 ]') {
+      winType = 'SUPER_JACKPOT';
+      winTitle = 'SUPER JACKPOT LUCKY SEVEN!';
+    } else if (reel1.tag === '[BAR]') {
+      winType = 'MEGA_JACKPOT';
+      winTitle = 'MEGA JACKPOT GOLD BAR!';
+    } else {
+      winType = 'JACKPOT';
+      winTitle = `JACKPOT TRIPLE ${reel1.name.toUpperCase()}!`;
+    }
+  } else if (reel1.tag === reel2.tag || reel2.tag === reel3.tag || reel1.tag === reel3.tag) {
+    // 2 simbol kembar (Pair)
+    isWin = true;
+    multiplier = 1.5;
+    winType = 'PAIR';
+    winTitle = 'MATCH DUA SIMBOL!';
+    xpEarned = 15;
+  }
+
+  const winnings = Math.floor(bet * multiplier);
+  const reward = addReward(guildId, userId, {
+    coins: winnings,
+    xp: xpEarned,
+    isWin,
+  });
+
+  const finalUserData = reward.userData;
+
+  return {
+    success: true,
+    reels: [reel1, reel2, reel3],
+    bet,
+    winnings,
+    netProfit: winnings - bet,
+    multiplier,
+    isWin,
+    winType,
+    winTitle,
+    xpEarned,
+    reward,
+    finalCoins: finalUserData.coins,
+  };
+}
+
+function getSlotGameRow(bet = 20) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`btn_game_slot_spin_${bet}`)
+      .setLabel(`Putar Lagi (${bet} Koin)`)
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_20')
+      .setLabel('Taruhan 20')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_50')
+      .setLabel('Taruhan 50')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_100')
+      .setLabel('Taruhan 100')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_balance')
+      .setLabel('Cek Saldo')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function getSlotChannelRow() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_10')
+      .setLabel('Putar 10 Koin')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_20')
+      .setLabel('Putar 20 Koin')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_50')
+      .setLabel('Putar 50 Koin')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_spin_100')
+      .setLabel('Putar 100 Koin')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('btn_game_slot_balance')
+      .setLabel('Cek Saldo Koin')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 // Auto-setup kategori dan 3 channel mini game
 async function setupMiniGames(guild) {
   const cfg = getGameConfig(guild.id) || {};
@@ -300,12 +450,60 @@ async function setupMiniGames(guild) {
     }
   }
 
+  // 5. Channel 4: Gacha Slot Mesin (Tanpa Emoji)
+  const slotEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({ name: 'FlyBot  •  Gacha Slot Mesin', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Mesin Slot Gacha')
+    .setDescription(
+      `Selamat datang di Arena Mesin Slot Gacha.\n` +
+      `Gunakan saldo koin hasil chat, klaim /daily, dan kemenangan mini game untuk memutar mesin slot dan menangkan jackpot hingga 15x lipat!\n\n` +
+      `**Tabel Pembayaran Slot:**\n` +
+      `• 3x [ 7 ]  --  Super Jackpot 15x Taruhan (+100 XP)\n` +
+      `• 3x [BAR]  --  Mega Jackpot 10x Taruhan (+75 XP)\n` +
+      `• 3x [CRN]  --  Crown Jackpot 7x Taruhan (+60 XP)\n` +
+      `• 3x [DIA]  --  Diamond Win 5x Taruhan (+50 XP)\n` +
+      `• 3x [STR]  --  Star Win 4x Taruhan (+40 XP)\n` +
+      `• 3x [BLS] / [HRT]  --  Triple Match 3x Taruhan (+30 XP)\n` +
+      `• 2 Simbol Kembar  --  Match Dua 1.5x Taruhan (+15 XP)\n` +
+      `• Tidak Cocok  --  Zonk (+5 XP Partisipasi)\n\n` +
+      `Klik salah satu tombol taruhan di bawah atau ketik /slot untuk langsung memutar mesin slot!`
+    )
+    .addFields(
+      { name: 'Taruhan Cepat', value: '10  |  20  |  50  |  100 Koin', inline: true },
+      { name: 'Peluang Jackpot', value: 'Hingga 15x Lipat', inline: true },
+      { name: 'Koin Berguna', value: 'Taruhan & Gacha', inline: true },
+    )
+    .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk memutar slot' })
+    .setTimestamp();
+
+  let slotChannel = cfg.slotChannelId ? guild.channels.cache.get(cfg.slotChannelId) : null;
+  if (!slotChannel) {
+    slotChannel = await guild.channels.create({
+      name: 'gacha-slot',
+      type: ChannelType.GuildText,
+      parent: category.id,
+      permissionOverwrites: channelOverwrites,
+      reason: 'Mini Game - Gacha Slot',
+    });
+
+    const sentSlot = await slotChannel.send({ embeds: [slotEmbed], components: [getSlotChannelRow()] });
+    await sentSlot.pin().catch(() => {});
+  } else {
+    const pins = await (slotChannel.messages.fetchPins ? slotChannel.messages.fetchPins() : slotChannel.messages.fetchPinned()).catch(() => null);
+    if (!pins || pins.size === 0) {
+      const sentSlot = await slotChannel.send({ embeds: [slotEmbed], components: [getSlotChannelRow()] });
+      await sentSlot.pin().catch(() => {});
+    }
+  }
+
   // Simpan konfigurasi
   setGameConfig(guild.id, {
     categoryId: category.id,
     coinChannelId: coinChannel.id,
     numberChannelId: numberChannel.id,
     rpsChannelId: rpsChannel.id,
+    slotChannelId: slotChannel.id,
     enabled: true,
   });
 
@@ -314,6 +512,7 @@ async function setupMiniGames(guild) {
     coinChannel,
     numberChannel,
     rpsChannel,
+    slotChannel,
   };
 }
 
@@ -322,7 +521,7 @@ async function removeMiniGames(guild) {
   const cfg = getGameConfig(guild.id);
   if (!cfg) return false;
 
-  const channelIds = [cfg.coinChannelId, cfg.numberChannelId, cfg.rpsChannelId];
+  const channelIds = [cfg.coinChannelId, cfg.numberChannelId, cfg.rpsChannelId, cfg.slotChannelId];
   for (const id of channelIds) {
     if (id) {
       const ch = guild.channels.cache.get(id) || await guild.channels.fetch(id).catch(() => null);
@@ -340,6 +539,7 @@ async function removeMiniGames(guild) {
     coinChannelId: null,
     numberChannelId: null,
     rpsChannelId: null,
+    slotChannelId: null,
     enabled: false,
   });
 
@@ -359,4 +559,7 @@ module.exports = {
   getCoinGameRow,
   getRpsGameRow,
   getNumberGameRow,
+  playSlotMachine,
+  getSlotGameRow,
+  getSlotChannelRow,
 };

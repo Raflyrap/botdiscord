@@ -1205,6 +1205,13 @@ async function setupMiniGamesTemplate(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  const slotChannel = await getOrCreateChannel(guild, {
+    name: '🎰︱gacha-slot',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
   // Helper untuk memastikan pesan panel & tombol game aktif selalu tersedia
   async function ensurePanel(channel, embed, row) {
     try {
@@ -1295,15 +1302,46 @@ async function setupMiniGamesTemplate(guild, roles) {
 
   await ensurePanel(rpsChannel, rpsEmbed, getRpsGameRow());
 
+  // 4. Panel & Tombol Gacha Slot Mesin
+  const { getSlotChannelRow } = require('./gameHelper');
+  const slotEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Mesin Slot Gacha')
+    .setDescription(
+      `Selamat datang di Arena Mesin Slot Gacha.\n` +
+      `Gunakan saldo koin hasil chat, klaim /daily, dan kemenangan mini game untuk memutar mesin slot dan menangkan jackpot hingga 15x lipat!\n\n` +
+      `**Tabel Pembayaran Slot:**\n` +
+      `• 3x [ 7 ]  --  Super Jackpot 15x Taruhan (+100 XP)\n` +
+      `• 3x [BAR]  --  Mega Jackpot 10x Taruhan (+75 XP)\n` +
+      `• 3x [CRN]  --  Crown Jackpot 7x Taruhan (+60 XP)\n` +
+      `• 3x [DIA]  --  Diamond Win 5x Taruhan (+50 XP)\n` +
+      `• 3x [STR]  --  Star Win 4x Taruhan (+40 XP)\n` +
+      `• 3x [BLS] / [HRT]  --  Triple Match 3x Taruhan (+30 XP)\n` +
+      `• 2 Simbol Kembar  --  Match Dua 1.5x Taruhan (+15 XP)\n` +
+      `• Tidak Cocok  --  Zonk (+5 XP Partisipasi)\n\n` +
+      `Klik salah satu tombol taruhan di bawah atau ketik /slot untuk langsung memutar mesin slot!`
+    )
+    .addFields(
+      { name: 'Taruhan Cepat', value: '10  |  20  |  50  |  100 Koin', inline: true },
+      { name: 'Peluang Jackpot', value: 'Hingga 15x Lipat', inline: true },
+      { name: 'Koin Berguna', value: 'Taruhan & Gacha', inline: true }
+    )
+    .setFooter({ text: 'Klik tombol di bawah untuk memutar slot!' })
+    .setTimestamp();
+
+  await ensurePanel(slotChannel, slotEmbed, getSlotChannelRow());
+
   setGameConfig(guild.id, {
     categoryId: category.id,
     coinChannelId: coinChannel.id,
     numberChannelId: numberChannel.id,
     rpsChannelId: rpsChannel.id,
+    slotChannelId: slotChannel.id,
     enabled: true,
   });
 
-  return { category, coinChannel, numberChannel, rpsChannel };
+  return { category, coinChannel, numberChannel, rpsChannel, slotChannel };
 }
 
 /**
