@@ -940,28 +940,124 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // === PROFILE & LEADERBOARD BUTTONS ===
     if (interaction.customId.startsWith('btn_profile_ach_')) {
       const targetId = interaction.customId.replace('btn_profile_ach_', '');
-      const lvl = require('./levelingHelper');
-      const uData = lvl.getUserData(interaction.guildId, targetId);
       const targetUser = await interaction.client.users.fetch(targetId).catch(() => interaction.user);
 
+      const lvl = require('./levelingHelper');
+      const uData = lvl.getUserData(interaction.guildId, targetId);
       const owned = uData.achievements || [];
-      const lines = lvl.ACHIEVEMENTS.map((ach) => {
+      const allAchs = lvl.ACHIEVEMENTS;
+
+      const pageSize = 10;
+      const totalPages = Math.ceil(allAchs.length / pageSize) || 1;
+      const currentPage = 1;
+      const startIndex = 0;
+      const pageAchs = allAchs.slice(startIndex, startIndex + pageSize);
+
+      const lines = pageAchs.map((ach) => {
         const isOwned = owned.includes(ach.id);
         const status = isOwned ? '[TERBUKA]' : '[TERKUNCI]';
         return `> **${ach.tag || '[ACH]'} ${ach.name}**  --  ${status}\n> *${ach.desc}*`;
       });
 
+      const percent = Math.round((owned.length / allAchs.length) * 100);
+
       const achListEmbed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle(`Daftar Prestasi  •  ${targetUser.username}`)
         .setDescription(
-          `Total Terbuka: **${owned.length} / ${lvl.ACHIEVEMENTS.length}**\n\n` +
+          `Total Terbuka: **${owned.length} / ${allAchs.length}** (${percent}%)\n` +
+          `Menampilkan Prestasi **#${startIndex + 1} - #${startIndex + pageAchs.length}**\n\n` +
           lines.join('\n\n')
         )
-        .setFooter({ text: 'Raih lebih banyak prestasi dengan aktif chat, bermain game, dan klaim harian.' })
+        .setFooter({ text: `Halaman ${currentPage} dari ${totalPages} • Total ${allAchs.length} Prestasi` })
         .setTimestamp();
 
-      return interaction.reply({ embeds: [achListEmbed], flags: MessageFlags.Ephemeral });
+      const navRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_1`)
+          .setLabel('Awal')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_1`)
+          .setLabel('Sebelumnya')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(true),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_2`)
+          .setLabel('Berikutnya')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(totalPages <= 1),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_${totalPages}`)
+          .setLabel('Akhir')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(totalPages <= 1)
+      );
+
+      return interaction.reply({ embeds: [achListEmbed], components: [navRow], flags: MessageFlags.Ephemeral });
+    }
+
+    if (interaction.customId.startsWith('btn_ach_page_')) {
+      const parts = interaction.customId.split('_');
+      const targetId = parts[3];
+      const reqPage = parseInt(parts[4], 10) || 1;
+      const targetUser = await interaction.client.users.fetch(targetId).catch(() => interaction.user);
+
+      const lvl = require('./levelingHelper');
+      const uData = lvl.getUserData(interaction.guildId, targetId);
+      const owned = uData.achievements || [];
+      const allAchs = lvl.ACHIEVEMENTS;
+
+      const pageSize = 10;
+      const totalPages = Math.ceil(allAchs.length / pageSize) || 1;
+      const currentPage = Math.max(1, Math.min(reqPage, totalPages));
+      const startIndex = (currentPage - 1) * pageSize;
+      const pageAchs = allAchs.slice(startIndex, startIndex + pageSize);
+
+      const lines = pageAchs.map((ach) => {
+        const isOwned = owned.includes(ach.id);
+        const status = isOwned ? '[TERBUKA]' : '[TERKUNCI]';
+        return `> **${ach.tag || '[ACH]'} ${ach.name}**  --  ${status}\n> *${ach.desc}*`;
+      });
+
+      const percent = Math.round((owned.length / allAchs.length) * 100);
+
+      const achListEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`Daftar Prestasi  •  ${targetUser.username}`)
+        .setDescription(
+          `Total Terbuka: **${owned.length} / ${allAchs.length}** (${percent}%)\n` +
+          `Menampilkan Prestasi **#${startIndex + 1} - #${startIndex + pageAchs.length}**\n\n` +
+          lines.join('\n\n')
+        )
+        .setFooter({ text: `Halaman ${currentPage} dari ${totalPages} • Total ${allAchs.length} Prestasi` })
+        .setTimestamp();
+
+      const navRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_1`)
+          .setLabel('Awal')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(currentPage === 1),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_${currentPage - 1}`)
+          .setLabel('Sebelumnya')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(currentPage === 1),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_${currentPage + 1}`)
+          .setLabel('Berikutnya')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(currentPage === totalPages),
+        new ButtonBuilder()
+          .setCustomId(`btn_ach_page_${targetId}_${totalPages}`)
+          .setLabel('Akhir')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(currentPage === totalPages)
+      );
+
+      return interaction.update({ embeds: [achListEmbed], components: [navRow] });
     }
 
     if (interaction.customId === 'btn_profile_lb') {
