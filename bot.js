@@ -973,7 +973,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         let resultDesc =
           `> ┌───────────────────────────┐\n` +
-          `> │   ${r1.tag}  :  ${r2.tag}  :  ${r3.tag}   │\n` +
+          `> │      ${r1.tag}  |  ${r2.tag}  |  ${r3.tag}      │\n` +
           `> └───────────────────────────┘\n\n` +
           `**Hasil:** ${res.winTitle}\n\n`;
 
@@ -989,7 +989,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             `• Taruhan: **${res.bet} Koin** (Hangus)\n` +
             `• XP Partisipasi: **+${res.xpEarned} XP**\n` +
             `• Sisa Saldo: **${res.finalCoins.toLocaleString('id-ID')} Koin**\n\n` +
-            `*Belum beruntung kali ini, coba putar lagi untuk memburu Super Jackpot!*`;
+            `*Belum beruntung kali ini, coba putar lagi untuk memburu JACKPOT 777!*`;
         }
 
         if (res.reward?.leveledUp) {
@@ -999,7 +999,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor(color)
           .setAuthor({
-            name: `${interaction.user.username}  •  Mesin Slot Gacha`,
+            name: `${interaction.user.username}  •  Mesin Slot Buah 777`,
             iconURL: interaction.user.displayAvatarURL(),
           })
           .setTitle(`Mesin Slot: ${res.winTitle}`)

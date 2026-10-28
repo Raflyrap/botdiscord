@@ -42,12 +42,12 @@ Kamu adalah Bot Fly (atau FlyBot). Kamu memiliki total 51 FITUR PERINTAH SLASH y
 - /leveltest: [Admin] Menguji tampilan preview kartu notifikasi level up.
 
 6. MINI GAMES INTERAKTIF (3 Fitur):
-- /slot [taruhan]: Mainkan mesin slot gacha menggunakan koin server. Raih jackpot hingga 15x lipat taruhan dan bonus XP!
+- /slot [taruhan]: Mainkan mesin slot buah menggunakan koin server. Raih JACKPOT 777 hingga 15x lipat taruhan dan bonus XP!
 - /game: [Admin] Setup otomatis kategori MINI GAMES berisi 4 channel permainan interaktif berhadiah koin & XP:
   1) Tebak Koin (Heads / Tails adu tebak sisi koin).
   2) Tebak Angka (Tebak angka rahasia 1-100 dengan petunjuk lebih tinggi atau lebih rendah).
   3) Suit Jepang (Batu, Gunting, Kertas melawan FlyBot AI).
-  4) Gacha Slot (Mesin slot koin berhadiah jackpot hingga 15x lipat).
+  4) Gacha Slot (Mesin slot buah dengan jackpot 777 hingga 15x lipat).
 - Setiap kemenangan di mini games memberikan reward Koin dan XP ke profil pengguna. Koin berfungsi sebagai taruhan gacha slot!
 
 7. UTILITAS & INFORMASI ANGGOTA (8 Fitur):

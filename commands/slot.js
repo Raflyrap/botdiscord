@@ -9,7 +9,7 @@ const { dispatchLevelUpAndAchievements } = require('../levelEmbeds');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('slot')
-    .setDescription('Mainkan mesin slot gacha menggunakan koin server dan raih jackpot hingga 15x lipat')
+    .setDescription('Mainkan mesin slot buah menggunakan koin server dan raih JACKPOT 777 hingga 15x lipat')
     .addIntegerOption((opt) =>
       opt
         .setName('taruhan')
@@ -35,7 +35,7 @@ module.exports = {
           `2. Aktif mengobrol di channel server.\n` +
           `3. Menangkan mini game Tebak Koin, Tebak Angka, atau Suit Jepang.`
         )
-        .setFooter({ text: 'FlyBot Mini Games • Gacha Slot' })
+        .setFooter({ text: 'FlyBot Mini Games • Slot Buah 777' })
         .setTimestamp();
 
       return interaction.reply({ embeds: [errEmbed], flags: MessageFlags.Ephemeral });
@@ -47,7 +47,7 @@ module.exports = {
 
     let resultDesc =
       `> ┌───────────────────────────┐\n` +
-      `> │   ${r1.tag}  :  ${r2.tag}  :  ${r3.tag}   │\n` +
+      `> │      ${r1.tag}  |  ${r2.tag}  |  ${r3.tag}      │\n` +
       `> └───────────────────────────┘\n\n` +
       `**Hasil:** ${res.winTitle}\n\n`;
 
@@ -57,13 +57,13 @@ module.exports = {
         `• Pengali Hadiah: **${res.multiplier}x**\n` +
         `• Kemenangan: **+${res.winnings} Koin** (Laba: **+${res.netProfit} Koin**)\n` +
         `• Bonus XP: **+${res.xpEarned} XP**\n` +
-        `• Sisa Saldo: **${res.finalCoins} Koin**`;
+        `• Sisa Saldo: **${res.finalCoins.toLocaleString('id-ID')} Koin**`;
     } else {
       resultDesc +=
         `• Taruhan: **${res.bet} Koin** (Hangus)\n` +
         `• XP Partisipasi: **+${res.xpEarned} XP**\n` +
-        `• Sisa Saldo: **${res.finalCoins} Koin**\n\n` +
-        `*Belum beruntung kali ini, coba putar lagi untuk memburu Super Jackpot!*`;
+        `• Sisa Saldo: **${res.finalCoins.toLocaleString('id-ID')} Koin**\n\n` +
+        `*Belum beruntung kali ini, coba putar lagi untuk memburu JACKPOT 777!*`;
     }
 
     if (res.reward?.leveledUp) {
@@ -73,7 +73,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(color)
       .setAuthor({
-        name: `${interaction.user.username}  •  Mesin Slot Gacha`,
+        name: `${interaction.user.username}  •  Mesin Slot Buah 777`,
         iconURL: interaction.user.displayAvatarURL(),
       })
       .setTitle(`Mesin Slot: ${res.winTitle}`)

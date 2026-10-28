@@ -132,16 +132,16 @@ function getNumberGameRow() {
 }
 
 // ==========================================
-// MESIN SLOT GACHA KOIN
+// MESIN SLOT GACHA KOIN (BUAH-BUAHAN & 777)
 // ==========================================
 const SLOT_SYMBOLS = [
-  { tag: '[ 7 ]', name: 'Lucky Seven', weight: 1, multiplier: 15, xp: 100 },
-  { tag: '[BAR]', name: 'Gold Bar', weight: 2, multiplier: 10, xp: 75 },
-  { tag: '[CRN]', name: 'Crown', weight: 3, multiplier: 7, xp: 60 },
-  { tag: '[DIA]', name: 'Diamond', weight: 4, multiplier: 5, xp: 50 },
-  { tag: '[STR]', name: 'Star', weight: 5, multiplier: 4, xp: 40 },
-  { tag: '[BLS]', name: 'Bell', weight: 6, multiplier: 3, xp: 30 },
-  { tag: '[HRT]', name: 'Heart', weight: 7, multiplier: 3, xp: 30 },
+  { tag: '7️⃣', name: '777', weight: 1, multiplier: 15, xp: 100 },
+  { tag: '🍒', name: 'Ceri', weight: 2, multiplier: 10, xp: 75 },
+  { tag: '🍇', name: 'Anggur', weight: 3, multiplier: 7, xp: 60 },
+  { tag: '🍉', name: 'Semangka', weight: 4, multiplier: 5, xp: 50 },
+  { tag: '🍊', name: 'Jeruk', weight: 5, multiplier: 4, xp: 40 },
+  { tag: '🍋', name: 'Lemon', weight: 6, multiplier: 3, xp: 30 },
+  { tag: '🍓', name: 'Stroberi', weight: 7, multiplier: 3, xp: 30 },
 ];
 
 function getRandomSlotSymbol() {
@@ -187,12 +187,12 @@ function playSlotMachine(guildId, userId, bet = 20) {
     isWin = true;
     multiplier = reel1.multiplier;
     xpEarned = reel1.xp;
-    if (reel1.tag === '[ 7 ]') {
+    if (reel1.tag === '7️⃣') {
       winType = 'SUPER_JACKPOT';
-      winTitle = 'SUPER JACKPOT LUCKY SEVEN!';
-    } else if (reel1.tag === '[BAR]') {
+      winTitle = 'JACKPOT 777 SUPER LUCKY!';
+    } else if (reel1.tag === '🍒') {
       winType = 'MEGA_JACKPOT';
-      winTitle = 'MEGA JACKPOT GOLD BAR!';
+      winTitle = 'MEGA WIN TRIPLE CERI!';
     } else {
       winType = 'JACKPOT';
       winTitle = `JACKPOT TRIPLE ${reel1.name.toUpperCase()}!`;
@@ -202,7 +202,7 @@ function playSlotMachine(guildId, userId, bet = 20) {
     isWin = true;
     multiplier = 1.5;
     winType = 'PAIR';
-    winTitle = 'MATCH DUA SIMBOL!';
+    winTitle = 'MATCH DUA BUAH KEMBAR!';
     xpEarned = 15;
   }
 
@@ -450,28 +450,28 @@ async function setupMiniGames(guild) {
     }
   }
 
-  // 5. Channel 4: Gacha Slot Mesin (Tanpa Emoji)
+  // 5. Channel 4: Gacha Slot Mesin Buah 777
   const slotEmbed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setAuthor({ name: 'FlyBot  •  Gacha Slot Mesin', iconURL: guild.client.user.displayAvatarURL() })
-    .setTitle('Arena Mesin Slot Gacha')
+    .setAuthor({ name: 'FlyBot  •  Gacha Slot Buah 777', iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle('Arena Mesin Slot Buah 777')
     .setDescription(
-      `Selamat datang di Arena Mesin Slot Gacha.\n` +
-      `Gunakan saldo koin hasil chat, klaim /daily, dan kemenangan mini game untuk memutar mesin slot dan menangkan jackpot hingga 15x lipat!\n\n` +
-      `**Tabel Pembayaran Slot:**\n` +
-      `• 3x [ 7 ]  --  Super Jackpot 15x Taruhan (+100 XP)\n` +
-      `• 3x [BAR]  --  Mega Jackpot 10x Taruhan (+75 XP)\n` +
-      `• 3x [CRN]  --  Crown Jackpot 7x Taruhan (+60 XP)\n` +
-      `• 3x [DIA]  --  Diamond Win 5x Taruhan (+50 XP)\n` +
-      `• 3x [STR]  --  Star Win 4x Taruhan (+40 XP)\n` +
-      `• 3x [BLS] / [HRT]  --  Triple Match 3x Taruhan (+30 XP)\n` +
-      `• 2 Simbol Kembar  --  Match Dua 1.5x Taruhan (+15 XP)\n` +
+      `Selamat datang di Arena Mesin Slot Buah.\n` +
+      `Gunakan saldo koin hasil chat, klaim /daily, dan kemenangan mini game untuk memutar mesin slot buah dan raih JACKPOT 777 hingga 15x lipat!\n\n` +
+      `**Tabel Pembayaran Slot Buah:**\n` +
+      `• 3x 7️⃣  --  JACKPOT 777 15x Taruhan (+100 XP)\n` +
+      `• 3x 🍒  --  Triple Ceri 10x Taruhan (+75 XP)\n` +
+      `• 3x 🍇  --  Triple Anggur 7x Taruhan (+60 XP)\n` +
+      `• 3x 🍉  --  Triple Semangka 5x Taruhan (+50 XP)\n` +
+      `• 3x 🍊  --  Triple Jeruk 4x Taruhan (+40 XP)\n` +
+      `• 3x 🍋 / 🍓  --  Triple Lemon/Stroberi 3x Taruhan (+30 XP)\n` +
+      `• 2 Buah Kembar  --  Match Dua Buah 1.5x Taruhan (+15 XP)\n` +
       `• Tidak Cocok  --  Zonk (+5 XP Partisipasi)\n\n` +
       `Klik salah satu tombol taruhan di bawah atau ketik /slot untuk langsung memutar mesin slot!`
     )
     .addFields(
       { name: 'Taruhan Cepat', value: '10  |  20  |  50  |  100 Koin', inline: true },
-      { name: 'Peluang Jackpot', value: 'Hingga 15x Lipat', inline: true },
+      { name: 'Jackpot Utama', value: '777 (15x Lipat)', inline: true },
       { name: 'Koin Berguna', value: 'Taruhan & Gacha', inline: true },
     )
     .setFooter({ text: 'Pesan disematkan permanen • Klik tombol di bawah untuk memutar slot' })

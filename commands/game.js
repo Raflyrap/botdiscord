@@ -58,7 +58,7 @@ module.exports = {
             `• <#${result.coinChannel.id}> — Tebak Koin (Gambar / Angka)\n` +
             `• <#${result.numberChannel.id}> — Tebak Angka (1 - 100)\n` +
             `• <#${result.rpsChannel.id}> — Suit (Gunting Batu Kertas)\n` +
-            `• <#${result.slotChannel.id}> — Mesin Slot Gacha Koin\n\n` +
+            `• <#${result.slotChannel.id}> — Mesin Slot Buah 777 (Gacha Koin)\n\n` +
             `Setiap channel telah dilengkapi panduan bermain yang disematkan permanen dan tombol interaktif.`
           )
           .setFooter({ text: 'Ketik /game aksi:Hapus jika ingin menghapus arena game' })
