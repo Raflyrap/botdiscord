@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, MessageFlags, PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { formatDuration, searchTrackWithFallback } = require('../lavalinkHelper');
+const { getTemplateConfig } = require('../templateSetupHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,6 +19,17 @@ module.exports = {
         content: 'Perintah ini hanya dapat dijalankan di dalam server.',
         flags: MessageFlags.Ephemeral,
       });
+    }
+
+    // Khusus server yang menggunakan template All-in-One, wajib memutar musik di channel play-music
+    const templateCfg = getTemplateConfig(interaction.guild.id);
+    if (templateCfg?.allInOneConfigured && templateCfg?.channels?.playMusicId) {
+      if (interaction.channelId !== templateCfg.channels.playMusicId) {
+        return interaction.reply({
+          content: `Perintah memutar musik hanya dapat digunakan di channel <#${templateCfg.channels.playMusicId}>.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
 
     // Ambil GuildMember dari cache atau fetch dari server

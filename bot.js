@@ -195,6 +195,7 @@ client.once(Events.ClientReady, async (readyClient) => {
               c.name.toLowerCase().includes('entertainment') ||
               c.name.toLowerCase().includes('mini games') ||
               c.name.toLowerCase().includes('community') ||
+              c.name.toLowerCase().includes('music') ||
               c.name.toLowerCase().includes('sosmed') ||
               c.name.toLowerCase().includes('converter')
             )

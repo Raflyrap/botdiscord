@@ -5,6 +5,7 @@ const {
   setupNotify,
   setupCommunity,
   setupCinematography,
+  setupMusic,
   setupEntertainment,
   setupSosmedConverter,
   setupMiniGamesTemplate,
@@ -54,6 +55,11 @@ async function setupCinematographyCategory(guild) {
   return await setupCinematography(guild, roles);
 }
 
+async function setupMusicCategory(guild) {
+  const roles = await getStandardRoles(guild);
+  return await setupMusic(guild, roles);
+}
+
 async function setupEntertainmentCategory(guild) {
   const roles = await getStandardRoles(guild);
   return await setupEntertainment(guild, roles);
@@ -89,6 +95,7 @@ module.exports = {
   setupNotifyCategory,
   setupCommunityCategory,
   setupCinematographyCategory,
+  setupMusicCategory,
   setupEntertainmentCategory,
   setupSosmedConverterCategory,
   setupMiniGamesCategory,

@@ -601,28 +601,14 @@ async function setupCommunity(guild, roles) {
   });
 
   const ngobrol = await getOrCreateChannel(guild, {
-    name: '💭︱ngobrol',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: standardOverwrites,
-  });
-
-  const media = await getOrCreateChannel(guild, {
-    name: '📷︱media',
+    name: 'ngobrol',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: standardOverwrites,
   });
 
   const stalk = await getOrCreateChannel(guild, {
-    name: '🔍︱stalk',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: standardOverwrites,
-  });
-
-  const report = await getOrCreateChannel(guild, {
-    name: '🚨︱report',
+    name: 'stalk',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: standardOverwrites,
@@ -633,7 +619,7 @@ async function setupCommunity(guild, roles) {
   if (!stalkMsgs || stalkMsgs.size === 0) {
     const stalkEmbed = new EmbedBuilder()
       .setColor(0x5865f2)
-      .setTitle('🔍 Arena Khusus Stalk Profil Akun')
+      .setTitle('Arena Khusus Stalk Profil Akun')
       .setDescription(
         'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
         '**Platform yang Didukung:**\n' +
@@ -650,9 +636,7 @@ async function setupCommunity(guild, roles) {
   return {
     category,
     ngobrol,
-    media,
     stalk,
-    report,
   };
 }
 
@@ -747,8 +731,100 @@ async function setupCinematography(guild, roles) {
 }
 
 /**
- * Setup 6: Entertainment
- * Meme, Fanart, AI Fanart, AI Generating, AI Prompt, Showcase Gaming Setup, Playlist Music (Forum)
+ * Setup 6: Music
+ * Kategori Music: play-music, sharelink-music
+ */
+async function setupMusic(guild, roles) {
+  const memberOverwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel],
+    },
+    {
+      id: roles.member.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.EmbedLinks,
+      ],
+    },
+    {
+      id: guild.client.user.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.ManageMessages,
+      ],
+    },
+  ];
+
+  const category = await getOrCreateChannel(guild, {
+    name: '───────Music───────',
+    type: ChannelType.GuildCategory,
+    position: 5,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const playMusic = await getOrCreateChannel(guild, {
+    name: 'play-music',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const sharelinkMusic = await getOrCreateChannel(guild, {
+    name: 'sharelink-music',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  // Kirim panduan di play-music jika channel masih kosong
+  const playMsgs = await playMusic.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!playMsgs || playMsgs.size === 0) {
+    const playEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Arena Pemutar Musik')
+      .setDescription(
+        `Selamat datang di channel resmi pemutar musik **${guild.name}**!\n\n` +
+        `**Aturan Memutar Musik:**\n` +
+        `• Di server ini, seluruh perintah memutar lagu (\`/play\`) **wajib** dijalankan di channel ini.\n` +
+        `• Pastikan kamu sudah bergabung ke salah satu Voice Channel sebelum memutar lagu.\n` +
+        `• Gunakan perintah \`/play <judul lagu / link>\` untuk mulai mendengarkan.\n` +
+        `• Untuk berbagi playlist atau rekomendasi lagu ke teman-teman, gunakan channel <#${sharelinkMusic.id}>.`
+      )
+      .setFooter({ text: 'FlyBot HD Audio Engine' })
+      .setTimestamp();
+    await playMusic.send({ embeds: [playEmbed] }).catch(() => {});
+  }
+
+  // Kirim panduan di sharelink-music jika channel masih kosong
+  const shareMsgs = await sharelinkMusic.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!shareMsgs || shareMsgs.size === 0) {
+    const shareEmbed = new EmbedBuilder()
+      .setColor(0x1DB954)
+      .setTitle('Berbagi Link Musik & Rekomendasi Lagu')
+      .setDescription(
+        `Ruang khusus berbagi link lagu, album, dan playlist favorit sesama anggota **${guild.name}**!\n\n` +
+        `• Bagikan link Spotify, YouTube Music, SoundCloud, atau Apple Music kamu di sini.\n` +
+        `• Temukan musik baru dari rekomendasi teman-teman satu server.\n` +
+        `• Untuk langsung memutar lagu ke Voice Channel, gunakan channel <#${playMusic.id}>.`
+      )
+      .setFooter({ text: 'FlyBot Music Community' })
+      .setTimestamp();
+    await sharelinkMusic.send({ embeds: [shareEmbed] }).catch(() => {});
+  }
+
+  return { category, playMusic, sharelinkMusic };
+}
+
+/**
+ * Setup 7: Entertainment
+ * AI Fanart, AI Generating, AI Prompt
  */
 async function setupEntertainment(guild, roles) {
   const memberOverwrites = [
@@ -780,48 +856,27 @@ async function setupEntertainment(guild, roles) {
   const category = await getOrCreateChannel(guild, {
     name: '───────Entertainment───────',
     type: ChannelType.GuildCategory,
-    position: 5,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const meme = await getOrCreateChannel(guild, {
-    name: '🗿︱meme',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const fanart = await getOrCreateChannel(guild, {
-    name: '🎨︱fanart',
-    type: ChannelType.GuildText,
-    parentId: category.id,
+    position: 6,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiFanart = await getOrCreateChannel(guild, {
-    name: '💻︱ai-fanart',
+    name: 'ai-fanart',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiGenerating = await getOrCreateChannel(guild, {
-    name: '💻︱ai-generating',
+    name: 'ai-generating',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiPrompt = await getOrCreateChannel(guild, {
-    name: '💻︱ai-prompt',
+    name: 'ai-prompt',
     type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const playlistMusic = await getOrCreateChannel(guild, {
-    name: '🎵︱playlist-music',
-    type: ChannelType.GuildForum,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
@@ -878,46 +933,7 @@ async function setupEntertainment(guild, roles) {
     await aiPrompt.send({ embeds: [aiPromptEmbed] }).catch(() => {});
   }
 
-  // Sambutan di forum playlist-music
-  if (playlistMusic.type === ChannelType.GuildForum) {
-    const activeThreads = await playlistMusic.threads.fetchActive().catch(() => null);
-    if (!activeThreads || activeThreads.threads.size === 0) {
-      await playlistMusic.threads.create({
-        name: '🎧 Rekomendasi & Diskusi Playlist Musik',
-        message: {
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x5865f2)
-              .setTitle('🎵 Forum Playlist Musik Komunitas')
-              .setDescription(
-                `Selamat datang di Forum Musik **${guild.name}**!\n\n` +
-                `Di sini kamu bisa membuat thread/postingan baru untuk:\n` +
-                `• Berbagi link playlist Spotify, YouTube, Soundcloud, dsb\n` +
-                `• Rekomendasi lagu favorit berdasarkan genre atau mood\n` +
-                `• Diskusi rilisan album baru, musisi, dan instrumen\n\n` +
-                `Klik **New Post** di atas untuk mulai membuat thread playlist kamu!`
-              )
-              .setTimestamp(),
-          ],
-        },
-      }).catch(() => {});
-    }
-  } else {
-    const musicMsgs = await playlistMusic.messages.fetch({ limit: 5 }).catch(() => null);
-    if (!musicMsgs || musicMsgs.size === 0) {
-      const musicEmbed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setTitle('🎵 Playlist Musik Komunitas')
-        .setDescription(
-          `Selamat datang di channel musik **${guild.name}**!\n` +
-          `Bagikan playlist Spotify, YouTube, atau rekomendasi lagu favorit kamu di sini!`
-        )
-        .setTimestamp();
-      await playlistMusic.send({ embeds: [musicEmbed] }).catch(() => {});
-    }
-  }
-
-  return { category, meme, fanart, aiFanart, aiGenerating, aiPrompt, playlistMusic };
+  return { category, aiFanart, aiGenerating, aiPrompt };
 }
 
 /**
@@ -1298,14 +1314,28 @@ async function setupVoiceLounges(guild, roles) {
  */
 async function setupFullTemplate(guild) {
   // 0. Auto-cleanup channel usang / tidak terpakai jika ada di server
-  const obsoleteKeywords = ['showcase-gaming', 'gaming-setup', 'ngobrol-2', 'newcomer-chat', 'social-media'];
   const allChannels = await guild.channels.fetch().catch(() => guild.channels.cache);
   if (allChannels) {
     for (const [, ch] of allChannels) {
       if (!ch || ch.type === ChannelType.GuildCategory) continue;
-      const cleanName = ch.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const shouldDelete = obsoleteKeywords.some((kw) => cleanName.includes(kw.replace(/[^a-z0-9]/g, '')));
-      if (shouldDelete) {
+      const clean = ch.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // Lindungi channel penting agar tidak terhapus
+      if (clean.includes('aifanart') || clean.includes('fotografi') || clean.includes('videografi') || clean.includes('converter')) {
+        continue;
+      }
+      const isObsolete =
+        clean === 'report' || clean.endsWith('report') ||
+        clean === 'media' || clean.endsWith('media') ||
+        clean === 'meme' || clean.endsWith('meme') ||
+        clean === 'fanart' || clean.endsWith('fanart') ||
+        clean.includes('playlistmusic') ||
+        clean.includes('showcasegaming') ||
+        clean.includes('gamingsetup') ||
+        clean.includes('ngobrol2') ||
+        clean.includes('newcomerchat') ||
+        clean.includes('socialmedia');
+
+      if (isObsolete) {
         console.log(`[AUTO-CLEANUP] Menghapus channel tidak terpakai: #${ch.name} di ${guild.name}`);
         await ch.delete('Auto-cleanup channel template yang sudah dihapus').catch(() => {});
       }
@@ -1353,28 +1383,31 @@ async function setupFullTemplate(guild) {
   // 4. Setup Kategori 3: Notify (Welcome & Leave)
   const notify = await setupNotify(guild, roles);
 
-  // 5. Setup Kategori 4: Community (Termasuk Achievements)
+  // 5. Setup Kategori 4: Community
   const community = await setupCommunity(guild, roles);
 
   // 6. Setup Kategori 5: Cinematography (Termasuk hd-foto)
   const cinematography = await setupCinematography(guild, roles);
 
-  // 7. Setup Kategori 6: Entertainment (AI Rooms & Forum Musik)
+  // 7. Setup Kategori 6: Music (play-music & sharelink-music)
+  const music = await setupMusic(guild, roles);
+
+  // 8. Setup Kategori 7: Entertainment (AI Rooms)
   const entertainment = await setupEntertainment(guild, roles);
 
-  // 8. Setup Kategori 7: Sosmed Converter (TikTok, Instagram, Facebook, YouTube)
+  // 9. Setup Kategori 8: Sosmed Converter (TikTok, Instagram, Facebook, YouTube)
   const sosmedConverter = await setupSosmedConverter(guild, roles);
 
-  // 9. Setup Kategori 8: Mini Games
+  // 10. Setup Kategori 9: Mini Games
   const miniGames = await setupMiniGamesTemplate(guild, roles);
 
-  // 10. Setup Kategori 9: Voice Lounges (Paling Bawah)
+  // 11. Setup Kategori 10: Voice Lounges (Paling Bawah)
   const voiceLounges = await setupVoiceLounges(guild, roles);
 
-  // 11. Simpan konfigurasi server
+  // 12. Simpan konfigurasi server
   setTemplateConfig(guild.id, {
     allInOneConfigured: true,
-    templateVersion: 3,
+    templateVersion: 4,
     roles: {
       memberId: memberRole.id,
       maleId: maleRole.id,
@@ -1391,10 +1424,11 @@ async function setupFullTemplate(guild) {
       achievementsId: notify.achievements.id,
       stalkId: community.stalk.id,
       hdFotoId: cinematography.hdFoto.id,
+      playMusicId: music.playMusic.id,
+      sharelinkMusicId: music.sharelinkMusic.id,
       aiFanartId: entertainment.aiFanart.id,
       aiGeneratingId: entertainment.aiGenerating.id,
       aiPromptId: entertainment.aiPrompt.id,
-      playlistMusicId: entertainment.playlistMusic.id,
       tiktokConvertId: sosmedConverter.tiktokConvert.id,
       instagramConvertId: sosmedConverter.instagramConvert.id,
       facebookConvertId: sosmedConverter.facebookConvert.id,
@@ -1410,6 +1444,7 @@ async function setupFullTemplate(guild) {
       notifyId: notify.category.id,
       communityId: community.category.id,
       cinematographyId: cinematography.category.id,
+      musicId: music.category.id,
       entertainmentId: entertainment.category.id,
       sosmedConverterId: sosmedConverter.category.id,
       miniGamesId: miniGames.category.id,
@@ -1425,6 +1460,7 @@ async function setupFullTemplate(guild) {
     notify,
     community,
     cinematography,
+    music,
     entertainment,
     sosmedConverter,
     miniGames,
@@ -1481,12 +1517,12 @@ async function handleGenderRoleSelection(interaction, chosenGender) {
     }
 
     return interaction.reply({
-      content: `✅ Role **${targetRole.name}** berhasil dipasang!\n🎉 Kamu sudah terverifikasi, sehingga **seluruh kategori dan channel server sekarang telah terbuka penuh**! Selamat berinteraksi! 🚀`,
+      content: `Role **${targetRole.name}** berhasil dipasang!\nKamu sudah terverifikasi, sehingga **seluruh kategori dan channel server sekarang telah terbuka penuh**! Selamat berinteraksi!`,
       flags: 64, // Ephemeral
     });
   } else {
     return interaction.reply({
-      content: `✅ Role **${targetRole.name}** berhasil dipasang!\n⚠️ **Tinggal 1 langkah lagi**: Silakan tekan tombol **Verifikasi Sekarang** di ${startHereMention} untuk membuka seluruh kategori dan channel server!`,
+      content: `Role **${targetRole.name}** berhasil dipasang!\n**Tinggal 1 langkah lagi**: Silakan tekan tombol **Verifikasi Sekarang** di ${startHereMention} untuk membuka seluruh kategori dan channel server!`,
       flags: 64, // Ephemeral
     });
   }
@@ -1525,7 +1561,7 @@ async function handleVerificationButton(interaction) {
     }
 
     return interaction.reply({
-      content: `🎉 **Selamat!** Kamu telah terverifikasi dan telah memiliki role gender.\n**Seluruh kategori dan channel server sekarang telah terbuka penuh untukmu!** Selamat bergabung di ${guild.name}! 🚀`,
+      content: `**Selamat!** Kamu telah terverifikasi dan telah memiliki role gender.\n**Seluruh kategori dan channel server sekarang telah terbuka penuh untukmu!** Selamat bergabung di ${guild.name}!`,
       flags: 64, // Ephemeral
     });
   } else {
@@ -1533,7 +1569,7 @@ async function handleVerificationButton(interaction) {
     await member.roles.add(verifiedRole).catch(console.error);
 
     return interaction.reply({
-      content: `✅ **Verifikasi Langkah 1 Berhasil!**\n⚠️ **Wajib Memilih Role Gender**: Silakan buka channel ${selectRolesMention} lalu pilih role gender kamu (**👦 Laki-laki** / **👧 Perempuan**) untuk otomatis membuka seluruh channel server!`,
+      content: `**Verifikasi Langkah 1 Berhasil!**\n**Wajib Memilih Role Gender**: Silakan buka channel ${selectRolesMention} lalu pilih role gender kamu (Laki-laki / Perempuan) untuk otomatis membuka seluruh channel server!`,
       flags: 64, // Ephemeral
     });
   }
@@ -1549,6 +1585,7 @@ module.exports = {
   setupNotify,
   setupCommunity,
   setupCinematography,
+  setupMusic,
   setupEntertainment,
   setupSosmedConverter,
   setupMiniGamesTemplate,

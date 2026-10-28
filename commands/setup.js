@@ -8,7 +8,6 @@ const {
   EmbedBuilder,
   MessageFlags,
 } = require('discord.js');
-
 const {
   setupAll,
   setupGetStartedCategory,
@@ -16,6 +15,7 @@ const {
   setupNotifyCategory,
   setupCommunityCategory,
   setupCinematographyCategory,
+  setupMusicCategory,
   setupEntertainmentCategory,
   setupSosmedConverterCategory,
   setupMiniGamesCategory,
@@ -36,7 +36,7 @@ function createResultEmbed(featureKey, result, guild) {
         `Kategori **${result.category.name}** dan channel panduan/verifikasi telah siap:\n\n` +
         `• <#${result.rulesChannel.id}> — Peraturan resmi server (Bahasa Indonesia)\n` +
         `• <#${result.startHereChannel.id}> — Panel tombol verifikasi server\n` +
-        `• <#${result.selectRolesChannel.id}> — Panel pemilihan role gender (👦 Laki-laki / 👧 Perempuan)\n\n` +
+        `• <#${result.selectRolesChannel.id}> — Panel pemilihan role gender (Laki-laki / Perempuan)\n\n` +
         `*Member baru hanya bisa melihat kategori ini sampai mereka memverifikasi akun dan memilih role gender!*`
       );
   } else if (featureKey === 'official') {
@@ -47,7 +47,7 @@ function createResultEmbed(featureKey, result, guild) {
         `• <#${result.announcement.id}> — Pengumuman resmi server\n` +
         `• <#${result.officialEvent.id}> — Event dan kegiatan komunitas\n` +
         `• <#${result.helpCenter.id}> — Pusat bantuan & tiket support\n\n` +
-        `*Channel ini hanya bisa diketik oleh Owner/Bot, member hanya bisa membaca dan memberi reaksi (react).*`
+        `*Channel ini hanya bisa diketik oleh Owner/Bot, member hanya bisa membaca dan memberi reaksi.*`
       );
   } else if (featureKey === 'notify') {
     embed
@@ -66,9 +66,7 @@ function createResultEmbed(featureKey, result, guild) {
       .setDescription(
         `Kategori **${result.category.name}** dan channel obrolan komunitas telah siap:\n\n` +
         `• <#${result.ngobrol.id}> — Ruang obrolan umum utama\n` +
-        `• <#${result.media.id}> — Galeri berbagi media\n` +
-        `• <#${result.stalk.id}> — Ruang khusus perintah /stalk profil\n` +
-        `• <#${result.report.id}> — Ruang pelaporan kendala/pelanggaran`
+        `• <#${result.stalk.id}> — Ruang khusus perintah /stalk profil`
       );
   } else if (featureKey === 'cinematography') {
     embed
@@ -79,17 +77,22 @@ function createResultEmbed(featureKey, result, guild) {
         `• <#${result.videografi.id}> — Berbagi video cinematik & klip seru\n` +
         `• <#${result.hdFoto.id}> — Studio Auto-HD foto (AI 2x/4x Super-Resolution)`
       );
+  } else if (featureKey === 'music') {
+    embed
+      .setTitle('Setup Music Selesai')
+      .setDescription(
+        `Kategori **${result.category.name}** telah siap:\n\n` +
+        `• <#${result.playMusic.id}> — Channel khusus memutar musik (/play wajib di sini)\n` +
+        `• <#${result.sharelinkMusic.id}> — Ruang berbagi link playlist & lagu favorit`
+      );
   } else if (featureKey === 'entertainment') {
     embed
       .setTitle('Setup Entertainment Selesai')
       .setDescription(
         `Kategori **${result.category.name}** telah siap:\n\n` +
-        `• <#${result.meme.id}> — Berbagi meme lucu (Auto-react)\n` +
-        `• <#${result.fanart.id}> — Galeri seni & fanart\n` +
         `• <#${result.aiFanart.id}> — Review seni & konsep fanart (Dibalas AI privat + Vision)\n` +
         `• <#${result.aiGenerating.id}> — Obrolan cerdas & generator teks BotFly AI\n` +
-        `• <#${result.aiPrompt.id}> — Studio racik prompt AI (Visual & Generative)\n` +
-        `• <#${result.playlistMusic.id}> — Forum rekomendasi & diskusi playlist musik`
+        `• <#${result.aiPrompt.id}> — Studio racik prompt AI (Visual & Generative)`
       );
   } else if (featureKey === 'sosmed') {
     embed
@@ -116,12 +119,12 @@ function createResultEmbed(featureKey, result, guild) {
       .setTitle('Setup Voice Lounges Selesai (Posisi Terbawah)')
       .setDescription(
         `Kategori **${result.category.name}** telah siap di urutan paling bawah:\n\n` +
-        `• <#${result.hubChannel.id}> — ➕︱Buat Room Voice (Join-to-Create room mandiri)\n` +
-        `  *(Saat member masuk, bot otomatis membuat room pribadi dengan Panel Kontrol Gembok 🔒 Privat/Public, batasi member, ganti nama, whitelist & kick!)*`
+        `• <#${result.hubChannel.id}> — Buat Room Voice (Join-to-Create room mandiri)\n` +
+        `  *(Saat member masuk, bot otomatis membuat room pribadi dengan Panel Kontrol Privat/Public, batasi member, ganti nama, whitelist & kick!)*`
       );
   } else if (featureKey === 'all') {
     embed
-      .setTitle('🚀 Seluruh Template Server Berhasil Dibuat (All-in-One)')
+      .setTitle('Seluruh Template Server Berhasil Dibuat (All-in-One)')
       .setDescription(
         `Seluruh struktur server sesuai layout profesional telah selesai dibuat dan langsung aktif:\n\n` +
         `**1. Get Started** (Akses Awal Sebelum Verifikasi)\n` +
@@ -130,20 +133,22 @@ function createResultEmbed(featureKey, result, guild) {
         `└ <#${result.official.announcement.id}>, <#${result.official.officialEvent.id}>, <#${result.official.helpCenter.id}>\n\n` +
         `**3. Notify** (Notifikasi Welcome, Leave, Levels & Achievements)\n` +
         `└ <#${result.notify.welcome.id}>, <#${result.notify.leave.id}>, <#${result.notify.levels.id}>, <#${result.notify.achievements.id}>\n\n` +
-        `**4. Community** (Obrolan, Media, Stalk & Report)\n` +
-        `└ <#${result.community.ngobrol.id}>, <#${result.community.media.id}>, <#${result.community.stalk.id}>, <#${result.community.report.id}>\n\n` +
+        `**4. Community** (Obrolan & Stalk Profil)\n` +
+        `└ <#${result.community.ngobrol.id}>, <#${result.community.stalk.id}>\n\n` +
         `**5. Cinematography** (Foto, Video & Auto-HD)\n` +
         `└ <#${result.cinematography.fotografi.id}>, <#${result.cinematography.videografi.id}>, <#${result.cinematography.hdFoto.id}>\n\n` +
-        `**6. Entertainment & Music Forum** (Meme, Fanart, 3 Ruang AI & Forum Musik)\n` +
-        `└ <#${result.entertainment.meme.id}>, <#${result.entertainment.fanart.id}>, <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>, <#${result.entertainment.playlistMusic.id}>\n\n` +
-        `**7. Sosmed Converter** (Auto-Download TikTok, Instagram, Facebook, YouTube)\n` +
+        `**6. Music** (Wajib /play di sini & Sharelink Musik)\n` +
+        `└ <#${result.music.playMusic.id}>, <#${result.music.sharelinkMusic.id}>\n\n` +
+        `**7. Entertainment** (3 Ruang AI: Fanart Review, Generator & Prompt Studio)\n` +
+        `└ <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>\n\n` +
+        `**8. Sosmed Converter** (Auto-Download TikTok, Instagram, Facebook, YouTube)\n` +
         `└ <#${result.sosmedConverter.tiktokConvert.id}>, <#${result.sosmedConverter.instagramConvert.id}>, <#${result.sosmedConverter.facebookConvert.id}>, <#${result.sosmedConverter.youtubeConvert.id}>\n\n` +
-        `**8. Mini Games** (Tombol & Chat Interaktif Langsung Berfungsi)\n` +
+        `**9. Mini Games** (Tombol & Chat Interaktif Langsung Berfungsi)\n` +
         `└ <#${result.miniGames.coinChannel.id}>, <#${result.miniGames.numberChannel.id}>, <#${result.miniGames.rpsChannel.id}>\n\n` +
-        `**9. Voice Lounges (Paling Bawah)**\n` +
-        `└ <#${result.voiceLounges.hubChannel.id}> (Room Suara Mandiri & Panel Kontrol Gembok 🔒 Privat/Public)\n\n` +
-        `✅ **Sistem Keamanan & Auto-Update Aktif**: Member baru yang bergabung hanya akan melihat kategori **Get Started** sampai mereka memverifikasi akun & memilih role gender (**👦 Laki-laki** / **👧 Perempuan**).\n` +
-        `🔄 **Auto-Update On**: Jika ada pembaruan template di masa mendatang, server ini akan otomatis tersinkronisasi saat bot restart tanpa perlu delete-all!`
+        `**10. Voice Lounges (Paling Bawah)**\n` +
+        `└ <#${result.voiceLounges.hubChannel.id}> (Room Suara Mandiri & Panel Kontrol Privat/Public)\n\n` +
+        `**Sistem Keamanan & Auto-Update Aktif**: Member baru yang bergabung hanya akan melihat kategori **Get Started** sampai mereka memverifikasi akun & memilih role gender (**Laki-laki** / **Perempuan**).\n` +
+        `**Auto-Update On**: Jika ada pembaruan template di masa mendatang, server ini akan otomatis tersinkronisasi saat bot restart tanpa perlu delete-all!`
       );
   }
 
@@ -163,6 +168,8 @@ async function executeSetupAction(featureKey, guild) {
       return await setupCommunityCategory(guild);
     case 'cinematography':
       return await setupCinematographyCategory(guild);
+    case 'music':
+      return await setupMusicCategory(guild);
     case 'entertainment':
       return await setupEntertainmentCategory(guild);
     case 'sosmed':
@@ -188,25 +195,27 @@ function getSetupDashboard(guild) {
       `Kamu bisa memilih **Setup 1 per 1 per kategori** atau langsung **Setup Semua Sekaligus** (All-in-One).\n\n` +
       `**Struktur Kategori & Channel:**\n` +
       `1. **───────Get Started───────**\n` +
-      `   • 📜 rules (Peraturan Bahasa Indonesia, member hanya bisa baca & react)\n` +
-      `   • 🌟 start-here (Panel verifikasi akses server)\n` +
-      `   • 👑 select-roles (Panel pilihan role gender 👦 Pria / 👧 Wanita)\n` +
+      `   • rules (Peraturan Bahasa Indonesia, member hanya bisa baca & react)\n` +
+      `   • start-here (Panel verifikasi akses server)\n` +
+      `   • select-roles (Panel pilihan role gender Pria / Wanita)\n` +
       `2. **───────Official───────** (Khusus Owner & Bot, Member React)\n` +
       `   • announcement, official-event, help-center (tiket bantuan)\n` +
       `3. **───────Notify───────**\n` +
       `   • welcome, leave, levels, achievements\n` +
       `4. **───────Community───────**\n` +
-      `   • ngobrol, media, stalk profil akun, report pelanggaran\n` +
+      `   • ngobrol, stalk profil akun\n` +
       `5. **───────Cinematography───────**\n` +
       `   • fotografi, videografi, hd-foto (Auto-HD AI 2x/4x Super-Resolution)\n` +
-      `6. **───────Entertainment───────**\n` +
-      `   • meme, fanart, ai-fanart, ai-generating, ai-prompt, playlist-music (forum)\n` +
-      `7. **───────Sosmed Converter───────**\n` +
+      `6. **───────Music───────**\n` +
+      `   • play-music (wajib /play di sini), sharelink-music (berbagi playlist & link lagu)\n` +
+      `7. **───────Entertainment───────**\n` +
+      `   • ai-fanart, ai-generating, ai-prompt (3 Studio AI BotFly)\n` +
+      `8. **───────Sosmed Converter───────**\n` +
       `   • tiktok-convert, instagram-convert, facebook-convert, youtube-convert (Auto-download video & foto)\n` +
-      `8. **───────Mini Games───────**\n` +
+      `9. **───────Mini Games───────**\n` +
       `   • tebak-koin, tebak-angka, suit-jepang (Tombol & Chat langsung berfungsi)\n` +
-      `9. **───────Voice Lounges───────** (Paling Bawah)\n` +
-      `   • ➕︱Buat Room Voice (Join-to-Create room mandiri + panel gembok 🔒 privat/public & kontrol lengkap)\n\n` +
+      `10. **───────Voice Lounges───────** (Paling Bawah)\n` +
+      `   • Buat Room Voice (Join-to-Create room mandiri + panel kontrol privat/public & kontrol lengkap)\n\n` +
       `*Pilih tombol hijau untuk membuat semua sekaligus, atau gunakan dropdown untuk memilih satu per satu:*`
     )
     .setThumbnail(guild.iconURL({ size: 256 }) || guild.client.user.displayAvatarURL())
@@ -215,7 +224,7 @@ function getSetupDashboard(guild) {
 
   const allBtn = new ButtonBuilder()
     .setCustomId('btn_setup_run_all')
-    .setLabel('🚀 Setup Semua Sekarang (All-in-One)')
+    .setLabel('Setup Semua Sekarang (All-in-One)')
     .setStyle(ButtonStyle.Success);
 
   const buttonRow = new ActionRowBuilder().addComponents(allBtn);
@@ -225,7 +234,7 @@ function getSetupDashboard(guild) {
     .setPlaceholder('Pilih kategori setup (1 per 1 atau Semua)...')
     .addOptions([
       {
-        label: '🌟 Setup Semua Template (All-in-One)',
+        label: 'Setup Semua Template (All-in-One)',
         description: 'Buat seluruh kategori & channel teks/suara secara instan',
         value: 'all',
       },
@@ -245,8 +254,8 @@ function getSetupDashboard(guild) {
         value: 'notify',
       },
       {
-        label: 'Community (Ngobrol, Media, Stalk, Report)',
-        description: 'Obrolan santai, galeri media, stalk akun sosial & report',
+        label: 'Community (Ngobrol, Stalk)',
+        description: 'Obrolan santai dan stalk profil akun sosial',
         value: 'community',
       },
       {
@@ -255,8 +264,13 @@ function getSetupDashboard(guild) {
         value: 'cinematography',
       },
       {
-        label: 'Entertainment & AI (Meme, Fanart, 3 AI Rooms)',
-        description: 'Meme, fanart, ai-fanart, ai-generating, ai-prompt, forum musik',
+        label: 'Music (Play Music & Sharelink Music)',
+        description: 'Channel pemutar musik dan ruang berbagi playlist lagu',
+        value: 'music',
+      },
+      {
+        label: 'Entertainment & AI (3 AI Rooms)',
+        description: 'ai-fanart review, ai-generating teks, dan ai-prompt studio',
         value: 'entertainment',
       },
       {
@@ -271,7 +285,7 @@ function getSetupDashboard(guild) {
       },
       {
         label: 'Voice Lounges (Paling Bawah - Room Suara)',
-        description: 'Kategori suara di posisi terbawah: Buat Room Voice mandiri & panel gembok 🔒',
+        description: 'Kategori suara di posisi terbawah: Buat Room Voice mandiri & panel kontrol',
         value: 'voice',
       },
     ]);
@@ -284,7 +298,7 @@ function getSetupDashboard(guild) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('Setup otomatis template server (Rules, Verif, Role Gender, Community, Voice di bawah)')
+    .setDescription('Setup otomatis template server (Rules, Verif, Role Gender, Community, Music, Voice)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt
@@ -292,16 +306,17 @@ module.exports = {
         .setDescription('Pilih kategori yang ingin disetup (atau biarkan kosong untuk menu interaktif)')
         .setRequired(false)
         .addChoices(
-          { name: '🌟 Setup Semua Template (All-in-One)', value: 'all' },
-          { name: '🚪 Get Started (Rules, Verif, Gender Role)', value: 'get_started' },
-          { name: '📢 Official (Pengumuman, Event, Tiket)', value: 'official' },
-          { name: '👋 Notify (Welcome & Leave)', value: 'notify' },
-          { name: '💬 Community (Ngobrol, Levels, Achievements)', value: 'community' },
-          { name: '📷 Cinematography (Fotografi & Videografi)', value: 'cinematography' },
-          { name: '🎨 Entertainment & AI (Meme, Fanart, AI Rooms)', value: 'entertainment' },
-          { name: '📥 Sosmed Converter (TikTok, IG, FB, YouTube)', value: 'sosmed' },
-          { name: '🎮 Mini Games (Koin, Angka, Suit)', value: 'games' },
-          { name: '🔊 Voice Lounges (Paling Bawah - Room Mandiri)', value: 'voice' }
+          { name: 'Setup Semua Template (All-in-One)', value: 'all' },
+          { name: 'Get Started (Rules, Verif, Gender Role)', value: 'get_started' },
+          { name: 'Official (Pengumuman, Event, Tiket)', value: 'official' },
+          { name: 'Notify (Welcome & Leave)', value: 'notify' },
+          { name: 'Community (Ngobrol & Stalk)', value: 'community' },
+          { name: 'Cinematography (Fotografi & Videografi)', value: 'cinematography' },
+          { name: 'Music (Play Music & Sharelink Music)', value: 'music' },
+          { name: 'Entertainment & AI (3 AI Rooms)', value: 'entertainment' },
+          { name: 'Sosmed Converter (TikTok, IG, FB, YouTube)', value: 'sosmed' },
+          { name: 'Mini Games (Koin, Angka, Suit)', value: 'games' },
+          { name: 'Voice Lounges (Paling Bawah - Room Mandiri)', value: 'voice' }
         )
     ),
 
@@ -364,7 +379,7 @@ module.exports = {
 
       // Berikan indikator sedang memproses
       await interaction.editReply({
-        content: `⏳ **Sedang memproses setup [${chosen.toUpperCase()}]...** Mohon tunggu beberapa detik, bot sedang menyusun kategori, channel teks & suara, permission, dan panel otomatis...`,
+        content: `**Sedang memproses setup [${chosen.toUpperCase()}]...** Mohon tunggu beberapa detik, bot sedang menyusun kategori, channel teks & suara, permission, dan panel otomatis...`,
         components: [],
       });
 
@@ -379,7 +394,7 @@ module.exports = {
       } catch (err) {
         console.error(`Error saat collector setup ${chosen}:`, err);
         await interaction.editReply({
-          content: `❌ Gagal melakukan setup: ${err.message}`,
+          content: `Gagal melakukan setup: ${err.message}`,
           components: [],
         });
       }
