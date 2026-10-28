@@ -4,9 +4,10 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
 const AI_CHANNEL_KEYWORDS = ['ai-generating', 'ai-prompt', 'ai-promt', 'ai-fanart'];
+const SOSMED_CHANNEL_KEYWORDS = ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'];
 
 /**
- * Cek apakah channel merupakan salah satu dari 3 channel AI Entertainment
+ * Cek apakah channel merupakan salah satu dari channel AI Entertainment
  */
 function isAiChannel(channel) {
   if (!channel || channel.type !== ChannelType.GuildText) return false;
@@ -15,9 +16,27 @@ function isAiChannel(channel) {
 }
 
 /**
- * Hapus pesan yang sudah berumur >= 1 hari (24 jam) di channel AI
+ * Cek apakah channel merupakan salah satu dari channel Sosmed Converter
  */
-async function cleanupOldAiMessagesInChannel(channel) {
+function isSosmedChannel(channel) {
+  if (!channel || channel.type !== ChannelType.GuildText) return false;
+  const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const isKw = SOSMED_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+  const isCategorySosmed = channel.parent && channel.parent.name.toLowerCase().includes('sosmed');
+  return isKw || isCategorySosmed;
+}
+
+/**
+ * Cek apakah channel memiliki aturan pembersihan otomatis 24 jam (AI Entertainment atau Sosmed Converter)
+ */
+function isAutoCleanupChannel(channel) {
+  return isAiChannel(channel) || isSosmedChannel(channel);
+}
+
+/**
+ * Hapus pesan yang sudah berumur >= 1 hari (24 jam) di channel target
+ */
+async function cleanupOldMessagesInChannel(channel) {
   try {
     const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
     if (!messages || messages.size === 0) return 0;
@@ -45,22 +64,22 @@ async function cleanupOldAiMessagesInChannel(channel) {
 
     return toDelete.size;
   } catch (err) {
-    console.warn(`[AI CLEANUP WARN] Kendala pembersihan chat #${channel.name}:`, err.message);
+    console.warn(`[CHAT CLEANUP WARN] Kendala pembersihan chat #${channel.name}:`, err.message);
     return 0;
   }
 }
 
 /**
- * Jalankan pembersihan untuk semua server yang memiliki channel AI
+ * Jalankan pembersihan untuk semua server yang memiliki channel AI & Sosmed Converter
  */
-async function runAllAiChannelCleanup(client) {
+async function runAllAutoCleanup(client) {
   for (const [, guild] of client.guilds.cache) {
     try {
-      const aiChannels = guild.channels.cache.filter((c) => isAiChannel(c));
-      for (const [, ch] of aiChannels) {
-        const count = await cleanupOldAiMessagesInChannel(ch);
+      const targetChannels = guild.channels.cache.filter((c) => isAutoCleanupChannel(c));
+      for (const [, ch] of targetChannels) {
+        const count = await cleanupOldMessagesInChannel(ch);
         if (count > 0) {
-          console.log(`[AI CLEANUP] Menghapus ${count} pesan chat berusia > 24 jam di #${ch.name} (${guild.name})`);
+          console.log(`[AUTO CLEANUP 24H] Menghapus ${count} pesan chat berusia > 24 jam di #${ch.name} (${guild.name})`);
         }
       }
     } catch (err) {
@@ -70,23 +89,28 @@ async function runAllAiChannelCleanup(client) {
 }
 
 /**
- * Inisialisasi timer pembersihan otomatis berkala
+ * Inisialisasi timer pembersihan otomatis berkala (AI & Sosmed Converter)
  */
-function initAiChannelCleaner(client, intervalMs = 15 * 60 * 1000) {
+function initAutoChannelCleaner(client, intervalMs = 15 * 60 * 1000) {
   // Jalankan scan pembersihan awal 10 detik setelah bot menyala
   setTimeout(() => {
-    runAllAiChannelCleanup(client).catch(() => {});
+    runAllAutoCleanup(client).catch(() => {});
   }, 10000);
 
   // Jalankan periodik setiap 15 menit
   setInterval(() => {
-    runAllAiChannelCleanup(client).catch(() => {});
+    runAllAutoCleanup(client).catch(() => {});
   }, intervalMs);
 }
 
 module.exports = {
   isAiChannel,
-  cleanupOldAiMessagesInChannel,
-  runAllAiChannelCleanup,
-  initAiChannelCleaner,
+  isSosmedChannel,
+  isAutoCleanupChannel,
+  cleanupOldAiMessagesInChannel: cleanupOldMessagesInChannel,
+  cleanupOldMessagesInChannel,
+  runAllAiChannelCleanup: runAllAutoCleanup,
+  runAllAutoCleanup,
+  initAiChannelCleaner: initAutoChannelCleaner,
+  initAutoChannelCleaner,
 };

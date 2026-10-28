@@ -1020,34 +1020,34 @@ async function setupSosmedConverter(guild, roles) {
 
   // 1. TikTok Convert
   const tiktokConvert = await getOrCreateChannel(guild, {
-    name: '🎵︱tiktok-convert',
+    name: 'tiktok-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link TikTok dari PC/Mobile, bot otomatis konversi jadi video tanpa watermark atau foto slideshow!',
+    topic: 'Kirim link TikTok dari PC/Mobile, bot otomatis konversi jadi video tanpa watermark atau foto! Chat otomatis dihapus setelah 1 hari (24 jam).',
   });
 
   // 2. Instagram Convert
   const instagramConvert = await getOrCreateChannel(guild, {
-    name: '📸︱instagram-convert',
+    name: 'instagram-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link Reels, Postingan, atau Carousel Instagram untuk diunduh otomatis!',
+    topic: 'Kirim link Reels, Postingan, atau Carousel Instagram untuk diunduh otomatis! Chat otomatis dihapus setelah 1 hari (24 jam).',
   });
 
   // 3. Facebook Convert
   const facebookConvert = await getOrCreateChannel(guild, {
-    name: '📘︱facebook-convert',
+    name: 'facebook-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link video / reels Facebook untuk dikonversi menjadi video langsung!',
+    topic: 'Kirim link video / reels Facebook untuk dikonversi menjadi video langsung! Chat otomatis dihapus setelah 1 hari (24 jam).',
   });
 
   // 4. YouTube Convert
   const youtubeConvert = await getOrCreateChannel(guild, {
-    name: '▶️︱youtube-convert',
+    name: 'youtube-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link YouTube Shorts atau video YouTube untuk dikonversi langsung!',
+    topic: 'Kirim link YouTube Shorts atau video YouTube untuk dikonversi langsung! Chat otomatis dihapus setelah 1 hari (24 jam).',
   });
 
   // Guide embed TikTok
@@ -1055,17 +1055,18 @@ async function setupSosmedConverter(guild, roles) {
   if (!ttMsgs || ttMsgs.size === 0) {
     const embed = new EmbedBuilder()
       .setColor(0xFE2C55)
-      .setTitle('🎵 TikTok Converter & Downloader No Watermark')
+      .setTitle('TikTok Converter & Downloader No Watermark')
       .setDescription(
         `Selamat datang di channel **TikTok Converter**!\n\n` +
         `**Cara Pakai:**\n` +
         `• Cukup **salin link TikTok** (video atau foto slideshow) dari HP atau browser PC kamu.\n` +
         `• **Kirim link-nya ke channel ini**, bot FlyBot akan otomatis mengonversi dan mengirimkan videonya tanpa watermark atau galeri foto ke chat ini!\n\n` +
-        `> ⚠️ **Catatan Lapak:** Channel ini hanya untuk link TikTok. Jangan kirim link sosmed lain ke sini ya!`
+        `> Catatan: Chat di channel ini otomatis dibersihkan setiap 1 hari (24 jam) agar selalu rapi. Khusus link TikTok.`
       )
-      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setFooter({ text: 'FlyBot Sosmed Downloader • Auto-Clean 24 Jam' })
       .setTimestamp();
-    await tiktokConvert.send({ embeds: [embed] }).catch(() => {});
+    const sent = await tiktokConvert.send({ embeds: [embed] }).catch(() => {});
+    if (sent) await sent.pin().catch(() => {});
   }
 
   // Guide embed Instagram
@@ -1073,17 +1074,18 @@ async function setupSosmedConverter(guild, roles) {
   if (!igMsgs || igMsgs.size === 0) {
     const embed = new EmbedBuilder()
       .setColor(0xE1306C)
-      .setTitle('📸 Instagram Reels & Post Converter')
+      .setTitle('Instagram Reels & Post Converter')
       .setDescription(
         `Selamat datang di channel **Instagram Converter**!\n\n` +
         `**Cara Pakai:**\n` +
         `• Salin link **Reels**, **Postingan Feed**, atau **Foto Carousel** Instagram publik.\n` +
         `• Kirim link ke channel ini, bot akan langsung mengunduh dan menyajikannya di chat!\n\n` +
-        `> ⚠️ **Catatan Lapak:** Khusus link Instagram publik.`
+        `> Catatan: Chat di channel ini otomatis dibersihkan setiap 1 hari (24 jam) agar selalu rapi. Khusus link Instagram publik.`
       )
-      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setFooter({ text: 'FlyBot Sosmed Downloader • Auto-Clean 24 Jam' })
       .setTimestamp();
-    await instagramConvert.send({ embeds: [embed] }).catch(() => {});
+    const sent = await instagramConvert.send({ embeds: [embed] }).catch(() => {});
+    if (sent) await sent.pin().catch(() => {});
   }
 
   // Guide embed Facebook
@@ -1091,17 +1093,18 @@ async function setupSosmedConverter(guild, roles) {
   if (!fbMsgs || fbMsgs.size === 0) {
     const embed = new EmbedBuilder()
       .setColor(0x1877F2)
-      .setTitle('📘 Facebook Video & Reels Converter')
+      .setTitle('Facebook Video & Reels Converter')
       .setDescription(
         `Selamat datang di channel **Facebook Converter**!\n\n` +
         `**Cara Pakai:**\n` +
         `• Salin link video, watch, atau reels dari Facebook publik.\n` +
         `• Kirim link ke sini untuk dikonversi menjadi video langsung!\n\n` +
-        `> ⚠️ **Catatan Lapak:** Khusus link video Facebook.`
+        `> Catatan: Chat di channel ini otomatis dibersihkan setiap 1 hari (24 jam) agar selalu rapi. Khusus link video Facebook.`
       )
-      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setFooter({ text: 'FlyBot Sosmed Downloader • Auto-Clean 24 Jam' })
       .setTimestamp();
-    await facebookConvert.send({ embeds: [embed] }).catch(() => {});
+    const sent = await facebookConvert.send({ embeds: [embed] }).catch(() => {});
+    if (sent) await sent.pin().catch(() => {});
   }
 
   // Guide embed YouTube
@@ -1109,17 +1112,18 @@ async function setupSosmedConverter(guild, roles) {
   if (!ytMsgs || ytMsgs.size === 0) {
     const embed = new EmbedBuilder()
       .setColor(0xFF0000)
-      .setTitle('▶️ YouTube & Shorts Converter')
+      .setTitle('YouTube & Shorts Converter')
       .setDescription(
         `Selamat datang di channel **YouTube Converter**!\n\n` +
         `**Cara Pakai:**\n` +
         `• Salin link **YouTube Shorts** atau video YouTube.\n` +
         `• Kirim link ke channel ini, bot akan otomatis mengonversi video & menyediakan link download resolusi penuh!\n\n` +
-        `> ⚠️ **Catatan Lapak:** Khusus link YouTube.`
+        `> Catatan: Chat di channel ini otomatis dibersihkan setiap 1 hari (24 jam) agar selalu rapi. Khusus link YouTube.`
       )
-      .setFooter({ text: 'FlyBot Sosmed Downloader' })
+      .setFooter({ text: 'FlyBot Sosmed Downloader • Auto-Clean 24 Jam' })
       .setTimestamp();
-    await youtubeConvert.send({ embeds: [embed] }).catch(() => {});
+    const sent = await youtubeConvert.send({ embeds: [embed] }).catch(() => {});
+    if (sent) await sent.pin().catch(() => {});
   }
 
   return { category, tiktokConvert, instagramConvert, facebookConvert, youtubeConvert };
