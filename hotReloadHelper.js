@@ -23,15 +23,30 @@ function runShell(command, options = {}) {
  * Menarik update kode terbaru dari repository GitHub
  */
 async function pullLatestCode() {
+  // Ambil hash commit sebelum pull
+  const beforeLog = await runShell('git rev-parse --short HEAD');
+  const beforeCommit = beforeLog.stdout || '';
+
   // 1. Coba menggunakan Git CLI (Metode standar & tercepat)
   const gitRes = await runShell('git pull origin main');
   if (gitRes.success) {
     const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+    const afterLog = await runShell('git rev-parse --short HEAD');
+    const afterCommit = afterLog.stdout || '';
+
+    const isAlreadyUpToDate =
+      gitRes.stdout.toLowerCase().includes('already up to date') ||
+      gitRes.stdout.toLowerCase().includes('already up-to-date') ||
+      (beforeCommit && afterCommit && beforeCommit === afterCommit);
+
     return {
       success: true,
+      hasUpdates: !isAlreadyUpToDate,
       method: 'git',
-      details: gitRes.stdout || 'Kode berhasil diperbarui.',
-      latestCommit: logRes.stdout || 'Versi terbaru',
+      details: gitRes.stdout || 'Kode berhasil diperiksa.',
+      beforeCommit,
+      afterCommit,
+      latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
     };
   }
 
@@ -39,16 +54,28 @@ async function pullLatestCode() {
   const stashRes = await runShell('git stash && git pull origin main');
   if (stashRes.success) {
     const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+    const afterLog = await runShell('git rev-parse --short HEAD');
+    const afterCommit = afterLog.stdout || '';
+
+    const isAlreadyUpToDate =
+      stashRes.stdout.toLowerCase().includes('already up to date') ||
+      stashRes.stdout.toLowerCase().includes('already up-to-date') ||
+      (beforeCommit && afterCommit && beforeCommit === afterCommit);
+
     return {
       success: true,
+      hasUpdates: !isAlreadyUpToDate,
       method: 'git-stash-pull',
       details: stashRes.stdout,
-      latestCommit: logRes.stdout || 'Versi terbaru',
+      beforeCommit,
+      afterCommit,
+      latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
     };
   }
 
   return {
     success: false,
+    hasUpdates: false,
     method: 'git',
     details: gitRes.stderr || gitRes.error || 'Gagal mengeksekusi git pull.',
     latestCommit: 'Tidak diketahui',

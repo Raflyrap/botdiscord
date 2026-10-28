@@ -60,8 +60,32 @@ module.exports = {
 
     // 2. Mode Hot-Reload (Tanpa Restart)
     if (mode === 'hotreload') {
-      const reloadResult = await reloadModulesAndCommands(interaction.client);
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      // KONDISI A: Tidak ada perubahan / sudah versi terbaru
+      if (!gitResult.hasUpdates) {
+        const upToDateEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('Sistem Bot Sudah Versi Terbaru (Tidak Ada Update)')
+          .setDescription(
+            `Pengecekan repositori GitHub selesai.\n\n` +
+            `Kode bot saat ini sudah berada di versi paling baru dan belum ada commit atau perubahan baru di repositori GitHub.\n` +
+            `Semua modul, sistem musik, dan fitur bot saat ini berjalan normal dan optimal pada commit terakhir.`
+          )
+          .addFields(
+            { name: 'Status Versi', value: 'Up to Date (Versi Terbaru)', inline: true },
+            { name: 'Commit Saat Ini', value: `\`${gitResult.latestCommit}\``, inline: true },
+            { name: 'Waktu Pengecekan', value: `${elapsed} detik`, inline: true },
+            { name: 'Status Musik & Layanan', value: 'Aktif 100% Normal Tanpa Gangguan', inline: false }
+          )
+          .setFooter({ text: 'FlyBot System Check • Belum Ada Pembaruan Baru' })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [upToDateEmbed] });
+      }
+
+      // KONDISI B: Ditemukan pembaruan baru dari GitHub
+      const reloadResult = await reloadModulesAndCommands(interaction.client);
 
       if (!reloadResult.success) {
         const reloadErrEmbed = new EmbedBuilder()
@@ -82,13 +106,15 @@ module.exports = {
         .setColor(0x57F287)
         .setTitle('Update Bot Berhasil Diterapkan (Zero Downtime)')
         .setDescription(
-          `Kode bot berhasil diperbarui ke versi terbaru dan seluruh modul/commands telah di-reload seketika di memori.\n` +
+          `Ditemukan pembaruan baru dari GitHub! Kode bot telah berhasil diunduh dan seluruh modul serta commands langsung di-reload seketika di memori.\n\n` +
           `Server Pterodactyl **tidak perlu direstart**, bot tidak offline, dan lagu/musik yang sedang diputar **tetap berjalan lancar tanpa terputus**!`
         )
         .addFields(
           { name: 'Metode Update', value: 'Hot-Reload (Tanpa Restart)', inline: true },
           { name: 'Status Layanan & Musik', value: 'Aktif 100% Normal', inline: true },
           { name: 'Waktu Proses', value: `${elapsed} detik`, inline: true },
+          { name: 'Versi Sebelumnya', value: `\`${gitResult.beforeCommit || '-'}\``, inline: true },
+          { name: 'Versi Terbaru', value: `\`${gitResult.afterCommit || '-'}\``, inline: true },
           { name: 'Commit Terbaru', value: `\`${gitResult.latestCommit}\``, inline: false },
           { name: 'Total Command Di-reload', value: `**${reloadResult.loadedCount} Commands** siap digunakan`, inline: false },
           {
@@ -109,12 +135,13 @@ module.exports = {
       .setColor(0x5865F2)
       .setTitle('Pembaruan Kode Selesai • Memulai Ulang Bot')
       .setDescription(
-        `Kode terbaru dari GitHub berhasil diunduh (\`${gitResult.latestCommit}\`).\n\n` +
+        `Kode terbaru dari GitHub berhasil diproses (\`${gitResult.latestCommit}\`).\n\n` +
         `Bot akan melakukan restart proses dalam 2 detik. Panel Pterodactyl akan menyalakan bot kembali secara otomatis.`
       )
       .addFields(
         { name: 'Metode', value: 'Graceful Process Restart', inline: true },
-        { name: 'Waktu Tarik Kode', value: `${elapsed} detik`, inline: true }
+        { name: 'Status Kode', value: gitResult.hasUpdates ? 'Ada Pembaruan Baru' : 'Sudah Versi Terbaru', inline: true },
+        { name: 'Waktu Pengecekan', value: `${elapsed} detik`, inline: true }
       )
       .setFooter({ text: 'FlyBot System Restart' })
       .setTimestamp();
