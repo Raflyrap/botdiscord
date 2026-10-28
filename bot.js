@@ -145,7 +145,7 @@ client.on('raw', (d) => {
 });
 
 client.once(Events.ClientReady, async (readyClient) => {
-  console.log(`✅ Bot online! Masuk sebagai ${readyClient.user.tag}`);
+  console.log(`[ONLINE] Bot siap melayani sebagai ${readyClient.user.tag}`);
 
   // Inisialisasi LavalinkManager v4
   try {

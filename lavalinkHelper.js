@@ -90,8 +90,18 @@ async function searchTrackWithFallback(player, query, requester) {
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Hanya menggunakan node publik yang terbukti stabil, cepat (<2s), dan aktif
+  // Hanya menggunakan node publik yang terbukti stabil, aktif, dan mendukung v4
   const defaultNodes = [
+    {
+      id: 'jirayu-v4',
+      host: 'lavalink.jirayu.net',
+      port: 443,
+      authorization: 'youshallnotpass',
+      secure: true,
+      requestTimeout: 10000,
+      retryDelay: 15000,
+      retryAmount: 5,
+    },
     {
       id: 'serenetia-v4',
       host: 'lavalink.serenetia.com',
@@ -99,14 +109,8 @@ function initLavalink(client) {
       authorization: 'youshallnotpass',
       secure: true,
       requestTimeout: 10000,
-    },
-    {
-      id: 'ajieblogs-v4',
-      host: 'lava-v4.ajieblogs.eu.org',
-      port: 443,
-      authorization: 'https://dsc.gg/ajidevserver',
-      secure: true,
-      requestTimeout: 10000,
+      retryDelay: 20000,
+      retryAmount: 5,
     },
   ];
 
@@ -121,6 +125,8 @@ function initLavalink(client) {
       authorization: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
       secure: process.env.LAVALINK_SECURE !== 'false',
       requestTimeout: 10000,
+      retryDelay: 10000,
+      retryAmount: 10,
     });
   }
 
@@ -156,10 +162,16 @@ function initLavalink(client) {
       console.log(`[LAVALINK v4] Node '${node.id}' (${node.options.host}:${node.options.port}) BERHASIL TERHUBUNG!`);
     })
     .on('disconnect', (node, reason) => {
-      console.warn(`[LAVALINK v4] Node '${node.id}' terputus. Alasan:`, reason);
+      const code = reason?.code;
+      const reasonStr = typeof reason === 'object' ? (reason?.reason || JSON.stringify(reason)) : String(reason);
+      if (code === 4000 || (reasonStr && reasonStr.includes('Too many websocket connections'))) {
+        console.warn(`[LAVALINK v4] Node '${node.id}' mencapai batas antrean koneksi publik. Menunggu jeda aman...`);
+      } else {
+        console.warn(`[LAVALINK v4] Node '${node.id}' terputus. Alasan:`, reasonStr);
+      }
     })
     .on('error', (node, error) => {
-      console.error(`[LAVALINK v4] Error pada node '${node.id}':`, error.message);
+      console.warn(`[LAVALINK v4] Peringatan pada node '${node.id}':`, error.message);
     })
     .on('reconnecting', (node) => {
       console.log(`[LAVALINK v4] Menghubungkan ulang ke node '${node.id}'...`);
