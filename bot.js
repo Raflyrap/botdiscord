@@ -214,6 +214,14 @@ client.once(Events.ClientReady, async (readyClient) => {
     console.error('[AUTO-UPDATE SETUP] Error:', err.message);
   }
 
+  // Inisialisasi Pembersih Chat Otomatis 1 Hari di Channel AI Entertainment
+  try {
+    const { initAiChannelCleaner } = require('./aiChatCleanupHelper');
+    initAiChannelCleaner(readyClient);
+  } catch (err) {
+    console.error('[AI CLEANUP INIT] Error:', err.message);
+  }
+
   // Inisialisasi Monitoring Realtime Server Official FlyBot
   try {
     initBotMonitoring(readyClient);
@@ -379,14 +387,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const data = entertainmentAiStorage.get(resId);
       if (!data) {
         return interaction.reply({
-          content: 'Pesan ini sudah kadaluarsa bray. Silakan ketik perintah atau pertanyaan baru di channel!',
+          content: 'Pesan ini sudah kadaluarsa. Silakan ketik perintah atau pertanyaan baru di channel!',
           flags: MessageFlags.Ephemeral,
         });
       }
 
       if (interaction.user.id !== data.userId) {
         return interaction.reply({
-          content: 'Eits, jawaban ini khusus dibuat untuk orang yang meminta bray!',
+          content: 'Jawaban ini khusus dibuat untuk orang yang meminta.',
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -415,9 +423,85 @@ client.on(Events.InteractionCreate, async (interaction) => {
         aiEmbed.addFields({ name: 'Pertanyaan / Prompt Kamu:', value: `>>> ${promptShort}` });
       }
 
+      const shareBtn = new ButtonBuilder()
+        .setCustomId(`btn_ai_share_public_${resId}`)
+        .setLabel('Bagikan ke Publik')
+        .setStyle(ButtonStyle.Success);
+
+      const privateBtn = new ButtonBuilder()
+        .setCustomId(`btn_ai_keep_private_${resId}`)
+        .setLabel('Simpan untuk Sendiri')
+        .setStyle(ButtonStyle.Secondary);
+
+      const actionRow = new ActionRowBuilder().addComponents(shareBtn, privateBtn);
+
       return interaction.reply({
         embeds: [aiEmbed],
+        components: [actionRow],
         flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    // Tombol Bagikan Jawaban AI ke Publik di Channel
+    if (interaction.customId.startsWith('btn_ai_share_public_')) {
+      const resId = interaction.customId.replace('btn_ai_share_public_', '');
+      const data = entertainmentAiStorage.get(resId);
+      if (!data) {
+        return interaction.reply({
+          content: 'Pesan ini sudah kadaluarsa. Silakan ketik perintah atau pertanyaan baru di channel!',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (interaction.user.id !== data.userId) {
+        return interaction.reply({
+          content: 'Hanya orang yang meminta jawaban ini yang dapat membagikannya ke publik.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      const color = data.channelType === 'fanart' ? 0xFEE75C : data.channelType === 'prompt' ? 0x57F287 : 0x5865F2;
+      const channelTitle = data.channelType === 'fanart'
+        ? 'BotFly AI • Fanart & Visual Review'
+        : data.channelType === 'prompt'
+        ? 'BotFly AI • Master Prompt Studio'
+        : 'BotFly AI • Generative Intelligence';
+
+      let replyText = data.reply;
+      if (replyText.length > 3900) {
+        replyText = replyText.substring(0, 3900) + '\n\n*(Jawaban dipotong karena melebihi batas karakter Discord)*';
+      }
+
+      const publicEmbed = new EmbedBuilder()
+        .setColor(color)
+        .setTitle(channelTitle)
+        .setDescription(replyText)
+        .setFooter({ text: `Dibagikan oleh ${interaction.member?.displayName || interaction.user.username} • BotFly AI` })
+        .setTimestamp();
+
+      if (data.prompt) {
+        const promptShort = data.prompt.length > 200 ? data.prompt.substring(0, 197) + '...' : data.prompt;
+        publicEmbed.addFields({ name: 'Pertanyaan / Prompt:', value: `>>> ${promptShort}` });
+      }
+
+      await interaction.channel.send({
+        content: `Jawaban AI dibagikan oleh <@${interaction.user.id}> untuk semua orang di channel ini:`,
+        embeds: [publicEmbed],
+      }).catch(console.error);
+
+      return interaction.update({
+        content: 'Jawaban AI berhasil dibagikan ke publik di channel ini.',
+        embeds: [],
+        components: [],
+      });
+    }
+
+    // Tombol Simpan Jawaban AI Privat Hanya untuk Sendiri
+    if (interaction.customId.startsWith('btn_ai_keep_private_')) {
+      return interaction.update({
+        content: 'Jawaban AI disimpan privat hanya untuk kamu.',
+        embeds: [],
+        components: [],
       });
     }
 
@@ -1033,6 +1117,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
+  // Validasi Channel Khusus Musik untuk Server Template All-in-One (1 Paket: play, pause, resume, stop, skip, queue, repeat, shuffle, volume)
+  const MUSIC_COMMAND_NAMES = ['play', 'pause', 'resume', 'stop', 'skip', 'queue', 'repeat', 'shuffle', 'volume'];
+  if (interaction.guild && MUSIC_COMMAND_NAMES.includes(interaction.commandName)) {
+    const { getTemplateConfig } = require('./templateSetupHelper');
+    const templateCfg = getTemplateConfig(interaction.guild.id);
+    if (templateCfg?.allInOneConfigured && templateCfg?.channels?.playMusicId) {
+      if (interaction.channelId !== templateCfg.channels.playMusicId) {
+        return interaction.reply({
+          content: `Seluruh perintah musik hanya dapat digunakan di channel <#${templateCfg.channels.playMusicId}>.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+  }
+
   // Error handling try/catch agar bot tetap berjalan stabil
   try {
     await command.execute(interaction);
@@ -1040,7 +1139,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error(`Terjadi error saat menjalankan command /${interaction.commandName}:`, error);
 
     const errorMessage = {
-      content: '❌ Terjadi kesalahan internal saat menjalankan perintah ini!',
+      content: 'Terjadi kesalahan internal saat menjalankan perintah ini.',
       flags: MessageFlags.Ephemeral,
     };
 
@@ -1420,7 +1519,6 @@ client.on(Events.MessageCreate, async (message) => {
               const openBtn = new ButtonBuilder()
                 .setCustomId(`btn_ephemeral_ai_${resId}`)
                 .setLabel('Lihat Jawaban AI (Hanya Kamu)')
-                .setEmoji('🔒')
                 .setStyle(ButtonStyle.Primary);
               const row = new ActionRowBuilder().addComponents(openBtn);
 
@@ -1428,7 +1526,7 @@ client.on(Events.MessageCreate, async (message) => {
               const promptLine = promptShort ? `\n> *"${promptShort}"*` : '';
 
               await message.reply({
-                content: `🔒 <@${message.author.id}>, jawaban AI kamu sudah siap! Klik tombol di bawah untuk membacanya secara privat (**Only you can see this**):${promptLine}`,
+                content: `<@${message.author.id}>, jawaban AI kamu sudah siap! Klik tombol di bawah untuk membacanya secara privat:${promptLine}`,
                 components: [row],
               }).catch(console.error);
             } else {
@@ -1442,14 +1540,10 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     // 2. Auto-Reactions untuk Galeri Kreatif & Hiburan
-    if (chName.includes('meme')) {
-      message.react('🗿').then(() => message.react('😂')).catch(() => {});
-    } else if (chName.includes('fanart') || chName.includes('ai-fanart')) {
-      message.react('🎨').then(() => message.react('❤️')).catch(() => {});
-    } else if (chName.includes('fotografi')) {
-      message.react('📸').then(() => message.react('✨')).catch(() => {});
+    if (chName.includes('fotografi')) {
+      // Channel fotografi
     } else if (chName.includes('videografi')) {
-      message.react('🎥').then(() => message.react('🔥')).catch(() => {});
+      // Channel videografi
     }
   }
 
