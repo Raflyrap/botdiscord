@@ -1611,8 +1611,8 @@ client.on(Events.MessageCreate, async (message) => {
             .setDescription(
               `Gambar kamu berhasil ditingkatkan dengan AI Super-Resolution.\n\n` +
               `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
-              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
-              `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
+              `• Mesin: **${result.engine || 'AI Super-Resolution HD'}**\n` +
               `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
               `> **Cara Melihat Kualitas Asli:**\n` +
               `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
@@ -1671,8 +1671,8 @@ client.on(Events.MessageCreate, async (message) => {
             .setDescription(
               `Gambar kamu berhasil ditingkatkan dengan AI Super-Resolution.\n\n` +
               `• Resolusi Awal: **${result.originalWidth}x${result.originalHeight}**\n` +
-              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
-              `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
+              `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x HD)\n` +
+              `• Mesin: **${result.engine || 'AI Super-Resolution HD'}**\n` +
               `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
               `> **Cara Melihat Kualitas Asli:**\n` +
               `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`

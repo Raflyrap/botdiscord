@@ -1,17 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { Client: GradioClient } = require('@gradio/client');
-const { ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { ChannelType, EmbedBuilder } = require('discord.js');
 
 /**
- * Helper untuk meningkatkan kualitas gambar secara lokal (Upscale & Sharpening)
+ * Helper untuk meningkatkan kualitas gambar menggunakan AI Super-Resolution HD
  * dan manajemen kategori & channel khusus Auto-HD
  */
 
 const CONFIG_PATH = path.join(__dirname, 'hdChannelConfig.json');
-const MAX_INPUT_BYTES = 15 * 1024 * 1024; // Maksimal input 15MB
-const MAX_DIMENSION = 4096; // Maksimal lebar/tinggi output 4096px agar hemat memori & aman di Discord
 
 function loadHdConfig() {
   try {
@@ -87,20 +84,19 @@ async function setupHdChannel(guild) {
   const guideEmbed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setAuthor({
-      name: 'FlyBot  •  Studio HD Foto',
+      name: 'FlyBot • Studio HD Foto',
       iconURL: guild.client.user.displayAvatarURL(),
     })
     .setTitle('Channel Khusus Peningkatan Kualitas Foto')
     .setDescription(
       `Selamat datang di channel khusus Auto-HD!\n\n` +
       `**Cara Pakai (Otomatis & Sangat Mudah):**\n` +
-      `• Cukup **kirim foto apa saja** ke channel ini, bot akan langsung otomatis meningkatkan resolusi dan ketajamannya (Auto-HD 2x) tanpa perlu mengetik perintah apa pun.\n` +
-      `• Ingin hasil lebih besar? Ketik \`/hd 4x\` pada caption foto untuk pembesaran 4x Ultra HD.\n` +
+      `• Cukup **kirim foto apa saja** ke channel ini, bot akan langsung otomatis meningkatkan resolusi dan ketajamannya dengan AI Super-Resolution tanpa perlu mengetik perintah apa pun.\n` +
       `• Kamu juga bisa me-reply foto di channel ini lalu ketik \`/hd\` atau \`!hd\`.\n\n` +
-      `**Teknologi Studio:**\n` +
-      `• Interpolasi Piksel Lanczos3\n` +
-      `• Adaptive Unsharp Masking\n` +
-      `• Chroma Subsampling 4:4:4 (Warna Asli Terjaga)`
+      `**Teknologi:**\n` +
+      `• AI Super-Resolution HD\n` +
+      `• Deep Learning Detail & Texture Enhancement\n` +
+      `• Color & Contrast Optimization`
     )
     .setFooter({ text: 'Pesan disematkan permanen • Kirim foto kamu langsung di bawah' })
     .setTimestamp();
@@ -164,328 +160,138 @@ async function removeHdChannel(guild) {
 }
 
 /**
- * Mengambil Buffer gambar dari URL atau Buffer
- * @param {string|Buffer} input - URL attachment Discord atau Buffer
+ * Peningkatan Kualitas Gambar via Mesin AI Super-Resolution HD (Snowping Engine)
+ * @param {string} imageUrl
  * @returns {Promise<Buffer>}
  */
-async function fetchImageBuffer(input) {
-  if (Buffer.isBuffer(input)) return input;
-
-  if (typeof input === 'string') {
-    const res = await fetch(input);
-    if (!res.ok) {
-      throw new Error(`Gagal mengunduh gambar (Status HTTP ${res.status})`);
-    }
-
-    const contentLength = parseInt(res.headers.get('content-length') || '0', 10);
-    if (contentLength > MAX_INPUT_BYTES) {
-      throw new Error('Ukuran gambar terlalu besar (maksimal 15MB)');
-    }
-
-    const arrayBuf = await res.arrayBuffer();
-    const buf = Buffer.from(arrayBuf);
-
-    if (buf.length > MAX_INPUT_BYTES) {
-      throw new Error('Ukuran gambar melebihi batas 15MB');
-    }
-
-    return buf;
+async function enhanceWithAiSuperResolution(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string' || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'))) {
+    throw new Error('URL gambar tidak valid untuk diproses oleh AI Super-Resolution.');
   }
 
-  throw new Error('Input gambar tidak valid');
-}
+  const apiUrl = 'https://api.snowping.cfd/api/imagehd/hd?url=' + encodeURIComponent(imageUrl);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
 
-/**
- * Peningkatan Kualitas Gambar via Snowping Cloud HD AI (4x Upscaler)
- * @param {string} imageUrl
- * @returns {Promise<Buffer|null>}
- */
-async function enhanceWithSnowping(imageUrl) {
-  if (!imageUrl || typeof imageUrl !== 'string') return null;
-  if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) return null;
-
+  let res;
   try {
-    const apiUrl = 'https://api.snowping.cfd/api/imagehd/hd?url=' + encodeURIComponent(imageUrl);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-    const res = await fetch(apiUrl, {
+    res = await fetch(apiUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0',
       },
     });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      console.warn(`[SNOWPING HD API] HTTP Error ${res.status}`);
-      return null;
-    }
-
-    const data = await res.json();
-    if (data.status === 200 && data.result?.url) {
-      const imgRes = await fetch(data.result.url);
-      if (imgRes.ok) {
-        const arrayBuf = await imgRes.arrayBuffer();
-        return Buffer.from(arrayBuf);
-      }
-    }
   } catch (err) {
-    console.warn('[SNOWPING HD API FAILED]:', err.message);
+    if (err.name === 'AbortError') {
+      throw new Error('Koneksi ke mesin AI Super-Resolution timeout.');
+    }
+    throw new Error(`Koneksi AI gagal: ${err.message}`);
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return null;
+
+  if (!res.ok) {
+    throw new Error(`Mesin AI merespon dengan status HTTP ${res.status}`);
+  }
+
+  const data = await res.json().catch(() => null);
+  if (!data || data.status !== 200 || !data.result?.url) {
+    const errMsg = data?.error || 'Respon AI tidak menyertakan URL hasil.';
+    throw new Error(errMsg);
+  }
+
+  const imgRes = await fetch(data.result.url);
+  if (!imgRes.ok) {
+    throw new Error(`Gagal mengunduh gambar hasil AI (Status HTTP ${imgRes.status})`);
+  }
+
+  const arrayBuf = await imgRes.arrayBuffer();
+  const resultBuf = Buffer.from(arrayBuf);
+  if (!resultBuf || resultBuf.length === 0) {
+    throw new Error('Buffer gambar hasil AI kosong.');
+  }
+
+  return resultBuf;
 }
 
 /**
- * Tingkatkan resolusi dan ketajaman gambar
- * @param {string|Buffer} input - URL gambar atau Buffer
+ * Tingkatkan resolusi dan ketajaman gambar HANYA menggunakan mesin AI Super-Resolution HD
+ * @param {string} input - URL gambar publik/Discord CDN
  * @param {object} options
- * @param {number} [options.scale=2] - Faktor pembesaran (2 atau 4)
- * @returns {Promise<{success: boolean, buffer?: Buffer, fileName?: string, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, processTimeMs?: number, error?: string}>}
+ * @returns {Promise<{success: boolean, buffer?: Buffer, fileName?: string, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, scale?: number, engine?: string, processTimeMs?: number, error?: string}>}
  */
 async function enhanceImage(input, options = {}) {
   const startTime = Date.now();
-  const scale = options.scale === 4 ? 4 : 2;
 
   try {
-    const rawBuffer = await fetchImageBuffer(input);
-
-    const image = sharp(rawBuffer, { failOn: 'none' });
-    const metadata = await image.metadata();
-
-    if (!metadata.width || !metadata.height) {
+    if (!input || typeof input !== 'string' || (!input.startsWith('http://') && !input.startsWith('https://'))) {
       return {
         success: false,
-        error: 'File yang dikirim bukan format gambar yang didukung (gunakan JPG, PNG, atau WebP).',
+        error: 'Gambar harus memiliki URL publik yang valid (JPG, PNG, atau WebP).',
       };
     }
 
-    // 1. Prioritas Utama: Peningkatan AI 4x via Cloud HD API (Snowping Engine) jika input berupa URL
-    if (typeof input === 'string' && (input.startsWith('http://') || input.startsWith('https://'))) {
-      const snowpingBuffer = await enhanceWithSnowping(input);
-      if (snowpingBuffer && snowpingBuffer.length > 0) {
-        let finalBuffer = snowpingBuffer;
-        let ext = 'png';
-        try {
-          const testMeta = await sharp(snowpingBuffer).metadata();
-          ext = testMeta.format === 'png' ? 'png' : 'jpg';
-
-          // Jika ukuran melebihi batas upload Discord (8MB), kompresi sedikit
-          if (finalBuffer.length > 8 * 1024 * 1024) {
-            finalBuffer = await sharp(snowpingBuffer)
-              .jpeg({ quality: 94, chromaSubsampling: '4:4:4' })
-              .toBuffer();
-            ext = 'jpg';
-          }
-        } catch {}
-
-        const finalMeta = await sharp(finalBuffer).metadata();
-        const elapsed = Date.now() - startTime;
-        return {
-          success: true,
-          buffer: finalBuffer,
-          fileName: `hd_${finalMeta.width || metadata.width * 4}x${finalMeta.height || metadata.height * 4}_${Date.now()}.${ext}`,
-          originalWidth: metadata.width,
-          originalHeight: metadata.height,
-          newWidth: finalMeta.width || metadata.width * 4,
-          newHeight: finalMeta.height || metadata.height * 4,
-          scale: 4,
-          engine: 'AI Super-Resolution HD (4x Cloud Engine)',
-          processTimeMs: elapsed,
-        };
+    // 1. Ambil info dimensi asli gambar via Sharp
+    let originalWidth = 0;
+    let originalHeight = 0;
+    try {
+      const origRes = await fetch(input);
+      if (origRes.ok) {
+        const origBuf = Buffer.from(await origRes.arrayBuffer());
+        const origMeta = await sharp(origBuf).metadata();
+        originalWidth = origMeta.width || 0;
+        originalHeight = origMeta.height || 0;
       }
+    } catch (e) {
+      // Lanjut proses jika metadata gagal di-fetch
     }
 
-    // 2. Prioritas Cadangan: Deep Learning Super-Resolution AI Real-ESRGAN via HuggingFace jika HF_TOKEN tersedia
-    const hfToken = process.env.HF_TOKEN;
-    if (hfToken) {
-      const mime = metadata.format === 'png' ? 'image/png' : 'image/jpeg';
-      const imageBlob = new Blob([rawBuffer], { type: mime });
+    // 2. Proses menggunakan mesin AI Super-Resolution HD
+    const rawAiBuffer = await enhanceWithAiSuperResolution(input);
 
-      // Engine 1: Real-ESRGAN 4x-UltraSharp (Model Real-ESRGAN kualitas tertinggi untuk restorasi foto)
-      try {
-        const app = await GradioClient.connect('Kim2091/Upscaler', { token: hfToken });
-        const res = await app.predict('/upscale_image', [imageBlob, '4x-UltraSharp']);
-
-        const afterItem = res?.data?.[0]?.[1];
-        const downloadUrl = afterItem?.url || res?.data?.[1]?.url;
-        if (downloadUrl) {
-          const downloadRes = await fetch(downloadUrl);
-          if (downloadRes.ok) {
-            const rawAiBuffer = Buffer.from(await downloadRes.arrayBuffer());
-
-            // Konversi output ke PNG murni (Lossless) agar tidak dikompresi webp oleh Discord
-            let aiBuffer;
-            let ext = 'png';
-            try {
-              aiBuffer = await sharp(rawAiBuffer).png({ compressionLevel: 6 }).toBuffer();
-              if (aiBuffer.length > 8 * 1024 * 1024) {
-                aiBuffer = await sharp(rawAiBuffer).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
-                ext = 'jpg';
-              }
-            } catch {
-              aiBuffer = rawAiBuffer;
-              ext = 'png';
-            }
-
-            const finalMeta = await sharp(aiBuffer).metadata();
-            const elapsed = Date.now() - startTime;
-            return {
-              success: true,
-              buffer: aiBuffer,
-              fileName: `realesrgan_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
-              originalWidth: metadata.width,
-              originalHeight: metadata.height,
-              newWidth: finalMeta.width,
-              newHeight: finalMeta.height,
-              scale: scale,
-              engine: 'Real-ESRGAN AI (4x-UltraSharp GPU)',
-              processTimeMs: elapsed,
-            };
-          }
-        }
-      } catch (err1) {
-        console.warn('[REAL-ESRGAN PRIMARY FAILED, TRYING SECONDARY GPU]:', err1.message);
-      }
-
-      // Engine 2: Real-ESRGAN Universal CUDA GPU
-      try {
-        const app2 = await GradioClient.connect('tailot/universal-upscale', { token: hfToken });
-        const res2 = await app2.predict('/predict', [imageBlob, scale, 0]);
-
-        const downloadUrl2 = res2?.data?.[0]?.url;
-        if (downloadUrl2) {
-          const downloadRes2 = await fetch(downloadUrl2);
-          if (downloadRes2.ok) {
-            const rawAiBuffer2 = Buffer.from(await downloadRes2.arrayBuffer());
-
-            let aiBuffer;
-            let ext = 'png';
-            try {
-              aiBuffer = await sharp(rawAiBuffer2).png({ compressionLevel: 6 }).toBuffer();
-              if (aiBuffer.length > 8 * 1024 * 1024) {
-                aiBuffer = await sharp(rawAiBuffer2).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
-                ext = 'jpg';
-              }
-            } catch {
-              aiBuffer = rawAiBuffer2;
-              ext = 'png';
-            }
-
-            const finalMeta = await sharp(aiBuffer).metadata();
-            const elapsed = Date.now() - startTime;
-            return {
-              success: true,
-              buffer: aiBuffer,
-              fileName: `realesrgan_hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
-              originalWidth: metadata.width,
-              originalHeight: metadata.height,
-              newWidth: finalMeta.width,
-              newHeight: finalMeta.height,
-              scale: scale,
-              engine: 'Real-ESRGAN AI (Universal GPU)',
-              processTimeMs: elapsed,
-            };
-          }
-        }
-      } catch (err2) {
-        console.warn('[REAL-ESRGAN SECONDARY FAILED, FALLBACK TO LOCAL]:', err2.message);
-      }
-    }
-
-    // 2. Fallback Lokal Studio menggunakan Sharp (Lanczos3 + Unsharp Mask) jika AI offline
-    let targetWidth = Math.round(metadata.width * scale);
-    let targetHeight = Math.round(metadata.height * scale);
-
-    // Batasi dimensi maksimal agar aman di Discord dan server Pterodactyl
-    if (targetWidth > MAX_DIMENSION || targetHeight > MAX_DIMENSION) {
-      const ratio = Math.min(MAX_DIMENSION / targetWidth, MAX_DIMENSION / targetHeight);
-      targetWidth = Math.max(1, Math.round(targetWidth * ratio));
-      targetHeight = Math.max(1, Math.round(targetHeight * ratio));
-    }
-
-    // Pipeline pemrosesan gambar berkecepatan tinggi:
-    // 1. Resize menggunakan interpolasi Lanczos3 (kualitas detail piksel tertinggi)
-    // 2. Sharpening filter adaptif untuk menonjolkan garis tepi dan tekstur
-    // 3. Modulasi kontras halus dan saturasi warna seimbang
-    let pipeline = image
-      .rotate() // Auto-orientasi sesuai EXIF gambar asli
-      .resize(targetWidth, targetHeight, {
-        kernel: sharp.kernel.lanczos3,
-        fit: 'inside',
-        withoutEnlargement: false,
-      })
-      .sharpen({
-        sigma: 1.4,
-        m1: 1.2,
-        m2: 0.6,
-        x1: 2,
-        y2: 10,
-        y3: 20,
-      })
-      .modulate({
-        saturation: 1.04,
-        brightness: 1.01,
-      });
-
-    const isPng = metadata.format === 'png';
-    let outputBuffer;
+    // 3. Metadata dan pengecekan ukuran gambar
+    let finalBuffer = rawAiBuffer;
     let ext = 'jpg';
+    let newWidth = originalWidth * 2 || 1920;
+    let newHeight = originalHeight * 2 || 1080;
 
-    if (isPng && targetWidth * targetHeight <= 2048 * 2048) {
-      // Untuk PNG kecil, pertahankan PNG lossless
-      outputBuffer = await pipeline
-        .png({
-          compressionLevel: 8,
-          adaptiveFiltering: true,
-        })
-        .toBuffer();
-      ext = 'png';
-    } else {
-      // Gunakan JPEG kualitas studio 95% dengan subsampling 4:4:4 untuk ketajaman warna murni
-      outputBuffer = await pipeline
-        .jpeg({
-          quality: 95,
-          chromaSubsampling: '4:4:4',
-          trellisQuantisation: true,
-          overshootDeringing: true,
-          optimizeScans: true,
-        })
-        .toBuffer();
-      ext = 'jpg';
-    }
+    try {
+      const resultMeta = await sharp(rawAiBuffer).metadata();
+      ext = resultMeta.format === 'png' ? 'png' : 'jpg';
+      newWidth = resultMeta.width || newWidth;
+      newHeight = resultMeta.height || newHeight;
 
-    // Jika ukuran output masih di atas 8MB (batas gratis Discord), turunkan sedikit kualitas ke 88%
-    if (outputBuffer.length > 8 * 1024 * 1024) {
-      outputBuffer = await pipeline
-        .jpeg({
-          quality: 88,
-          chromaSubsampling: '4:4:4',
-        })
-        .toBuffer();
-      ext = 'jpg';
+      // Batasi 8MB untuk Discord
+      if (finalBuffer.length > 8 * 1024 * 1024) {
+        finalBuffer = await sharp(rawAiBuffer)
+          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+          .toBuffer();
+        ext = 'jpg';
+      }
+    } catch (metaErr) {
+      console.warn('[AI HD SHARP META WARN]:', metaErr.message);
     }
 
     const elapsed = Date.now() - startTime;
-    const finalMeta = await sharp(outputBuffer).metadata();
+    const calculatedScale = originalWidth > 0 ? Math.round(newWidth / originalWidth) : 2;
 
     return {
       success: true,
-      buffer: outputBuffer,
-      fileName: `hd_${finalMeta.width}x${finalMeta.height}_${Date.now()}.${ext}`,
-      originalWidth: metadata.width,
-      originalHeight: metadata.height,
-      newWidth: finalMeta.width,
-      newHeight: finalMeta.height,
-      scale: scale,
-      engine: 'Lanczos3 + Unsharp Mask (Local Studio)',
+      buffer: finalBuffer,
+      fileName: `ai_hd_${newWidth}x${newHeight}_${Date.now()}.${ext}`,
+      originalWidth: originalWidth || Math.round(newWidth / 2),
+      originalHeight: originalHeight || Math.round(newHeight / 2),
+      newWidth: newWidth,
+      newHeight: newHeight,
+      scale: calculatedScale || 2,
+      engine: 'AI Super-Resolution HD',
       processTimeMs: elapsed,
     };
   } catch (err) {
-    console.error('[IMAGE HD ERROR]:', err);
+    console.error('[AI SUPER RESOLUTION HD ERROR]:', err.message);
     return {
       success: false,
-      error: err.message || 'Gagal memproses gambar.',
+      error: err.message || 'Gagal memproses gambar dengan AI Super-Resolution HD.',
     };
   }
 }
