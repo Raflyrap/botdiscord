@@ -67,6 +67,7 @@ async function getOrCreateRole(guild, { name, color, hoist = true, mentionable =
       role = await guild.roles.create({
         name,
         color,
+        colors: color !== undefined ? [color] : undefined,
         hoist,
         mentionable,
         reason: `Auto-setup role ${name}`,

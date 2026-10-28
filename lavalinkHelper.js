@@ -90,7 +90,7 @@ async function searchTrackWithFallback(player, query, requester) {
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Hanya menggunakan node publik yang terbukti stabil, aktif, dan mendukung v4
+  // Hanya menggunakan node publik yang terbukti stabil, aktif, dan mendukung v4 tanpa rate-limit spam
   const defaultNodes = [
     {
       id: 'jirayu-v4',
@@ -100,16 +100,6 @@ function initLavalink(client) {
       secure: true,
       requestTimeout: 10000,
       retryDelay: 15000,
-      retryAmount: 5,
-    },
-    {
-      id: 'serenetia-v4',
-      host: 'lavalink.serenetia.com',
-      port: 443,
-      authorization: 'youshallnotpass',
-      secure: true,
-      requestTimeout: 10000,
-      retryDelay: 20000,
       retryAmount: 5,
     },
   ];
@@ -156,16 +146,27 @@ function initLavalink(client) {
     },
   });
 
+  const failureCounts = new Map();
+
   // Listener Node Lavalink
   manager.nodeManager
     .on('connect', (node) => {
+      failureCounts.set(node.id, 0);
       console.log(`[LAVALINK v4] Node '${node.id}' (${node.options.host}:${node.options.port}) BERHASIL TERHUBUNG!`);
     })
     .on('disconnect', (node, reason) => {
       const code = reason?.code;
       const reasonStr = typeof reason === 'object' ? (reason?.reason || JSON.stringify(reason)) : String(reason);
-      if (code === 4000 || (reasonStr && reasonStr.includes('Too many websocket connections'))) {
-        console.warn(`[LAVALINK v4] Node '${node.id}' mencapai batas antrean koneksi publik. Menunggu jeda aman...`);
+      const fails = (failureCounts.get(node.id) || 0) + 1;
+      failureCounts.set(node.id, fails);
+
+      // Circuit breaker: jika node memutus dengan code 4000 (rate limit) atau terputus berulang >= 3x
+      if (code === 4000 || (reasonStr && reasonStr.includes('Too many websocket connections')) || fails >= 3) {
+        console.warn(`[LAVALINK v4] Node '${node.id}' sedang dibatasi/overload oleh server penyedia. Menghentikan reconnect otomatis.`);
+        try {
+          node.options.retryAmount = 0;
+          node.disconnect();
+        } catch (_) {}
       } else {
         console.warn(`[LAVALINK v4] Node '${node.id}' terputus. Alasan:`, reasonStr);
       }
