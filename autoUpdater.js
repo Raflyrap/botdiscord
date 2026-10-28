@@ -74,6 +74,9 @@ async function checkForUpdates() {
         'logConfig.json',
         'reminderData.json',
         'serverTemplateConfig.json',
+        'botMonitorData.json',
+        'maintenanceConfig.json',
+        'botPresenceConfig.json',
         'music/music.mp3',
         '.env',
       ];

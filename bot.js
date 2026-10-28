@@ -76,6 +76,12 @@ const {
   initBotMonitoring,
   recordCommandExecution,
 } = require('./botMonitoringHelper');
+const {
+  isBotOwner,
+  getMaintenanceConfig,
+  applyBotPresence,
+  getOfficialInviteUrl,
+} = require('./ownerHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -211,6 +217,13 @@ client.once(Events.ClientReady, async (readyClient) => {
     initBotMonitoring(readyClient);
   } catch (err) {
     console.error('[BOT MONITOR INIT] Error:', err.message);
+  }
+
+  // Terapkan Status Custom Presence Bot
+  try {
+    applyBotPresence(readyClient);
+  } catch (err) {
+    console.error('[BOT PRESENCE INIT] Error:', err.message);
   }
 
   // Auto-resume patroli voice untuk guild yang patrolinya masih aktif sebelum restart
@@ -959,6 +972,47 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (!interaction.isChatInputCommand()) return;
+
+  // Pemeriksaan Mode Pemeliharaan (Maintenance Mode)
+  try {
+    const maintenance = getMaintenanceConfig();
+    if (maintenance.enabled) {
+      const isOwner = await isBotOwner(interaction);
+      if (!isOwner) {
+        const inviteUrl = getOfficialInviteUrl();
+        const maintEmbed = new EmbedBuilder()
+          .setColor(0xed4245)
+          .setAuthor({
+            name: 'FlyBot System Maintenance',
+            iconURL: interaction.client.user.displayAvatarURL({ dynamic: true }),
+          })
+          .setTitle('🚧 Bot Sedang Dalam Pemeliharaan (Maintenance)')
+          .setDescription(
+            `Mohon maaf atas ketidaknyamanannya! FlyBot saat ini sedang dalam proses pemeliharaan & optimalisasi oleh Developer.\n\n` +
+            `> **Catatan Pemeliharaan:**\n` +
+            `> *${maintenance.reason || 'Pembaruan sistem & optimalisasi jaringan bot.'}*\n\n` +
+            `Silakan pantau pengumuman status pemulihan bot di Server Resmi FlyBot.`
+          )
+          .setFooter({ text: 'FlyBot Maintenance System • Developer Only' })
+          .setTimestamp();
+
+        const maintRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('🌟 Pantau di Server Resmi FlyBot')
+            .setStyle(ButtonStyle.Link)
+            .setURL(inviteUrl)
+        );
+
+        return interaction.reply({
+          embeds: [maintEmbed],
+          components: [maintRow],
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+  } catch (maintErr) {
+    console.error('[MAINTENANCE CHECK ERROR]:', maintErr);
+  }
 
   // Catat eksekusi perintah untuk statistik realtime
   try {

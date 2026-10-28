@@ -3,55 +3,48 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
   MessageFlags,
+  ChannelType,
+  ButtonBuilder,
+  ActionRowBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const {
   updateLiveDashboard,
   updateServerListDashboard,
   formatUptime,
-  ensureMonitoringChannels,
 } = require('../botMonitoringHelper');
-
-async function isBotOwner(interaction) {
-  try {
-    if (!interaction.client.application?.owner) {
-      await interaction.client.application?.fetch().catch(() => null);
-    }
-    const appOwner = interaction.client.application?.owner;
-    if (appOwner) {
-      if (appOwner.id && interaction.user.id === appOwner.id) return true;
-      if (appOwner.members && appOwner.members.has(interaction.user.id)) return true;
-    }
-
-    // Izinkan juga jika user adalah Owner dari Server Official FlyBot
-    const { getOfficialGuildId } = require('../botMonitoringHelper');
-    const officialGuildId = getOfficialGuildId();
-    const officialGuild = interaction.client.guilds.cache.get(officialGuildId);
-    if (officialGuild && officialGuild.ownerId === interaction.user.id) return true;
-  } catch (err) {
-    console.error('[OWNER CHECK ERROR]:', err);
-  }
-  return false;
-}
+const {
+  isBotOwner,
+  getMaintenanceConfig,
+  setMaintenanceConfig,
+  setPresenceConfig,
+  applyBotPresence,
+  getOfficialInviteUrl,
+} = require('../ownerHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('owner')
     .setDescription('[Khusus Owner] Menu pengelolaan dan pemantauan resmi FlyBot')
+    // 1. Status Teknis
     .addSubcommand((sub) =>
       sub
         .setName('status')
         .setDescription('Melihat status teknis, RAM, uptime, dan statistik FlyBot')
     )
+    // 2. Update Dashboard
     .addSubcommand((sub) =>
       sub
         .setName('updatedashboard')
         .setDescription('Memperbarui pesan live monitoring dashboard di server official')
     )
+    // 3. Daftar Server
     .addSubcommand((sub) =>
       sub
         .setName('servers')
         .setDescription('Melihat daftar semua server tempat FlyBot bergabung')
     )
+    // 4. Keluar Server
     .addSubcommand((sub) =>
       sub
         .setName('leaveserver')
@@ -61,6 +54,92 @@ module.exports = {
             .setName('server_id')
             .setDescription('ID Server yang ingin ditinggalkan oleh FlyBot')
             .setRequired(true)
+        )
+    )
+    // 5. Global Broadcast
+    .addSubcommand((sub) =>
+      sub
+        .setName('broadcast')
+        .setDescription('Mengirim pesan pengumuman resmi ke seluruh server yang memasang FlyBot')
+        .addStringOption((opt) =>
+          opt
+            .setName('pesan')
+            .setDescription('Isi pesan / pengumuman yang ingin disiarkan')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('judul')
+            .setDescription('Judul embed pengumuman (Opsional)')
+            .setRequired(false)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('gambar_url')
+            .setDescription('URL gambar / banner pengumuman (Opsional)')
+            .setRequired(false)
+        )
+    )
+    // 6. Set Activity & Status Presence
+    .addSubcommand((sub) =>
+      sub
+        .setName('setactivity')
+        .setDescription('Mengatur status aktivitas & presence FlyBot secara real-time')
+        .addStringOption((opt) =>
+          opt
+            .setName('tipe')
+            .setDescription('Tipe aktivitas bot')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Playing (Bermain)', value: 'Playing' },
+              { name: 'Watching (Menonton)', value: 'Watching' },
+              { name: 'Listening (Mendengarkan)', value: 'Listening' },
+              { name: 'Competing (Bertanding)', value: 'Competing' },
+              { name: 'Streaming (Live Stream)', value: 'Streaming' },
+              { name: 'Custom (Kustom)', value: 'Custom' }
+            )
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('status')
+            .setDescription('Status online bot')
+            .setRequired(true)
+            .addChoices(
+              { name: '🟢 Online', value: 'online' },
+              { name: '🟡 Idle', value: 'idle' },
+              { name: '🔴 Do Not Disturb (DND)', value: 'dnd' },
+              { name: '⚪ Invisible', value: 'invisible' }
+            )
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('teks')
+            .setDescription('Teks status yang ditampilkan')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('streaming_url')
+            .setDescription('URL Twitch / YouTube (Hanya jika tipe Streaming)')
+            .setRequired(false)
+        )
+    )
+    // 7. Maintenance Mode Toggle
+    .addSubcommand((sub) =>
+      sub
+        .setName('maintenance')
+        .setDescription('Mengaktifkan atau mematikan mode pemeliharaan (Maintenance) FlyBot')
+        .addBooleanOption((opt) =>
+          opt
+            .setName('status')
+            .setDescription('True = Aktifkan Maintenance, False = Matikan Maintenance')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('alasan')
+            .setDescription('Alasan pemeliharaan yang ditampilkan kepada pengguna lain')
+            .setRequired(false)
         )
     ),
 
@@ -174,6 +253,153 @@ module.exports = {
           content: `Gagal meninggalkan server: ${err.message}`,
         });
       }
+    }
+
+    // 5. /owner broadcast
+    if (sub === 'broadcast') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const messageText = interaction.options.getString('pesan');
+      const title = interaction.options.getString('judul') || '📢 Pengumuman Resmi FlyBot';
+      const imageUrl = interaction.options.getString('gambar_url');
+
+      const client = interaction.client;
+      const guilds = [...client.guilds.cache.values()];
+
+      const broadcastEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setAuthor({
+          name: 'FlyBot Official Broadcast • Pengumuman Developer',
+          iconURL: client.user.displayAvatarURL({ dynamic: true }),
+        })
+        .setTitle(title)
+        .setDescription(messageText)
+        .setFooter({ text: 'Pesan resmi disiarkan oleh Developer FlyBot' })
+        .setTimestamp();
+
+      if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+        broadcastEmbed.setImage(imageUrl);
+      }
+
+      const inviteUrl = getOfficialInviteUrl();
+      const actionRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('🌟 Gabung Server Resmi FlyBot')
+          .setStyle(ButtonStyle.Link)
+          .setURL(inviteUrl)
+      );
+
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const guild of guilds) {
+        try {
+          const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+          let targetChannel = guild.systemChannel;
+
+          if (
+            !targetChannel ||
+            !targetChannel.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
+          ) {
+            targetChannel = guild.channels.cache.find(
+              (c) =>
+                c.type === ChannelType.GuildText &&
+                c.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]) &&
+                (c.name.includes('announcement') ||
+                  c.name.includes('pengumuman') ||
+                  c.name.includes('general') ||
+                  c.name.includes('chat') ||
+                  c.name.includes('bot'))
+            );
+          }
+
+          if (!targetChannel) {
+            targetChannel = guild.channels.cache.find(
+              (c) =>
+                c.type === ChannelType.GuildText &&
+                c.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
+            );
+          }
+
+          if (targetChannel) {
+            await targetChannel.send({ embeds: [broadcastEmbed], components: [actionRow] });
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        } catch {
+          failedCount++;
+        }
+      }
+
+      return interaction.editReply({
+        content: `✅ **Broadcast Selesai!**\n> • Berhasil dikirim ke: **${successCount} Server**\n> • Gagal / Tidak ada channel yang terbuka: **${failedCount} Server**`,
+      });
+    }
+
+    // 6. /owner setactivity
+    if (sub === 'setactivity') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const type = interaction.options.getString('tipe');
+      const status = interaction.options.getString('status');
+      const text = interaction.options.getString('teks');
+      const streamingUrl = interaction.options.getString('streaming_url') || null;
+
+      const newConfig = {
+        type,
+        status,
+        text,
+        url: streamingUrl,
+      };
+
+      setPresenceConfig(newConfig);
+      applyBotPresence(interaction.client);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x57F287)
+        .setTitle('✅ Status Bot Berhasil Diperbarui')
+        .setDescription(
+          `Status bot telah berhasil diubah dan disimpan secara permanen:\n\n` +
+          `> • **Tipe Aktivitas**: \`${type}\`\n` +
+          `> • **Status Presence**: \`${status.toUpperCase()}\`\n` +
+          `> • **Teks Status**: \`${text}\`\n` +
+          (streamingUrl ? `> • **Streaming URL**: \`${streamingUrl}\`\n` : '')
+        )
+        .setFooter({ text: 'Status ini otomatis bertahan saat bot direstart' })
+        .setTimestamp();
+
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+    // 7. /owner maintenance
+    if (sub === 'maintenance') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const isEnabled = interaction.options.getBoolean('status');
+      const reason = interaction.options.getString('alasan');
+
+      const cfg = {
+        enabled: isEnabled,
+        reason: reason || (isEnabled ? 'FlyBot sedang dalam pemeliharaan rutin oleh Developer.' : 'Pemeliharaan selesai.'),
+        updatedAt: new Date().toISOString(),
+        updatedBy: interaction.user.tag,
+      };
+
+      setMaintenanceConfig(cfg);
+
+      const embed = new EmbedBuilder()
+        .setColor(isEnabled ? 0xED4245 : 0x57F287)
+        .setTitle(isEnabled ? '🚧 Mode Maintenance DIAKTIFKAN' : '🟢 Mode Maintenance DINONAKTIFKAN')
+        .setDescription(
+          isEnabled
+            ? `FlyBot sekarang berada dalam mode **Pemeliharaan (Maintenance)**.\n\n` +
+              `> • **Alasan**: ${cfg.reason}\n` +
+              `> • **Akses Perintah**: Khusus Bot Owner / Developer.\n` +
+              `> • Pengguna lain yang mencoba menjalankan command akan melihat notifikasi maintenance.`
+            : `Mode pemeliharaan telah **dinonaktifkan**.\n\nSeluruh pengguna di semua server kini dapat menggunakan perintah FlyBot secara normal kembali.`
+        )
+        .setFooter({ text: 'FlyBot Maintenance System' })
+        .setTimestamp();
+
+      return interaction.editReply({ embeds: [embed] });
     }
   },
 };

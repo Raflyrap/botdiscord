@@ -5,3 +5,6 @@ pterodtcyl
 patroliConfig.json
 .current_commit
 reminderData.json
+botMonitorData.json
+maintenanceConfig.json
+botPresenceConfig.json

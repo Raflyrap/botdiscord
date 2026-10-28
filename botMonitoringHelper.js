@@ -1,20 +1,29 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 const {
   EmbedBuilder,
   ChannelType,
   PermissionFlagsBits,
   OverwriteType,
+  ButtonBuilder,
+  ActionRowBuilder,
+  ButtonStyle,
 } = require('discord.js');
 
 const DATA_PATH = path.join(__dirname, 'botMonitorData.json');
 
-// Default ID Server Official FlyBot
+// Default ID Server Official FlyBot & Link Server
 const DEFAULT_OFFICIAL_GUILD_ID = '1563902604394627074';
 const DEFAULT_LOG_CHANNEL_ID = '1563922512016965764';
+const DEFAULT_OFFICIAL_INVITE_URL = 'https://discord.com/invite/flybot';
 
 function getOfficialGuildId() {
   return process.env.OFFICIAL_GUILD_ID || DEFAULT_OFFICIAL_GUILD_ID;
+}
+
+function getOfficialInviteUrl() {
+  return process.env.OFFICIAL_INVITE_URL || DEFAULT_OFFICIAL_INVITE_URL;
 }
 
 // Membaca file data monitor
@@ -29,6 +38,8 @@ function loadMonitorData() {
         serverLeaveChannelId: null,
         serverListChannelId: null,
         serverListMessageId: null,
+        updateLogsChannelId: null,
+        lastReportedCommit: null,
         totalCommandsExecuted: 0,
         lastUpdated: null,
       };
@@ -36,7 +47,10 @@ function loadMonitorData() {
       return defaultData;
     }
     const raw = fs.readFileSync(DATA_PATH, 'utf8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!('updateLogsChannelId' in parsed)) parsed.updateLogsChannelId = null;
+    if (!('lastReportedCommit' in parsed)) parsed.lastReportedCommit = null;
+    return parsed;
   } catch (err) {
     console.error('[BOT MONITOR] Error saat membaca botMonitorData.json:', err);
     return {
@@ -47,6 +61,8 @@ function loadMonitorData() {
       serverLeaveChannelId: null,
       serverListChannelId: null,
       serverListMessageId: null,
+      updateLogsChannelId: null,
+      lastReportedCommit: null,
       totalCommandsExecuted: 0,
       lastUpdated: null,
     };
@@ -362,12 +378,49 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
+  // 6. Channel: 🚀︱update-logs
+  let updateLogsChannel = null;
+  if (data.updateLogsChannelId) {
+    updateLogsChannel = officialGuild.channels.cache.get(data.updateLogsChannelId) || (await officialGuild.channels.fetch(data.updateLogsChannelId).catch(() => null));
+  }
+  if (!updateLogsChannel) {
+    updateLogsChannel = officialGuild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildText && (c.name.includes('update-logs') || c.name.includes('bot-updates'))
+    );
+  }
+  if (!updateLogsChannel) {
+    try {
+      updateLogsChannel = await officialGuild.channels.create({
+        name: '🚀︱update-logs',
+        type: ChannelType.GuildText,
+        parent: categoryId,
+        permissionOverwrites: privateOverwrites,
+        topic: 'Log otomatis rincian pembaruan versi (GitHub commit & deploy log) FlyBot.',
+      });
+      data.updateLogsChannelId = updateLogsChannel.id;
+      saveMonitorData(data);
+      console.log(`[BOT MONITOR] Berhasil membuat channel: ${updateLogsChannel.name}`);
+    } catch (err) {
+      console.error('[BOT MONITOR] Gagal membuat channel update-logs:', err.message);
+    }
+  } else {
+    if (updateLogsChannel.parentId !== categoryId && categoryId) {
+      await updateLogsChannel.setParent(categoryId, { lockPermissions: false }).catch(() => {});
+    }
+    await updateLogsChannel.permissionOverwrites.set(privateOverwrites).catch(() => {});
+    if (data.updateLogsChannelId !== updateLogsChannel.id) {
+      data.updateLogsChannelId = updateLogsChannel.id;
+      saveMonitorData(data);
+    }
+  }
+
   return {
     category,
     dashboardChannel,
     serverJoinChannel,
     serverLeaveChannel,
     serverListChannel,
+    updateLogsChannel,
   };
 }
 
@@ -381,6 +434,7 @@ async function handleGuildCreate(guild, client) {
 
     console.log(`[GUILD JOIN] FlyBot dimasukkan ke: ${guild.name} (${guild.id}) - Owner: ${owner?.user?.tag || guild.ownerId}`);
 
+    // 1. Kirim log ke channel server-masuk di server official
     if (channels?.serverJoinChannel) {
       const embed = new EmbedBuilder()
         .setColor(0x57F287) // Hijau Vibrant
@@ -407,6 +461,81 @@ async function handleGuildCreate(guild, client) {
       await channels.serverJoinChannel.send({ embeds: [embed] }).catch((err) => {
         console.warn('[BOT MONITOR] Gagal mengirim pesan ke server-masuk:', err.message);
       });
+    }
+
+    // 2. Kirim pesan sambutan & iklan sekilas + tombol join server resmi ke server yang baru memasukkan bot
+    try {
+      let targetChannel = guild.systemChannel;
+      const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+
+      // Jika systemChannel tidak bisa dikirim embed, cari channel teks pertama yang memiliki izin
+      if (
+        !targetChannel ||
+        !targetChannel.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
+      ) {
+        targetChannel = guild.channels.cache.find(
+          (c) =>
+            c.type === ChannelType.GuildText &&
+            c.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]) &&
+            (c.name.includes('general') ||
+              c.name.includes('chat') ||
+              c.name.includes('utama') ||
+              c.name.includes('welcome') ||
+              c.name.includes('bot'))
+        );
+      }
+
+      if (!targetChannel) {
+        targetChannel = guild.channels.cache.find(
+          (c) =>
+            c.type === ChannelType.GuildText &&
+            c.permissionsFor(botMember)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
+        );
+      }
+
+      if (targetChannel) {
+        const welcomeEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setAuthor({
+            name: 'FlyBot Multi-Purpose • Official System',
+            iconURL: client.user.displayAvatarURL({ dynamic: true }),
+          })
+          .setTitle(`🎉 Halo ${guild.name}! Terima Kasih Telah Mengundang FlyBot!`)
+          .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
+          .setDescription(
+            `Hai semuanya! **FlyBot** kini resmi hadir untuk memeriahkan dan membantu mengelola server **${guild.name}**.\n\n` +
+            `✨ **Fitur-Fitur Unggulan FlyBot:**\n` +
+            `> 🎵 **Music Studio**: Suara HQ jernih Lavalink v4, playlist, bassboost, dan autoplay.\n` +
+            `> 🤖 **AI Assistant & Voice AI**: Asisten obrolan cerdas di teks dan voice room.\n` +
+            `> 🛡️ **Auto Moderation & Anti-Toxic**: Perlindungan otomatis terhadap spam & kata kasar.\n` +
+            `> 🔊 **Dynamic Temp Voice**: Otomatisasi ruang voice pribadi (Join-to-Create).\n` +
+            `> 🎫 **Support Ticket**: Sistem tiket komprehensif untuk pengaduan & support member.\n` +
+            `> 📊 **Server Stats & Leveling**: Kartu profil XP, leaderboard, dan statistik otomatis.\n\n` +
+            `🚀 **Mulai Menjelajah:**\n` +
+            `> • Gunakan \`/help\` untuk melihat seluruh menu dan tutorial perintah.\n` +
+            `> • Gunakan \`/setup\` untuk memasang channel server otomatis sekali klik.\n\n` +
+            `👑 **Komunitas Resmi FlyBot:**\n` +
+            `Ingin request fitur, lapor kendala, diskusi teknis, atau mabar bareng? Yuk langsung merapat ke Server Official FlyBot!`
+          )
+          .setFooter({ text: 'FlyBot • The All-in-One Discord Experience' })
+          .setTimestamp();
+
+        const inviteUrl = getOfficialInviteUrl();
+        const actionRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('🌟 Gabung Server Resmi FlyBot')
+            .setStyle(ButtonStyle.Link)
+            .setURL(inviteUrl),
+          new ButtonBuilder()
+            .setLabel('📖 Panduan & Support')
+            .setStyle(ButtonStyle.Link)
+            .setURL(inviteUrl)
+        );
+
+        await targetChannel.send({ embeds: [welcomeEmbed], components: [actionRow] }).catch(() => {});
+      }
+    } catch (welcomeErr) {
+      console.warn('[GUILD JOIN AD] Gagal mengirim pesan sambutan iklan:', welcomeErr.message);
     }
 
     // Refresh status live dashboard & daftar server secara realtime
@@ -593,21 +722,160 @@ async function updateServerListDashboard(client) {
   }
 }
 
+// Helper: Mendapatkan rincian commit terbaru dari Git lokal atau GitHub API
+async function getLatestCommitDetails() {
+  // 1. Coba dari git lokal
+  try {
+    const gitLog = execSync('git log -1 --pretty=format:"%H|%h|%an|%s|%cd"', {
+      cwd: path.join(__dirname),
+      timeout: 3000,
+      encoding: 'utf8',
+    }).trim();
+    if (gitLog) {
+      const [fullHash, shortHash, author, subject, date] = gitLog.split('|');
+      return {
+        fullHash,
+        shortHash: shortHash || fullHash.substring(0, 7),
+        author: author || 'Developer',
+        message: subject || 'Update pembaruan FlyBot',
+        date: date || new Date().toLocaleString('id-ID'),
+      };
+    }
+  } catch {}
+
+  // 2. Cek file .current_commit
+  const commitFile = path.join(__dirname, '.current_commit');
+  let fileSha = null;
+  if (fs.existsSync(commitFile)) {
+    try {
+      fileSha = fs.readFileSync(commitFile, 'utf8').trim();
+    } catch {}
+  }
+
+  // 3. Cek GitHub API
+  try {
+    const https = require('https');
+    const commitDataRaw = await new Promise((resolve, reject) => {
+      https.get('https://api.github.com/repos/Raflyrap/botdiscord/commits/main', {
+        headers: { 'User-Agent': 'Node-Commit-Checker' },
+        timeout: 4000,
+      }, (res) => {
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+        const chunks = [];
+        res.on('data', chunk => chunks.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+      }).on('error', reject);
+    });
+    const parsed = JSON.parse(commitDataRaw.toString());
+    return {
+      fullHash: parsed.sha,
+      shortHash: parsed.sha.substring(0, 7),
+      author: parsed.commit?.author?.name || 'Raflyrap',
+      message: parsed.commit?.message || 'Update pembaruan FlyBot',
+      date: parsed.commit?.author?.date || new Date().toLocaleString('id-ID'),
+    };
+  } catch {}
+
+  if (fileSha) {
+    return {
+      fullHash: fileSha,
+      shortHash: fileSha.substring(0, 7),
+      author: 'Raflyrap',
+      message: 'Pembaruan sistem FlyBot via repository GitHub',
+      date: new Date().toLocaleString('id-ID'),
+    };
+  }
+
+  return null;
+}
+
+// Mengirim Embed Log Rincian Pembaruan ke Channel 🚀︱update-logs
+async function sendUpdateLog(client, logData) {
+  try {
+    const channels = await ensureMonitoringChannels(client);
+    if (!channels?.updateLogsChannel) {
+      console.warn('[BOT MONITOR] Channel update-logs tidak ditemukan untuk mengirim log update.');
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00D26A) // Emerald Green
+      .setAuthor({
+        name: 'FlyBot System • Auto Update & Deploy Tracker',
+        iconURL: client.user.displayAvatarURL({ dynamic: true }),
+      })
+      .setTitle(logData.title || '🚀 Pembaruan Sistem FlyBot Berhasil Diterapkan!')
+      .setDescription(logData.description || 'Kode bot telah diperbarui ke commit terbaru dan seluruh layanan aktif optimal.')
+      .addFields(
+        { name: '🔖 Commit SHA', value: `\`${logData.commitSha || 'Unknown'}\``, inline: true },
+        { name: '👤 Pengembang', value: `\`${logData.author || 'Raflyrap'}\``, inline: true },
+        { name: '⏰ Waktu Deploy', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
+      );
+
+    if (logData.commitMessage) {
+      embed.addFields({
+        name: '📝 Catatan Pembaruan (Changelog)',
+        value: `\`\`\`git\n${logData.commitMessage.substring(0, 1000)}\n\`\`\``,
+        inline: false,
+      });
+    }
+
+    embed.addFields({
+      name: '📊 Status Jaringan Saat Ini',
+      value: `> Server Aktif: **${client.guilds.cache.size} Server**\n> Uptime Host: **${formatUptime(process.uptime())}**`,
+      inline: false,
+    });
+
+    embed
+      .setFooter({ text: 'FlyBot Continuous Deployment Tracker • Official' })
+      .setTimestamp();
+
+    await channels.updateLogsChannel.send({ embeds: [embed] });
+    console.log('[BOT MONITOR] Berhasil memposting update log ke channel update-logs.');
+  } catch (err) {
+    console.error('[BOT MONITOR] Gagal mengirim update log:', err);
+  }
+}
+
+// Cek dan laporkan jika commit saat ini baru
+async function checkAndPostUpdateLog(client) {
+  try {
+    const data = loadMonitorData();
+    const commitDetails = await getLatestCommitDetails();
+    if (!commitDetails || !commitDetails.fullHash) return;
+
+    // Jika commit belum pernah dilaporkan
+    if (data.lastReportedCommit !== commitDetails.fullHash) {
+      console.log(`[BOT MONITOR] Mendeteksi commit baru (${commitDetails.shortHash}). Mengirim update log ke server official...`);
+      await sendUpdateLog(client, {
+        commitSha: commitDetails.shortHash,
+        author: commitDetails.author,
+        commitMessage: commitDetails.message,
+      });
+      data.lastReportedCommit = commitDetails.fullHash;
+      saveMonitorData(data);
+    }
+  } catch (err) {
+    console.error('[BOT MONITOR] Error pada checkAndPostUpdateLog:', err);
+  }
+}
+
 // Inisialisasi Monitoring saat bot pertama kali siap (ClientReady)
 function initBotMonitoring(client) {
   console.log(`[BOT MONITOR] Memulai inisialisasi monitoring privat di Official Server (${getOfficialGuildId()})...`);
 
-  // Jalankan setup channel dan update dashboard pertama
+  // Jalankan setup channel, dashboard, dan update log pertama
   setTimeout(async () => {
     try {
       await ensureMonitoringChannels(client);
       await updateLiveDashboard(client);
       await updateServerListDashboard(client);
-      console.log('[BOT MONITOR] Semua channel privat monitoring dan live dashboard siap!');
+      await checkAndPostUpdateLog(client);
+      console.log('[BOT MONITOR] Semua channel privat monitoring, update logs, dan live dashboard siap!');
     } catch (err) {
       console.error('[BOT MONITOR] Error inisialisasi awal:', err.message);
     }
-  }, 3000);
+  }, 4000);
 
   // Interval otomatis update realtime setiap 60 detik (1 menit)
   setInterval(async () => {
@@ -622,6 +890,7 @@ function initBotMonitoring(client) {
 
 module.exports = {
   getOfficialGuildId,
+  getOfficialInviteUrl,
   ensureMonitoringChannels,
   handleGuildCreate,
   handleGuildDelete,
@@ -630,4 +899,6 @@ module.exports = {
   initBotMonitoring,
   recordCommandExecution,
   formatUptime,
+  sendUpdateLog,
+  checkAndPostUpdateLog,
 };
