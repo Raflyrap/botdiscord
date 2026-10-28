@@ -196,6 +196,47 @@ async function fetchImageBuffer(input) {
 }
 
 /**
+ * Peningkatan Kualitas Gambar via Snowping Cloud HD AI (4x Upscaler)
+ * @param {string} imageUrl
+ * @returns {Promise<Buffer|null>}
+ */
+async function enhanceWithSnowping(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return null;
+  if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) return null;
+
+  try {
+    const apiUrl = 'https://api.snowping.cfd/api/imagehd/hd?url=' + encodeURIComponent(imageUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    const res = await fetch(apiUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0',
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.warn(`[SNOWPING HD API] HTTP Error ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    if (data.status === 200 && data.result?.url) {
+      const imgRes = await fetch(data.result.url);
+      if (imgRes.ok) {
+        const arrayBuf = await imgRes.arrayBuffer();
+        return Buffer.from(arrayBuf);
+      }
+    }
+  } catch (err) {
+    console.warn('[SNOWPING HD API FAILED]:', err.message);
+  }
+  return null;
+}
+
+/**
  * Tingkatkan resolusi dan ketajaman gambar
  * @param {string|Buffer} input - URL gambar atau Buffer
  * @param {object} options
@@ -219,7 +260,43 @@ async function enhanceImage(input, options = {}) {
       };
     }
 
-    // 1. Prioritaskan Deep Learning Super-Resolution AI Real-ESRGAN via Cloud GPU jika HF_TOKEN tersedia
+    // 1. Prioritas Utama: Peningkatan AI 4x via Cloud HD API (Snowping Engine) jika input berupa URL
+    if (typeof input === 'string' && (input.startsWith('http://') || input.startsWith('https://'))) {
+      const snowpingBuffer = await enhanceWithSnowping(input);
+      if (snowpingBuffer && snowpingBuffer.length > 0) {
+        let finalBuffer = snowpingBuffer;
+        let ext = 'png';
+        try {
+          const testMeta = await sharp(snowpingBuffer).metadata();
+          ext = testMeta.format === 'png' ? 'png' : 'jpg';
+
+          // Jika ukuran melebihi batas upload Discord (8MB), kompresi sedikit
+          if (finalBuffer.length > 8 * 1024 * 1024) {
+            finalBuffer = await sharp(snowpingBuffer)
+              .jpeg({ quality: 94, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+            ext = 'jpg';
+          }
+        } catch {}
+
+        const finalMeta = await sharp(finalBuffer).metadata();
+        const elapsed = Date.now() - startTime;
+        return {
+          success: true,
+          buffer: finalBuffer,
+          fileName: `hd_${finalMeta.width || metadata.width * 4}x${finalMeta.height || metadata.height * 4}_${Date.now()}.${ext}`,
+          originalWidth: metadata.width,
+          originalHeight: metadata.height,
+          newWidth: finalMeta.width || metadata.width * 4,
+          newHeight: finalMeta.height || metadata.height * 4,
+          scale: 4,
+          engine: 'AI Super-Resolution HD (4x Cloud Engine)',
+          processTimeMs: elapsed,
+        };
+      }
+    }
+
+    // 2. Prioritas Cadangan: Deep Learning Super-Resolution AI Real-ESRGAN via HuggingFace jika HF_TOKEN tersedia
     const hfToken = process.env.HF_TOKEN;
     if (hfToken) {
       const mime = metadata.format === 'png' ? 'image/png' : 'image/jpeg';

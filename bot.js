@@ -1519,7 +1519,7 @@ client.on(Events.MessageCreate, async (message) => {
               `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
               `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
               `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
-              `> 💡 **Cara Melihat Kualitas Asli:**\n` +
+              `> **Cara Melihat Kualitas Asli:**\n` +
               `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
             )
             .setImage(`attachment://${result.fileName}`)
@@ -1579,7 +1579,7 @@ client.on(Events.MessageCreate, async (message) => {
               `• Resolusi Baru: **${result.newWidth}x${result.newHeight}** (${result.scale}x Ultra HD)\n` +
               `• Mesin: **${result.engine || 'Real-ESRGAN AI (4x-UltraSharp GPU)'}**\n` +
               `• Waktu Proses: **${(result.processTimeMs / 1000).toFixed(1)} detik**\n\n` +
-              `> 💡 **Cara Melihat Kualitas Asli:**\n` +
+              `> **Cara Melihat Kualitas Asli:**\n` +
               `> Discord otomatis mengecilkan preview di chat. **Klik foto di atas, lalu klik "Buka yang asli" di pojok kiri bawah** untuk melihat gambar penuh tanpa kompresi Discord!`
             )
             .setImage(`attachment://${result.fileName}`)
