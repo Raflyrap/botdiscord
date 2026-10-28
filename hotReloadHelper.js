@@ -1,7 +1,41 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { exec } = require('child_process');
 const { REST, Routes } = require('discord.js');
+
+const REPO_OWNER = 'Raflyrap';
+const REPO_NAME = 'botdiscord';
+const BRANCH = 'main';
+const GITHUB_REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}.git`;
+
+// File konfigurasi dan data yang wajib dipertahankan agar tidak tertimpa pembaruan
+const PROTECTED_DATA_FILES = [
+  '.env',
+  'welcome-config.json',
+  'verifConfig.json',
+  'levelingConfig.json',
+  'levelingData.json',
+  'autoRoleConfig.json',
+  'autoModConfig.json',
+  'afkData.json',
+  'serverStatsConfig.json',
+  'tempVoiceConfig.json',
+  'tempVoiceRooms.json',
+  'privateAiConfig.json',
+  'ticketConfig.json',
+  'ticketData.json',
+  'gameConfig.json',
+  'logConfig.json',
+  'reminderData.json',
+  'serverTemplateConfig.json',
+  'botMonitorData.json',
+  'maintenanceConfig.json',
+  'botPresenceConfig.json',
+  'featureRequests.json',
+  'hdChannelConfig.json',
+  'patroliConfig.json',
+];
 
 /**
  * Menjalankan shell command secara asynchronous menggunakan Promise
@@ -20,66 +54,228 @@ function runShell(command, options = {}) {
 }
 
 /**
- * Menarik update kode terbaru dari repository GitHub
+ * Mengunduh buffer dari URL publik (HTTPS)
  */
-async function pullLatestCode() {
-  // Ambil hash commit sebelum pull
-  const beforeLog = await runShell('git rev-parse --short HEAD');
-  const beforeCommit = beforeLog.stdout || '';
+function fetchBuffer(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'FlyBot-AutoUpdater/2.0' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(fetchBuffer(res.headers.location));
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`HTTP ${res.statusCode}: ${url}`));
+      }
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    }).on('error', reject);
+  });
+}
 
-  // 1. Coba menggunakan Git CLI (Metode standar & tercepat)
-  const gitRes = await runShell('git pull origin main');
-  if (gitRes.success) {
-    const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
-    const afterLog = await runShell('git rev-parse --short HEAD');
-    const afterCommit = afterLog.stdout || '';
+/**
+ * Update kode via GitHub Direct REST API & Tarball (Bekerja tanpa folder .git)
+ */
+async function pullViaGitHubApi() {
+  const versionFile = path.join(__dirname, '.current_commit');
+  let currentSha = '';
+  if (fs.existsSync(versionFile)) {
+    currentSha = fs.readFileSync(versionFile, 'utf8').trim();
+  }
 
-    const isAlreadyUpToDate =
-      gitRes.stdout.toLowerCase().includes('already up to date') ||
-      gitRes.stdout.toLowerCase().includes('already up-to-date') ||
-      (beforeCommit && afterCommit && beforeCommit === afterCommit);
+  // 1. Dapatkan SHA commit terbaru dari GitHub API
+  const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${BRANCH}`;
+  const commitBuf = await fetchBuffer(apiUrl);
+  const commitData = JSON.parse(commitBuf.toString());
+  const latestSha = commitData.sha || '';
+  const shortSha = latestSha.substring(0, 7);
+  const commitMsg = commitData.commit?.message?.split('\n')[0] || 'Update terbaru';
 
+  // 2. Cek apakah kode sudah versi terbaru
+  if (currentSha && (currentSha === latestSha || currentSha === shortSha)) {
     return {
       success: true,
-      hasUpdates: !isAlreadyUpToDate,
-      method: 'git',
-      details: gitRes.stdout || 'Kode berhasil diperiksa.',
-      beforeCommit,
-      afterCommit,
-      latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
+      hasUpdates: false,
+      method: 'github-api',
+      details: 'Kode bot sudah berada di versi paling terbaru.',
+      beforeCommit: shortSha,
+      afterCommit: shortSha,
+      latestCommit: `${shortSha} - ${commitMsg}`,
     };
   }
 
-  // 2. Jika git CLI gagal atau ada conflict, coba git stash lalu pull
-  const stashRes = await runShell('git stash && git pull origin main');
-  if (stashRes.success) {
-    const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
-    const afterLog = await runShell('git rev-parse --short HEAD');
-    const afterCommit = afterLog.stdout || '';
+  // 3. Ada update baru! Unduh tarball repository
+  const tarUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${BRANCH}.tar.gz`;
+  const tarBuffer = await fetchBuffer(tarUrl);
+  const tempTarPath = path.join(__dirname, 'temp_update.tar.gz');
+  fs.writeFileSync(tempTarPath, tarBuffer);
 
-    const isAlreadyUpToDate =
-      stashRes.stdout.toLowerCase().includes('already up to date') ||
-      stashRes.stdout.toLowerCase().includes('already up-to-date') ||
-      (beforeCommit && afterCommit && beforeCommit === afterCommit);
-
-    return {
-      success: true,
-      hasUpdates: !isAlreadyUpToDate,
-      method: 'git-stash-pull',
-      details: stashRes.stdout,
-      beforeCommit,
-      afterCommit,
-      latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
-    };
+  // 4. Backup file data dan konfigurasi server sebelum ekstrak
+  const backups = new Map();
+  for (const relPath of PROTECTED_DATA_FILES) {
+    const fullPath = path.join(__dirname, relPath);
+    if (fs.existsSync(fullPath)) {
+      try {
+        backups.set(relPath, fs.readFileSync(fullPath));
+      } catch (e) {}
+    }
   }
+
+  // 5. Ekstrak file tar.gz ke direktori bot
+  const extractRes = await runShell('tar -xzf temp_update.tar.gz --strip-components=1 -C .');
+  if (fs.existsSync(tempTarPath)) {
+    try {
+      fs.unlinkSync(tempTarPath);
+    } catch (e) {}
+  }
+
+  if (!extractRes.success) {
+    throw new Error(`Gagal mengekstrak arsip pembaruan: ${extractRes.stderr || extractRes.error}`);
+  }
+
+  // 6. Pulihkan kembali file data dan konfigurasi
+  for (const [relPath, content] of backups) {
+    try {
+      const targetPath = path.join(__dirname, relPath);
+      const dir = path.dirname(targetPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(targetPath, content);
+    } catch (e) {}
+  }
+
+  // 7. Simpan SHA commit saat ini
+  fs.writeFileSync(versionFile, latestSha, 'utf8');
 
   return {
-    success: false,
-    hasUpdates: false,
-    method: 'git',
-    details: gitRes.stderr || gitRes.error || 'Gagal mengeksekusi git pull.',
-    latestCommit: 'Tidak diketahui',
+    success: true,
+    hasUpdates: true,
+    method: 'github-api',
+    details: `Berhasil mengunduh dan menerapkan pembaruan dari GitHub via direct archive.`,
+    beforeCommit: currentSha ? currentSha.substring(0, 7) : 'Awal',
+    afterCommit: shortSha,
+    latestCommit: `${shortSha} - ${commitMsg}`,
   };
+}
+
+/**
+ * Menarik update kode terbaru dari repository GitHub
+ * Mendukung Git CLI lokal dan otomatis fallback ke GitHub Direct API jika bukan git repo
+ */
+async function pullLatestCode() {
+  const gitDir = path.join(__dirname, '.git');
+  const hasGitFolder = fs.existsSync(gitDir);
+
+  // Jika folder .git belum ada (kasus Pterodactyl container standar)
+  if (!hasGitFolder) {
+    // Coba inisialisasi Git repository secara otomatis terlebih dahulu
+    const initRes = await runShell(`git init && git remote add origin ${GITHUB_REPO_URL}`);
+    if (initRes.success) {
+      const fetchRes = await runShell('git fetch origin main');
+      if (fetchRes.success) {
+        // Ambil commit sebelum reset
+        const currentShaRes = await runShell('git rev-parse --short HEAD');
+        const beforeCommit = currentShaRes.stdout || '';
+
+        // Reset hard ke origin/main
+        const resetRes = await runShell('git reset --hard origin/main');
+        if (resetRes.success) {
+          const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+          const afterLog = await runShell('git rev-parse --short HEAD');
+          const afterCommit = afterLog.stdout || '';
+
+          const hasUpdates = !beforeCommit || beforeCommit !== afterCommit;
+
+          return {
+            success: true,
+            hasUpdates,
+            method: 'git-initialized',
+            details: resetRes.stdout || 'Repository git berhasil diinisialisasi.',
+            beforeCommit: beforeCommit || 'Awal',
+            afterCommit: afterCommit,
+            latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
+          };
+        }
+      }
+    }
+
+    // Jika inisialisasi git tidak memungkinkan, gunakan metode GitHub Direct API & Tarball
+    try {
+      return await pullViaGitHubApi();
+    } catch (apiErr) {
+      return {
+        success: false,
+        hasUpdates: false,
+        method: 'github-api',
+        details: apiErr.message || 'Gagal mengunduh pembaruan dari GitHub API.',
+        latestCommit: 'Tidak diketahui',
+      };
+    }
+  }
+
+  // Jika folder .git sudah ada, gunakan alur standar Git CLI
+  try {
+    const beforeLog = await runShell('git rev-parse --short HEAD');
+    const beforeCommit = beforeLog.stdout || '';
+
+    const gitRes = await runShell('git pull origin main');
+    if (gitRes.success) {
+      const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+      const afterLog = await runShell('git rev-parse --short HEAD');
+      const afterCommit = afterLog.stdout || '';
+
+      const isAlreadyUpToDate =
+        gitRes.stdout.toLowerCase().includes('already up to date') ||
+        gitRes.stdout.toLowerCase().includes('already up-to-date') ||
+        (beforeCommit && afterCommit && beforeCommit === afterCommit);
+
+      return {
+        success: true,
+        hasUpdates: !isAlreadyUpToDate,
+        method: 'git',
+        details: gitRes.stdout || 'Kode berhasil diperiksa.',
+        beforeCommit,
+        afterCommit,
+        latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
+      };
+    }
+
+    // Jika ada konflik local files, coba git stash lalu pull
+    const stashRes = await runShell('git stash && git pull origin main');
+    if (stashRes.success) {
+      const logRes = await runShell('git log -1 --pretty=format:"%h - %s"');
+      const afterLog = await runShell('git rev-parse --short HEAD');
+      const afterCommit = afterLog.stdout || '';
+
+      const isAlreadyUpToDate =
+        stashRes.stdout.toLowerCase().includes('already up to date') ||
+        stashRes.stdout.toLowerCase().includes('already up-to-date') ||
+        (beforeCommit && afterCommit && beforeCommit === afterCommit);
+
+      return {
+        success: true,
+        hasUpdates: !isAlreadyUpToDate,
+        method: 'git-stash-pull',
+        details: stashRes.stdout,
+        beforeCommit,
+        afterCommit,
+        latestCommit: logRes.stdout || afterCommit || 'Versi saat ini',
+      };
+    }
+
+    // Fallback ke GitHub API jika git pull gagal
+    return await pullViaGitHubApi();
+  } catch (err) {
+    try {
+      return await pullViaGitHubApi();
+    } catch (fallbackErr) {
+      return {
+        success: false,
+        hasUpdates: false,
+        method: 'fallback-failed',
+        details: fallbackErr.message || err.message,
+        latestCommit: 'Tidak diketahui',
+      };
+    }
+  }
 }
 
 /**
