@@ -1417,6 +1417,10 @@ async function setupFullTemplate(guild) {
     verified: verifiedRole,
   };
 
+  // Inisialisasi awal role level dan achievement (Level 1 s/d MAX, Achievement 1/100 s/d MAX)
+  const { setupProgressionRolesTemplate } = require('./levelRoleHelper');
+  await setupProgressionRolesTemplate(guild).catch(() => {});
+
   // 2. Setup Kategori 1: Get Started
   const getStarted = await setupGetStarted(guild, roles);
 

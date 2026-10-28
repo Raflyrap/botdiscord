@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const lvl = require('./levelingHelper');
+const { syncMemberLevelRole, syncMemberAchievementRole } = require('./levelRoleHelper');
 
 const COLORS = [0x57F287, 0x5865F2, 0xFEE75C, 0xEB459E, 0xFF7A00, 0x9B59FF, 0x00D9FF];
 const stripEmoji = (s) => s.replace(/[^\p{L}\p{N}\s]/gu, '').trim();
@@ -59,6 +60,12 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
   if (!result || !guild) return;
   const lvlCfg = lvl.getLevelConfig(guild.id) || {};
 
+  // Pastikan member objek ada untuk pemberian role
+  let memberObj = member;
+  if (!memberObj && user && guild.members) {
+    memberObj = await guild.members.fetch(user.id).catch(() => null);
+  }
+
   const resolveTargetChannel = async (configId, keywords) => {
     if (configId) {
       const ch = guild.channels.cache.get(configId) || (await guild.channels.fetch(configId).catch(() => null));
@@ -81,9 +88,14 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
     return fallbackChannel && fallbackChannel.isTextBased() ? fallbackChannel : null;
   };
 
-  const ctx = { member, user, guild };
+  const ctx = { member: memberObj || member, user, guild };
 
   if (result.leveledUp) {
+    // Sinkronkan role level (Role Level 1 s/d Level 99, atau Level MAX)
+    if (memberObj) {
+      await syncMemberLevelRole(guild, memberObj, result.newLevel).catch(console.error);
+    }
+
     const levelUpEmbed = buildLevelUpEmbed(ctx, {
       oldLevel: result.oldLevel,
       newLevel: result.newLevel,
@@ -99,10 +111,17 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
   }
 
   if (result.newAchievements && result.newAchievements.length > 0) {
+    const totalAch = result.userData.achievements.length;
+
+    // Sinkronkan role achievement (Role Achievement 1/100 s/d 99/100, atau Achievement MAX)
+    if (memberObj) {
+      await syncMemberAchievementRole(guild, memberObj, totalAch).catch(console.error);
+    }
+
     const achChannel = await resolveTargetChannel(lvlCfg.achievementChannel, ['achiev', 'prestasi']);
     if (achChannel) {
       for (const ach of result.newAchievements) {
-        const achEmbed = buildAchievementEmbed(ctx, ach, result.userData.achievements.length);
+        const achEmbed = buildAchievementEmbed(ctx, ach, totalAch);
         await achChannel.send({ embeds: [achEmbed] }).catch(console.error);
       }
     }
