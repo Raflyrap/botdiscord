@@ -88,7 +88,12 @@ async function getOrCreateChannel(guild, { name, type, parentId, permissionOverw
     }
     const cleanSearch = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanActual = c.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const isMatchingType = c.type === type || (type === ChannelType.GuildForum && c.type === ChannelType.GuildText);
+    let isMatchingType;
+    if (type === ChannelType.GuildForum) {
+      isMatchingType = c.type === ChannelType.GuildForum;
+    } else {
+      isMatchingType = c.type === type;
+    }
     return isMatchingType && (c.name === name || (cleanActual && cleanActual === cleanSearch) || cleanActual.includes(cleanSearch));
   });
 
@@ -776,9 +781,21 @@ async function setupMusic(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  // Bersihkan channel teks sharelink-music lama jika ada (agar digantikan oleh Forum)
+  const allChannels = await guild.channels.fetch().catch(() => guild.channels.cache);
+  const oldTextShare = allChannels?.find((c) => {
+    if (!c || c.type === ChannelType.GuildCategory) return false;
+    const clean = c.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return clean === 'sharelinkmusic' && c.type === ChannelType.GuildText;
+  });
+  if (oldTextShare) {
+    console.log(`[SETUP MUSIC] Menghapus channel teks lama #${oldTextShare.name} untuk digantikan Forum di ${guild.name}`);
+    await oldTextShare.delete('Upgrade channel sharelink-music menjadi Forum').catch(() => {});
+  }
+
   const sharelinkMusic = await getOrCreateChannel(guild, {
     name: 'sharelink-music',
-    type: ChannelType.GuildText,
+    type: ChannelType.GuildForum,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
@@ -795,28 +812,54 @@ async function setupMusic(guild, roles) {
         `• Di server ini, seluruh perintah memutar lagu (\`/play\`) **wajib** dijalankan di channel ini.\n` +
         `• Pastikan kamu sudah bergabung ke salah satu Voice Channel sebelum memutar lagu.\n` +
         `• Gunakan perintah \`/play <judul lagu / link>\` untuk mulai mendengarkan.\n` +
-        `• Untuk berbagi playlist atau rekomendasi lagu ke teman-teman, gunakan channel <#${sharelinkMusic.id}>.`
+        `• Untuk berbagi playlist atau rekomendasi lagu ke teman-teman, gunakan forum <#${sharelinkMusic.id}>.`
       )
       .setFooter({ text: 'FlyBot HD Audio Engine' })
       .setTimestamp();
     await playMusic.send({ embeds: [playEmbed] }).catch(() => {});
   }
 
-  // Kirim panduan di sharelink-music jika channel masih kosong
-  const shareMsgs = await sharelinkMusic.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!shareMsgs || shareMsgs.size === 0) {
-    const shareEmbed = new EmbedBuilder()
-      .setColor(0x1DB954)
-      .setTitle('Berbagi Link Musik & Rekomendasi Lagu')
-      .setDescription(
-        `Ruang khusus berbagi link lagu, album, dan playlist favorit sesama anggota **${guild.name}**!\n\n` +
-        `• Bagikan link Spotify, YouTube Music, SoundCloud, atau Apple Music kamu di sini.\n` +
-        `• Temukan musik baru dari rekomendasi teman-teman satu server.\n` +
-        `• Untuk langsung memutar lagu ke Voice Channel, gunakan channel <#${playMusic.id}>.`
-      )
-      .setFooter({ text: 'FlyBot Music Community' })
-      .setTimestamp();
-    await sharelinkMusic.send({ embeds: [shareEmbed] }).catch(() => {});
+  // Sambutan di forum sharelink-music jika forum masih kosong
+  if (sharelinkMusic.type === ChannelType.GuildForum) {
+    const activeThreads = await sharelinkMusic.threads.fetchActive().catch(() => null);
+    if (!activeThreads || activeThreads.threads.size === 0) {
+      await sharelinkMusic.threads.create({
+        name: 'Rekomendasi & Diskusi Playlist Musik',
+        message: {
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x5865F2)
+              .setTitle('Forum Berbagi Link Musik & Playlist Komunitas')
+              .setDescription(
+                `Selamat datang di Forum Musik **${guild.name}**!\n\n` +
+                `Di sini kamu bisa membuat postingan/thread baru untuk:\n` +
+                `• Berbagi link playlist Spotify, YouTube Music, SoundCloud, atau Apple Music\n` +
+                `• Berbagi rekomendasi lagu favorit berdasarkan genre atau mood\n` +
+                `• Diskusi rilisan album baru, musisi, dan instrumen favorit\n\n` +
+                `Klik **Postingan Baru (New Post)** di atas untuk mulai membuat thread playlist atau lagu kamu!`
+              )
+              .setFooter({ text: 'FlyBot Music Community' })
+              .setTimestamp(),
+          ],
+        },
+      }).catch(() => {});
+    }
+  } else {
+    const shareMsgs = await sharelinkMusic.messages.fetch({ limit: 5 }).catch(() => null);
+    if (!shareMsgs || shareMsgs.size === 0) {
+      const shareEmbed = new EmbedBuilder()
+        .setColor(0x1DB954)
+        .setTitle('Berbagi Link Musik & Rekomendasi Lagu')
+        .setDescription(
+          `Ruang khusus berbagi link lagu, album, dan playlist favorit sesama anggota **${guild.name}**!\n\n` +
+          `• Bagikan link Spotify, YouTube Music, SoundCloud, atau Apple Music kamu di sini.\n` +
+          `• Temukan musik baru dari rekomendasi teman-teman satu server.\n` +
+          `• Untuk langsung memutar lagu ke Voice Channel, gunakan channel <#${playMusic.id}>.`
+        )
+        .setFooter({ text: 'FlyBot Music Community' })
+        .setTimestamp();
+      await sharelinkMusic.send({ embeds: [shareEmbed] }).catch(() => {});
+    }
   }
 
   return { category, playMusic, sharelinkMusic };

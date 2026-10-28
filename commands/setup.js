@@ -83,7 +83,7 @@ function createResultEmbed(featureKey, result, guild) {
       .setDescription(
         `Kategori **${result.category.name}** telah siap:\n\n` +
         `• <#${result.playMusic.id}> — Channel khusus memutar musik (/play wajib di sini)\n` +
-        `• <#${result.sharelinkMusic.id}> — Ruang berbagi link playlist & lagu favorit`
+        `• <#${result.sharelinkMusic.id}> — Forum berbagi link playlist & lagu favorit`
       );
   } else if (featureKey === 'entertainment') {
     embed
@@ -137,7 +137,7 @@ function createResultEmbed(featureKey, result, guild) {
         `└ <#${result.community.ngobrol.id}>, <#${result.community.stalk.id}>\n\n` +
         `**5. Cinematography** (Foto, Video & Auto-HD)\n` +
         `└ <#${result.cinematography.fotografi.id}>, <#${result.cinematography.videografi.id}>, <#${result.cinematography.hdFoto.id}>\n\n` +
-        `**6. Music** (Wajib /play di sini & Sharelink Musik)\n` +
+        `**6. Music** (Wajib /play di sini & Forum Sharelink Musik)\n` +
         `└ <#${result.music.playMusic.id}>, <#${result.music.sharelinkMusic.id}>\n\n` +
         `**7. Entertainment** (3 Ruang AI: Fanart Review, Generator & Prompt Studio)\n` +
         `└ <#${result.entertainment.aiFanart.id}>, <#${result.entertainment.aiGenerating.id}>, <#${result.entertainment.aiPrompt.id}>\n\n` +
@@ -207,7 +207,7 @@ function getSetupDashboard(guild) {
       `5. **───────Cinematography───────**\n` +
       `   • fotografi, videografi, hd-foto (Auto-HD AI 2x/4x Super-Resolution)\n` +
       `6. **───────Music───────**\n` +
-      `   • play-music (wajib /play di sini), sharelink-music (berbagi playlist & link lagu)\n` +
+      `   • play-music (wajib /play di sini), sharelink-music (forum berbagi playlist & link lagu)\n` +
       `7. **───────Entertainment───────**\n` +
       `   • ai-fanart, ai-generating, ai-prompt (3 Studio AI BotFly)\n` +
       `8. **───────Sosmed Converter───────**\n` +
@@ -264,8 +264,8 @@ function getSetupDashboard(guild) {
         value: 'cinematography',
       },
       {
-        label: 'Music (Play Music & Sharelink Music)',
-        description: 'Channel pemutar musik dan ruang berbagi playlist lagu',
+        label: 'Music (Play Music & Forum Sharelink)',
+        description: 'Channel pemutar musik dan forum berbagi playlist lagu',
         value: 'music',
       },
       {
@@ -312,7 +312,7 @@ module.exports = {
           { name: 'Notify (Welcome & Leave)', value: 'notify' },
           { name: 'Community (Ngobrol & Stalk)', value: 'community' },
           { name: 'Cinematography (Fotografi & Videografi)', value: 'cinematography' },
-          { name: 'Music (Play Music & Sharelink Music)', value: 'music' },
+          { name: 'Music (Play Music & Forum Sharelink)', value: 'music' },
           { name: 'Entertainment & AI (3 AI Rooms)', value: 'entertainment' },
           { name: 'Sosmed Converter (TikTok, IG, FB, YouTube)', value: 'sosmed' },
           { name: 'Mini Games (Koin, Angka, Suit)', value: 'games' },
