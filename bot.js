@@ -68,7 +68,7 @@ const { askAI, askEntertainmentAI } = require('./aiHelper');
 const { isPrivateAiChannel, unregisterPrivateChannel } = require('./privateAiHelper');
 const { getAfk, removeAfk } = require('./afkHelper');
 const { checkPhishing, checkToxic } = require('./autoModHelper');
-const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel } = require('./patroliHelper');
+const { isPatroliActive, getPatroliConfig, getAllPatroliConfigs, joinPatroliChannel, schedulePatroliReconnect, cancelPatroliReconnect } = require('./patroliHelper');
 const { enhanceImage, extractImageUrlFromMessage, isHdChannel, setupHdChannel } = require('./imageHdHelper');
 const {
   handleGuildCreate,
@@ -1291,18 +1291,17 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 
   // Jika bot terputus dari voice channel padahal mode patroli aktif, sambungkan kembali otomatis
   try {
-    if (oldState.member?.id === client.user.id && !newState.channelId && isPatroliActive(oldState.guild.id)) {
-      const cfg = getPatroliConfig(oldState.guild.id);
-      if (cfg?.voiceChannelId) {
-        const channel = oldState.guild.channels.cache.get(cfg.voiceChannelId);
-        if (channel) {
-          setTimeout(() => {
-            if (isPatroliActive(oldState.guild.id)) {
-              console.log(`[PATROLI] Bot terputus dari voice, menyambungkan kembali ke ${channel.name}...`);
-              joinPatroliChannel(channel);
-            }
-          }, 3000);
+    if (oldState.member?.id === client.user.id && !newState.channelId) {
+      if (isPatroliActive(oldState.guild.id)) {
+        const cfg = getPatroliConfig(oldState.guild.id);
+        if (cfg?.voiceChannelId) {
+          const channel = oldState.guild.channels.cache.get(cfg.voiceChannelId);
+          if (channel) {
+            schedulePatroliReconnect(oldState.guild.id, channel, 3000);
+          }
         }
+      } else {
+        cancelPatroliReconnect(oldState.guild.id);
       }
     }
   } catch (e) {

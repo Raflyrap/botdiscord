@@ -12,10 +12,39 @@ const {
 
 const PATROLI_FILE = path.join(__dirname, 'patroliConfig.json');
 const MUSIC_PATH = path.join(__dirname, 'music', 'music.mp3');
-let patroliConfig = {};
+
+// Menggunakan global singleton agar status tersinkron 100% di seluruh proses bot (termasuk saat hot-reload)
+if (!global.__flybotPatroliConfig) {
+  global.__flybotPatroliConfig = {};
+}
+if (!global.__flybotPatroliReconnectTimeouts) {
+  global.__flybotPatroliReconnectTimeouts = new Map();
+}
 
 // Map untuk menyimpan audio player aktif per guild (guildId -> player)
 const activePlayers = new Map();
+
+function cancelPatroliReconnect(guildId) {
+  if (global.__flybotPatroliReconnectTimeouts && global.__flybotPatroliReconnectTimeouts.has(guildId)) {
+    clearTimeout(global.__flybotPatroliReconnectTimeouts.get(guildId));
+    global.__flybotPatroliReconnectTimeouts.delete(guildId);
+  }
+}
+
+function schedulePatroliReconnect(guildId, channel, delayMs = 3000) {
+  cancelPatroliReconnect(guildId);
+  if (!isPatroliActive(guildId)) return;
+
+  const timeout = setTimeout(() => {
+    global.__flybotPatroliReconnectTimeouts.delete(guildId);
+    if (isPatroliActive(guildId)) {
+      console.log(`[PATROLI] Menyambungkan kembali patroli ke ${channel.name}...`);
+      joinPatroliChannel(channel);
+    }
+  }, delayMs);
+
+  global.__flybotPatroliReconnectTimeouts.set(guildId, timeout);
+}
 
 function playPatroliMusicLoop(guildId, connection) {
   if (!fs.existsSync(MUSIC_PATH)) {
@@ -43,7 +72,6 @@ function playPatroliMusicLoop(guildId, connection) {
 
     player.on('error', (err) => {
       console.error(`[PATROLI AUDIO PLAYER ERROR] Guild ${guildId}:`, err.message);
-      // Coba ulang setelah jeda 2 detik jika patroli masih aktif
       setTimeout(() => {
         if (isPatroliActive(guildId)) {
           try {
@@ -68,19 +96,19 @@ function playPatroliMusicLoop(guildId, connection) {
 function loadPatroliConfig() {
   try {
     if (fs.existsSync(PATROLI_FILE)) {
-      patroliConfig = JSON.parse(fs.readFileSync(PATROLI_FILE, 'utf-8') || '{}');
+      global.__flybotPatroliConfig = JSON.parse(fs.readFileSync(PATROLI_FILE, 'utf-8') || '{}');
     } else {
-      patroliConfig = {};
+      global.__flybotPatroliConfig = {};
     }
   } catch (err) {
     console.error('Error saat loadPatroliConfig:', err);
-    patroliConfig = {};
+    global.__flybotPatroliConfig = {};
   }
 }
 
 function savePatroliConfig() {
   try {
-    fs.writeFileSync(PATROLI_FILE, JSON.stringify(patroliConfig, null, 2), 'utf-8');
+    fs.writeFileSync(PATROLI_FILE, JSON.stringify(global.__flybotPatroliConfig, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error saat savePatroliConfig:', err);
   }
@@ -89,42 +117,77 @@ function savePatroliConfig() {
 loadPatroliConfig();
 
 function isPatroliActive(guildId) {
-  return !!patroliConfig[guildId];
+  if (!guildId) return false;
+  if (!global.__flybotPatroliConfig || !global.__flybotPatroliConfig[guildId]) return false;
+
+  // Verifikasi ke file fisik agar 100% akurat dan tidak ada status tersisa
+  try {
+    if (fs.existsSync(PATROLI_FILE)) {
+      const disk = JSON.parse(fs.readFileSync(PATROLI_FILE, 'utf-8') || '{}');
+      if (!disk[guildId]) {
+        delete global.__flybotPatroliConfig[guildId];
+        return false;
+      }
+    }
+  } catch {}
+
+  return true;
 }
 
 function getPatroliConfig(guildId) {
-  return patroliConfig[guildId] || null;
+  if (!isPatroliActive(guildId)) return null;
+  return global.__flybotPatroliConfig[guildId] || null;
 }
 
 function getAllPatroliConfigs() {
-  return patroliConfig;
+  return global.__flybotPatroliConfig || {};
 }
 
 function setPatroliActive(guildId, voiceChannelId, textChannelId) {
-  patroliConfig[guildId] = {
+  cancelPatroliReconnect(guildId);
+  global.__flybotPatroliConfig[guildId] = {
     voiceChannelId,
     textChannelId,
     startedAt: Date.now(),
   };
   savePatroliConfig();
-  return patroliConfig[guildId];
+  return global.__flybotPatroliConfig[guildId];
 }
 
 function removePatroliActive(guildId) {
-  if (patroliConfig[guildId]) {
-    delete patroliConfig[guildId];
-    savePatroliConfig();
-    return true;
+  cancelPatroliReconnect(guildId);
+  let removed = false;
+
+  if (global.__flybotPatroliConfig && global.__flybotPatroliConfig[guildId]) {
+    delete global.__flybotPatroliConfig[guildId];
+    removed = true;
   }
-  return false;
+
+  try {
+    if (fs.existsSync(PATROLI_FILE)) {
+      const disk = JSON.parse(fs.readFileSync(PATROLI_FILE, 'utf-8') || '{}');
+      if (disk[guildId]) {
+        delete disk[guildId];
+        fs.writeFileSync(PATROLI_FILE, JSON.stringify(disk, null, 2), 'utf-8');
+        removed = true;
+      }
+    }
+  } catch (err) {
+    console.error('Error saat removePatroliActive:', err);
+  }
+
+  return removed;
 }
 
 function joinPatroliChannel(channel) {
   if (!channel) return null;
+  const guildId = channel.guild.id;
 
-  const existingConnection = getVoiceConnection(channel.guild.id);
+  cancelPatroliReconnect(guildId);
+
+  const existingConnection = getVoiceConnection(guildId);
   if (existingConnection && existingConnection.joinConfig.channelId === channel.id) {
-    playPatroliMusicLoop(channel.guild.id, existingConnection);
+    playPatroliMusicLoop(guildId, existingConnection);
     return existingConnection;
   }
 
@@ -136,29 +199,34 @@ function joinPatroliChannel(channel) {
     selfMute: false,
   });
 
-  // Mulai memutar music.mp3 secara looping di background
-  playPatroliMusicLoop(channel.guild.id, connection);
+  playPatroliMusicLoop(guildId, connection);
 
   connection.on('error', (err) => {
     console.error(`[PATROLI VOICE ERROR] Guild ${channel.guild.id}:`, err?.message || err);
   });
 
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    // Jika status patroli sudah dicabut, jangan pernah rejoin
+    if (!isPatroliActive(guildId)) {
+      leavePatroliChannel(guildId);
+      return;
+    }
+
     try {
       await Promise.race([
         entersState(connection, VoiceConnectionStatus.Signalling, 5000),
         entersState(connection, VoiceConnectionStatus.Connecting, 5000),
       ]);
     } catch (e) {
-      try {
-        if (isPatroliActive(channel.guild.id)) {
+      if (isPatroliActive(guildId)) {
+        try {
           connection.rejoin();
-          playPatroliMusicLoop(channel.guild.id, connection);
-        } else {
-          leavePatroliChannel(channel.guild.id);
+          playPatroliMusicLoop(guildId, connection);
+        } catch (rejoinErr) {
+          console.error('[PATROLI ERROR] Rejoin failed:', rejoinErr.message);
         }
-      } catch (err) {
-        console.error('[PATROLI ERROR] Rejoin failed:', err.message);
+      } else {
+        leavePatroliChannel(guildId);
       }
     }
   });
@@ -167,11 +235,13 @@ function joinPatroliChannel(channel) {
 }
 
 function leavePatroliChannel(guildId) {
+  cancelPatroliReconnect(guildId);
+
   // Hentikan pemutaran audio
   const player = activePlayers.get(guildId);
   if (player) {
     try {
-      player.stop();
+      player.stop(true);
     } catch {}
     activePlayers.delete(guildId);
   }
@@ -179,6 +249,8 @@ function leavePatroliChannel(guildId) {
   const connection = getVoiceConnection(guildId);
   if (connection) {
     try {
+      // Hapus seluruh listener sebelum destroy agar tidak memicu event Disconnected/rejoin
+      connection.removeAllListeners();
       connection.destroy();
     } catch (e) {}
   }
@@ -192,4 +264,6 @@ module.exports = {
   removePatroliActive,
   joinPatroliChannel,
   leavePatroliChannel,
+  schedulePatroliReconnect,
+  cancelPatroliReconnect,
 };

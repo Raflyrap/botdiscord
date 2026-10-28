@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
-const { removePatroliActive, leavePatroliChannel } = require('../patroliHelper');
+const { removePatroliActive, leavePatroliChannel, cancelPatroliReconnect } = require('../patroliHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -16,7 +16,8 @@ module.exports = {
 
     await interaction.deferReply();
 
-    // Cabut status patroli jika aktif
+    // Batalkan segala antrean reconnect patroli dan cabut status aktif
+    cancelPatroliReconnect(interaction.guildId);
     const wasPatroli = removePatroliActive(interaction.guildId);
     leavePatroliChannel(interaction.guildId);
 
