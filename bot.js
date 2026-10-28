@@ -58,7 +58,7 @@ Module.prototype.require = function(id) {
 try { require('@noble/ciphers'); } catch (e) {}
 try { require('libsodium-wrappers'); } catch (e) {}
 try { require('opusscript'); } catch (e) {}
-const { resolveChannel, createWelcomeEmbed, createLeaveEmbed } = require('./welcomeHelper');
+const { resolveChannel, createWelcomeEmbed, createLeaveEmbed, buildWelcomePayload, buildLeavePayload } = require('./welcomeHelper');
 const { handleVoiceStateUpdate, handleVoiceControlInteraction, handleChannelDelete: handleVoiceChannelDelete } = require('./tempVoiceHelper');
 const { updateServerStats } = require('./serverStatsHelper');
 const { getAutoRole } = require('./autoRoleHelper');
@@ -1449,12 +1449,13 @@ client.on(Events.GuildMemberAdd, async (member) => {
       return;
     }
 
-    const embed = createWelcomeEmbed(member);
+    const payload = await buildWelcomePayload(member);
     await channel.send({
-      content: `👋 Selamat datang, <@${member.id}>!`,
-      embeds: [embed],
+      content: `Selamat datang, <@${member.id}>!`,
+      embeds: [payload.embed],
+      files: payload.files,
     });
-    console.log(`[WELCOME] Mengirim sambutan untuk ${member.user.tag} di #${channel.name}`);
+    console.log(`[WELCOME] Mengirim sambutan ber-banner untuk ${member.user.tag} di #${channel.name}`);
 
     // Berikan Auto-Role jika aktif
     const autoRoleId = getAutoRole(member.guild.id);
@@ -1494,11 +1495,12 @@ client.on(Events.GuildMemberRemove, async (member) => {
       return;
     }
 
-    const embed = createLeaveEmbed(member);
+    const payload = await buildLeavePayload(member);
     await channel.send({
-      embeds: [embed],
+      embeds: [payload.embed],
+      files: payload.files,
     });
-    console.log(`[LEAVE] Mengirim perpisahan untuk ${member.user.tag} di #${channel.name}`);
+    console.log(`[LEAVE] Mengirim perpisahan ber-banner untuk ${member.user.tag} di #${channel.name}`);
   } catch (error) {
     console.error('Error saat mengirim pesan leave:', error);
   } finally {

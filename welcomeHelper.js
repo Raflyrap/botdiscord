@@ -159,10 +159,45 @@ function createLeaveEmbed(member) {
     .setTimestamp();
 }
 
+const { AttachmentBuilder } = require('discord.js');
+const { generateWelcomeBanner, generateLeaveBanner } = require('./welcomeCardHelper');
+
+// Membangun payload lengkap pesan selamat datang (Embed + Banner Gambar Kustom)
+async function buildWelcomePayload(member) {
+  const embed = createWelcomeEmbed(member);
+  try {
+    const cardBuffer = await generateWelcomeBanner(member);
+    const attachment = new AttachmentBuilder(cardBuffer, { name: 'welcome-card.png' });
+    embed.setImage('attachment://welcome-card.png');
+    return { embed, files: [attachment] };
+  } catch (err) {
+    console.error('Error generating welcome banner:', err);
+    return { embed, files: [] };
+  }
+}
+
+// Membangun payload lengkap pesan perpisahan (Embed + Banner Gambar Kustom)
+async function buildLeavePayload(member) {
+  const embed = createLeaveEmbed(member);
+  try {
+    const cardBuffer = await generateLeaveBanner(member);
+    const attachment = new AttachmentBuilder(cardBuffer, { name: 'leave-card.png' });
+    embed.setImage('attachment://leave-card.png');
+    return { embed, files: [attachment] };
+  } catch (err) {
+    console.error('Error generating leave banner:', err);
+    return { embed, files: [] };
+  }
+}
+
 module.exports = {
   getGuildConfig,
   setGuildConfig,
   resolveChannel,
   createWelcomeEmbed,
   createLeaveEmbed,
+  buildWelcomePayload,
+  buildLeavePayload,
+  generateWelcomeBanner,
+  generateLeaveBanner,
 };
