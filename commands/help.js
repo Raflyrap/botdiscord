@@ -61,12 +61,12 @@ const CATEGORIES = {
   owner: {
     label: 'Khusus Owner & Pemantauan',
     name: 'Khusus Owner Bot',
-    description: 'Panel pemantauan performa internal, server list, uptime, dan statistik operasional FlyBot.',
-    commands: ['owner'],
+    description: 'Panel pemantauan performa internal, server list, uptime, dan update kode realtime (Zero Downtime).',
+    commands: ['owner', 'update'],
   },
   all: {
     label: 'Tampilkan Semua Perintah',
-    name: 'Daftar Lengkap 54 Perintah FlyBot',
+    name: 'Daftar Lengkap 56 Perintah FlyBot',
     description: 'Ringkasan seluruh slash command FlyBot yang terdaftar di server ini.',
   },
 };
@@ -123,8 +123,8 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Khusus Owner (1 Perintah)',
-        value: '`/owner` *(Monitoring, Uptime & Server List)*',
+        name: 'Khusus Owner (2 Perintah)',
+        value: '`/owner` *(Monitoring & Uptime)*, `/update` *(Zero Downtime Hot-Reload)*',
         inline: false,
       }
     )
