@@ -23,25 +23,18 @@ module.exports = {
     const tipe = interaction.options.getString('tipe');
     const targetChannel = await resolveChannel(interaction.guild, tipe);
 
-    if (!targetChannel) {
-      return interaction.editReply({
-        content: 'Tidak dapat menemukan channel tujuan! Gunakan `/setwelcome` terlebih dahulu.',
-      });
-    }
-
     const payload = tipe === 'welcome'
       ? await buildWelcomePayload(interaction.member)
       : await buildLeavePayload(interaction.member);
 
-    // Kirim pesan tes ke channel tujuan
-    await targetChannel.send({
-      content: `*[Pesan Simulasi/Tes oleh <@${interaction.user.id}>]*`,
-      embeds: [payload.embed],
-      files: payload.files,
-    });
+    const channelInfo = targetChannel
+      ? `Channel Tujuan Aktif: <#${targetChannel.id}>`
+      : 'Channel Tujuan: Belum diatur (gunakan `/setwelcome`)';
 
     await interaction.editReply({
-      content: `Tes banner ${tipe} berhasil dikirim ke channel <#${targetChannel.id}>!`,
+      content: `**Preview Simulasi Pesan ${tipe.toUpperCase()}**\n*(Hanya kamu yang bisa melihat pesan ini agar tidak mengganggu obrolan server)*\n${channelInfo}`,
+      embeds: [payload.embed],
+      files: payload.files,
     });
   },
 };

@@ -867,6 +867,50 @@ async function checkAndPostUpdateLog(client) {
   }
 }
 
+// Mengirim notifikasi otomatis setiap kali bot selesai booting/restart di Pterodactyl
+async function sendRestartNotification(client) {
+  try {
+    const channels = await ensureMonitoringChannels(client);
+    let targetChannel = channels?.updateLogsChannel;
+    if (!targetChannel) {
+      targetChannel =
+        client.channels.cache.get(DEFAULT_LOG_CHANNEL_ID) ||
+        (await client.channels.fetch(DEFAULT_LOG_CHANNEL_ID).catch(() => null));
+    }
+    if (!targetChannel) return;
+
+    const commitDetails = await getLatestCommitDetails().catch(() => null);
+    const totalServers = client.guilds.cache.size;
+    const totalMembers = client.guilds.cache.reduce((sum, g) => sum + (g.memberCount || 0), 0);
+    const wsPing = Math.round(client.ws.ping || 0);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x57F287) // Hijau Online
+      .setAuthor({
+        name: 'FlyBot System • Status Restart & Booting',
+        iconURL: client.user.displayAvatarURL({ dynamic: true }),
+      })
+      .setTitle('FlyBot Berhasil Online & Siap Melayani')
+      .setDescription(
+        `Bot telah selesai di-restart di Pterodactyl dan seluruh modul sistem berhasil dimuat.\n\n` +
+        `**Status Layanan:**\n` +
+        `> • Status: **Online (Optimal)**\n` +
+        `> • Server Aktif: **${totalServers} Server**\n` +
+        `> • Total Pengguna: **${totalMembers.toLocaleString('id-ID')} Anggota**\n` +
+        `> • Latensi Gateway: **${wsPing} ms**\n` +
+        `> • Commit Terakhir: \`${commitDetails?.shortHash || 'Production'}\` — *${commitDetails?.message?.slice(0, 50) || 'Versi Terbaru'}*\n` +
+        `> • Waktu Boot: <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`
+      )
+      .setFooter({ text: 'FlyBot Monitoring System • Pterodactyl Host' })
+      .setTimestamp();
+
+    await targetChannel.send({ embeds: [embed] });
+    console.log(`[BOT MONITOR] Berhasil mengirim notifikasi online/restart ke #${targetChannel.name || targetChannel.id}`);
+  } catch (err) {
+    console.error('[BOT MONITOR] Gagal mengirim notifikasi restart:', err.message);
+  }
+}
+
 // Inisialisasi Monitoring saat bot pertama kali siap (ClientReady)
 function initBotMonitoring(client) {
   console.log(`[BOT MONITOR] Memulai inisialisasi monitoring privat di Official Server (${getOfficialGuildId()})...`);
@@ -877,6 +921,7 @@ function initBotMonitoring(client) {
       await ensureMonitoringChannels(client);
       await updateLiveDashboard(client);
       await updateServerListDashboard(client);
+      await sendRestartNotification(client);
       await checkAndPostUpdateLog(client);
       console.log('[BOT MONITOR] Semua channel privat monitoring, update logs, dan live dashboard siap!');
     } catch (err) {

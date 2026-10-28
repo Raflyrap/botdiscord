@@ -100,30 +100,20 @@ function createWelcomeEmbed(member) {
   const created = Math.floor(member.user.createdTimestamp / 1000);
   const avatar = memberAvatar(member);
 
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setColor(0x5865F2)
     .setAuthor({ name: `${member.user.username} bergabung`, iconURL: memberAvatar(member, 128) })
     .setTitle(`Selamat Datang di ${guild.name}`)
     .setDescription(
-      `Halo <@${member.id}>, senang banget kamu sudah bergabung!\n` +
-      `Kamu adalah member ke-**${guild.memberCount.toLocaleString()}** di server ini.\n\n` +
-      `**Sebelum mulai:**\n` +
-      `> Baca peraturan server terlebih dahulu\n` +
-      `> Ambil role sesuai minatmu\n` +
-      `> Sapa member lain dan perkenalkan dirimu`
+      `Halo <@${member.id}>, selamat datang di **${guild.name}**! Selamat bergabung dan semoga betah!`
     )
     .addFields(
-      { name: 'Username', value: `\`${member.user.tag}\``, inline: true },
-      { name: 'Akun Dibuat', value: `<t:${created}:D>\n<t:${created}:R>`, inline: true },
-      { name: 'Member Ke', value: `\`#${guild.memberCount.toLocaleString()}\``, inline: true },
+      { name: 'Member Ke', value: `\`#${guild.memberCount.toLocaleString('id-ID')}\``, inline: true },
+      { name: 'Akun Dibuat', value: `<t:${created}:R>`, inline: true }
     )
     .setThumbnail(avatar)
-    .setFooter({ text: `${guild.name}  •  Selamat bergabung`, iconURL: guild.iconURL() || undefined })
+    .setFooter({ text: `${guild.name} • Selamat bergabung`, iconURL: guild.iconURL() || undefined })
     .setTimestamp();
-
-  const banner = guild.bannerURL({ size: 1024 });
-  if (banner) embed.setImage(banner);
-  return embed;
 }
 
 // Membuat embed pesan perpisahan (member left)
@@ -133,13 +123,12 @@ function createLeaveEmbed(member) {
   const joined = member.joinedTimestamp;
 
   const fields = [
-    { name: 'Username', value: `\`${member.user.tag}\``, inline: true },
-    { name: 'Sisa Member', value: `\`${guild.memberCount.toLocaleString()} orang\``, inline: true },
+    { name: 'Sisa Member', value: `\`${guild.memberCount.toLocaleString('id-ID')} orang\``, inline: true },
   ];
   if (joined) {
     fields.push({
-      name: 'Lama Bergabung',
-      value: `\`${formatDuration(Date.now() - joined)}\`\nSejak <t:${Math.floor(joined / 1000)}:D>`,
+      name: 'Bergabung',
+      value: `<t:${Math.floor(joined / 1000)}:R>`,
       inline: true,
     });
   }
@@ -149,13 +138,11 @@ function createLeaveEmbed(member) {
     .setAuthor({ name: `${member.user.username} keluar`, iconURL: memberAvatar(member, 128) })
     .setTitle('Sampai Jumpa Lagi')
     .setDescription(
-      `**${member.displayName || member.user.username}** telah meninggalkan **${guild.name}**.\n` +
-      `Terima kasih atas waktu dan kebersamaannya selama ini.\n` +
-      `Pintu server selalu terbuka kalau mau kembali.`
+      `**${member.displayName || member.user.username}** telah meninggalkan server.`
     )
     .addFields(fields)
     .setThumbnail(avatar)
-    .setFooter({ text: `${guild.name}  •  Semoga sukses selalu`, iconURL: guild.iconURL() || undefined })
+    .setFooter({ text: `${guild.name} • Semoga sukses selalu`, iconURL: guild.iconURL() || undefined })
     .setTimestamp();
 }
 
