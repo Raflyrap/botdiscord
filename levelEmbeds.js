@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, MessageFlags } = require('discord.js');
 const lvl = require('./levelingHelper');
 const { syncMemberLevelRole, syncMemberAchievementRole } = require('./levelRoleHelper');
 
@@ -106,7 +106,12 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
 
     const ch = await resolveTargetChannel(lvlCfg.levelUpChannel, ['level', 'levels']);
     if (ch) {
-      await ch.send({ content: `<@${user.id}>`, embeds: [levelUpEmbed] }).catch(console.error);
+      await ch.send({
+        content: `<@${user.id}>`,
+        embeds: [levelUpEmbed],
+        flags: MessageFlags.SuppressNotifications,
+        allowedMentions: { parse: [] }, // Auto-mute agar tidak spam notifikasi suara/popup
+      }).catch(console.error);
     }
   }
 
@@ -122,7 +127,11 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
     if (achChannel) {
       for (const ach of result.newAchievements) {
         const achEmbed = buildAchievementEmbed(ctx, ach, totalAch);
-        await achChannel.send({ embeds: [achEmbed] }).catch(console.error);
+        await achChannel.send({
+          embeds: [achEmbed],
+          flags: MessageFlags.SuppressNotifications,
+          allowedMentions: { parse: [] }, // Auto-mute agar tidak spam notifikasi suara/popup
+        }).catch(console.error);
       }
     }
   }

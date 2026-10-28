@@ -13,15 +13,15 @@ const {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('game')
-    .setDescription('Setup otomatis kategori dan 4 channel arena mini games interaktif (termasuk Gacha Slot)')
+    .setDescription('Setup otomatis kategori dan 5 channel arena mini games interaktif (termasuk Sambung Kata & Slot)')
     .addStringOption((opt) =>
       opt
         .setName('aksi')
         .setDescription('Pilih aksi: Setup atau Hapus (Default: Setup)')
         .setRequired(false)
         .addChoices(
-          { name: 'Setup (Buat Kategori & 4 Channel Game)', value: 'setup' },
-          { name: 'Hapus (Hapus Kategori & 4 Channel Game)', value: 'hapus' }
+          { name: 'Setup (Buat Kategori & 5 Channel Game)', value: 'setup' },
+          { name: 'Hapus (Hapus Kategori & 5 Channel Game)', value: 'hapus' }
         )
     ),
 
@@ -54,11 +54,12 @@ module.exports = {
           })
           .setTitle('Arena Mini Games Berhasil Dibuat')
           .setDescription(
-            `Kategori **${result.category.name}** dan 4 channel game khusus telah siap:\n\n` +
+            `Kategori **${result.category.name}** dan 5 channel game khusus telah siap:\n\n` +
             `• <#${result.coinChannel.id}> — Tebak Koin (Gambar / Angka)\n` +
             `• <#${result.numberChannel.id}> — Tebak Angka (1 - 100)\n` +
             `• <#${result.rpsChannel.id}> — Suit (Gunting Batu Kertas)\n` +
-            `• <#${result.slotChannel.id}> — Mesin Slot Buah 777 (Gacha Koin)\n\n` +
+            `• <#${result.slotChannel.id}> — Mesin Slot Buah 777 (Gacha Koin)\n` +
+            `• <#${result.sambungKataChannel.id}> — Sambung Kata KBBI (2 Huruf vs Bot)\n\n` +
             `Setiap channel telah dilengkapi panduan bermain yang disematkan permanen dan tombol interaktif.`
           )
           .setFooter({ text: 'Ketik /game aksi:Hapus jika ingin menghapus arena game' })

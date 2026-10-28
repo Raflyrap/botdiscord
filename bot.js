@@ -1031,6 +1031,53 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // === MINI GAMES: 5. SAMBUNG KATA KBBI ===
+    if (interaction.customId === 'btn_sambung_kata_start') {
+      try {
+        const { startNewRound } = require('./sambungKataHelper');
+        await interaction.reply({ content: 'Memulai ronde sambung kata baru bersama FlyBot...', flags: MessageFlags.Ephemeral });
+        await startNewRound(interaction.channel, interaction.guild);
+      } catch (err) {
+        console.error('Error saat start sambung kata:', err);
+      }
+      return;
+    }
+
+    if (interaction.customId === 'btn_sambung_kata_status') {
+      try {
+        const { getGameStatus } = require('./sambungKataHelper');
+        const st = getGameStatus(interaction.guildId);
+        if (!st.active) {
+          return await interaction.reply({ content: st.message, flags: MessageFlags.Ephemeral });
+        }
+        return await interaction.reply({
+          content:
+            `**Status Sambung Kata:**\n` +
+            `• Kata Aktif: **"${st.currentWord.toUpperCase()}"**\n` +
+            `• 2 Huruf Harus Disambung: **\`${st.targetPrefix.toUpperCase()}\`**\n` +
+            `• Rantai Kata Ronde Ini: **${st.streak} Kata**\n` +
+            `• Kata Terpakai: **${st.usedCount} Kata**\n` +
+            `• Rekor Tertinggi Server: **${st.highScore} Kata**\n\n` +
+            `Ketik langsung kata berawalan **\`${st.targetPrefix.toUpperCase()}\`** di chat channel ini!`,
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (err) {
+        return await interaction.reply({ content: 'Gagal mengecek status game.', flags: MessageFlags.Ephemeral });
+      }
+    }
+
+    if (interaction.customId === 'btn_sambung_kata_rules') {
+      try {
+        const { getSambungKataPanelEmbed } = require('./sambungKataHelper');
+        return await interaction.reply({
+          embeds: [getSambungKataPanelEmbed(interaction.guild)],
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (err) {
+        return await interaction.reply({ content: 'Gagal menampilkan peraturan.', flags: MessageFlags.Ephemeral });
+      }
+    }
+
     // === PROFILE & LEADERBOARD BUTTONS ===
     if (interaction.customId.startsWith('btn_profile_ach_')) {
       const targetId = interaction.customId.replace('btn_profile_ach_', '');
@@ -2133,6 +2180,15 @@ client.on(Events.MessageCreate, async (message) => {
         }).catch(() => {});
         dispatchLevelUpAndAchievements(message.guild, message.member, message.author, message.channel, reward).catch(() => {});
       }
+    }
+
+    // 4. Sambung Kata KBBI Chat Gameplay
+    const isSambungKataChannel = (gameCfg && gameCfg.enabled && message.channel.id === gameCfg.sambungKataChannelId) ||
+      chLower.includes('sambung-kata');
+    if (isSambungKataChannel) {
+      const { handlePlayerWord } = require('./sambungKataHelper');
+      const handled = await handlePlayerWord(message);
+      if (handled) return;
     }
   } catch (err) {
     console.error('Error saat mini game chat gameplay:', err);

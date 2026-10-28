@@ -5,32 +5,75 @@ const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
 const AI_CHANNEL_KEYWORDS = ['ai-generating', 'ai-prompt', 'ai-promt', 'ai-fanart'];
 const SOSMED_CHANNEL_KEYWORDS = ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'];
+const MINIGAME_CHANNEL_KEYWORDS = ['tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata'];
+const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo'];
+const STALK_CHANNEL_KEYWORDS = ['stalk'];
 
 /**
- * Cek apakah channel merupakan salah satu dari channel AI Entertainment
+ * Cek apakah channel merupakan salah satu channel AI Entertainment
  */
 function isAiChannel(channel) {
   if (!channel || channel.type !== ChannelType.GuildText) return false;
   const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
-  return AI_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+  const isKw = AI_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+  const isCat = channel.parent && channel.parent.name.toLowerCase().includes('entertainment');
+  return isKw || isCat;
 }
 
 /**
- * Cek apakah channel merupakan salah satu dari channel Sosmed Converter
+ * Cek apakah channel merupakan salah satu channel Sosmed Converter
  */
 function isSosmedChannel(channel) {
   if (!channel || channel.type !== ChannelType.GuildText) return false;
   const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
   const isKw = SOSMED_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
-  const isCategorySosmed = channel.parent && channel.parent.name.toLowerCase().includes('sosmed');
-  return isKw || isCategorySosmed;
+  const isCat = channel.parent && (channel.parent.name.toLowerCase().includes('sosmed') || channel.parent.name.toLowerCase().includes('converter'));
+  return isKw || isCat;
 }
 
 /**
- * Cek apakah channel memiliki aturan pembersihan otomatis 24 jam (AI Entertainment atau Sosmed Converter)
+ * Cek apakah channel merupakan salah satu channel Mini Games
+ */
+function isMiniGameChannel(channel) {
+  if (!channel || channel.type !== ChannelType.GuildText) return false;
+  const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const isKw = MINIGAME_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+  const isCat = channel.parent && channel.parent.name.toLowerCase().includes('mini game');
+  return isKw || isCat;
+}
+
+/**
+ * Cek apakah channel merupakan salah satu channel HD Foto / Cinematography
+ */
+function isHdChannel(channel) {
+  if (!channel || channel.type !== ChannelType.GuildText) return false;
+  const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const isKw = HD_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+  const isCat = channel.parent && channel.parent.name.toLowerCase().includes('cinematography');
+  return isKw || isCat;
+}
+
+/**
+ * Cek apakah channel merupakan salah satu channel Stalk
+ */
+function isStalkChannel(channel) {
+  if (!channel || channel.type !== ChannelType.GuildText) return false;
+  const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return STALK_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
+}
+
+/**
+ * Cek apakah channel memiliki aturan pembersihan chat otomatis 24 jam
+ * (Mini Games, Sosmed Converter, HD Foto, Stalk, dan AI Entertainment)
  */
 function isAutoCleanupChannel(channel) {
-  return isAiChannel(channel) || isSosmedChannel(channel);
+  return (
+    isAiChannel(channel) ||
+    isSosmedChannel(channel) ||
+    isMiniGameChannel(channel) ||
+    isHdChannel(channel) ||
+    isStalkChannel(channel)
+  );
 }
 
 /**
@@ -106,6 +149,9 @@ function initAutoChannelCleaner(client, intervalMs = 15 * 60 * 1000) {
 module.exports = {
   isAiChannel,
   isSosmedChannel,
+  isMiniGameChannel,
+  isHdChannel,
+  isStalkChannel,
   isAutoCleanupChannel,
   cleanupOldAiMessagesInChannel: cleanupOldMessagesInChannel,
   cleanupOldMessagesInChannel,

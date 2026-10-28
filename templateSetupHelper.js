@@ -1212,6 +1212,13 @@ async function setupMiniGamesTemplate(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  const sambungKataChannel = await getOrCreateChannel(guild, {
+    name: '🔤︱sambung-kata',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
   // Helper untuk memastikan pesan panel & tombol game aktif selalu tersedia
   async function ensurePanel(channel, embed, row) {
     try {
@@ -1332,16 +1339,21 @@ async function setupMiniGamesTemplate(guild, roles) {
 
   await ensurePanel(slotChannel, slotEmbed, getSlotChannelRow());
 
+  // 5. Panel & Tombol Sambung Kata KBBI
+  const { getSambungKataPanelEmbed, getSambungKataActionRow } = require('./sambungKataHelper');
+  await ensurePanel(sambungKataChannel, getSambungKataPanelEmbed(guild), getSambungKataActionRow());
+
   setGameConfig(guild.id, {
     categoryId: category.id,
     coinChannelId: coinChannel.id,
     numberChannelId: numberChannel.id,
     rpsChannelId: rpsChannel.id,
     slotChannelId: slotChannel.id,
+    sambungKataChannelId: sambungKataChannel.id,
     enabled: true,
   });
 
-  return { category, coinChannel, numberChannel, rpsChannel, slotChannel };
+  return { category, coinChannel, numberChannel, rpsChannel, slotChannel, sambungKataChannel };
 }
 
 /**
@@ -1539,6 +1551,7 @@ async function setupFullTemplate(guild) {
       numberId: miniGames.numberChannel.id,
       rpsId: miniGames.rpsChannel.id,
       slotId: miniGames.slotChannel.id,
+      sambungKataId: miniGames.sambungKataChannel.id,
       hubVoiceId: voiceLounges.hubChannel.id,
     },
     categories: {

@@ -505,6 +505,28 @@ async function setupMiniGames(guild) {
     }
   }
 
+  // 6. Channel 5: Sambung Kata KBBI
+  const { getSambungKataPanelEmbed, getSambungKataActionRow } = require('./sambungKataHelper');
+  let sambungKataChannel = cfg.sambungKataChannelId ? guild.channels.cache.get(cfg.sambungKataChannelId) : null;
+  if (!sambungKataChannel) {
+    sambungKataChannel = await guild.channels.create({
+      name: 'sambung-kata',
+      type: ChannelType.GuildText,
+      parent: category.id,
+      permissionOverwrites: channelOverwrites,
+      reason: 'Mini Game - Sambung Kata KBBI',
+    });
+
+    const sentSambung = await sambungKataChannel.send({ embeds: [getSambungKataPanelEmbed(guild)], components: [getSambungKataActionRow()] });
+    await sentSambung.pin().catch(() => {});
+  } else {
+    const pins = await (sambungKataChannel.messages.fetchPins ? sambungKataChannel.messages.fetchPins() : sambungKataChannel.messages.fetchPinned()).catch(() => null);
+    if (!pins || pins.size === 0) {
+      const sentSambung = await sambungKataChannel.send({ embeds: [getSambungKataPanelEmbed(guild)], components: [getSambungKataActionRow()] });
+      await sentSambung.pin().catch(() => {});
+    }
+  }
+
   // Simpan konfigurasi
   setGameConfig(guild.id, {
     categoryId: category.id,
@@ -512,6 +534,7 @@ async function setupMiniGames(guild) {
     numberChannelId: numberChannel.id,
     rpsChannelId: rpsChannel.id,
     slotChannelId: slotChannel.id,
+    sambungKataChannelId: sambungKataChannel.id,
     enabled: true,
   });
 
@@ -521,6 +544,7 @@ async function setupMiniGames(guild) {
     numberChannel,
     rpsChannel,
     slotChannel,
+    sambungKataChannel,
   };
 }
 
@@ -529,7 +553,7 @@ async function removeMiniGames(guild) {
   const cfg = getGameConfig(guild.id);
   if (!cfg) return false;
 
-  const channelIds = [cfg.coinChannelId, cfg.numberChannelId, cfg.rpsChannelId, cfg.slotChannelId];
+  const channelIds = [cfg.coinChannelId, cfg.numberChannelId, cfg.rpsChannelId, cfg.slotChannelId, cfg.sambungKataChannelId];
   for (const id of channelIds) {
     if (id) {
       const ch = guild.channels.cache.get(id) || await guild.channels.fetch(id).catch(() => null);
@@ -548,6 +572,7 @@ async function removeMiniGames(guild) {
     numberChannelId: null,
     rpsChannelId: null,
     slotChannelId: null,
+    sambungKataChannelId: null,
     enabled: false,
   });
 
