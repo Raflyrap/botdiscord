@@ -31,6 +31,7 @@
     "openai": "^7.32.0",
     "opusscript": "^0.0.8",
     "sharp": "^0.35.5",
+    "tiktok-live-connector": "^2.5.0",
     "youtubei.js": "^18.3.0"
   }
 }

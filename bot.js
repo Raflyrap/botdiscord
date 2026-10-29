@@ -92,6 +92,10 @@ const {
   handleFeatureRequestStatusSelect,
   handleRawMessageInRequestChannel,
 } = require('./featureRequestHelper');
+const {
+  initStreamerMonitor,
+  ensureStreamerChannel,
+} = require('./streamerHelper');
 
 // Inisialisasi client Discord dengan intent Guilds, GuildVoiceStates, GuildMembers, dan DirectMessages
 const client = new Client({
@@ -275,6 +279,23 @@ client.once(Events.ClientReady, async (readyClient) => {
       console.error('[PATROLI RESUME] Error:', e.message);
     }
   }, 5000);
+
+  // Inisialisasi Sistem Notifikasi Live Streaming YouTube & TikTok
+  try {
+    initStreamerMonitor(readyClient);
+  } catch (err) {
+    console.error('[STREAMER MONITOR INIT] Error:', err.message);
+  }
+});
+
+// Event saat bot diundang atau bergabung ke server baru
+client.on(Events.GuildCreate, async (guild) => {
+  try {
+    if (typeof handleGuildCreate === 'function') handleGuildCreate(guild);
+    await ensureStreamerChannel(guild).catch(() => {});
+  } catch (err) {
+    console.error('[GUILD CREATE EVENT ERROR]:', err.message);
+  }
 });
 
 // Event saat ada interaksi (Slash Command, Button, Modal)

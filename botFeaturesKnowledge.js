@@ -58,6 +58,7 @@ Kamu adalah Bot Fly (atau FlyBot). Kamu memiliki total 51 FITUR PERINTAH SLASH y
 - /stalk [platform] [id/username]: Melihat informasi profil publik sosial media & game (Mobile Legends, Roblox, GitHub, Twitter/X, Minecraft) secara privat & instan (hanya dapat digunakan di channel khusus #stalk).
 - /userinfo [@user]: Melihat rincian teknis akun Discord (tanggal pembuatan akun, tanggal join server, role, avatar).
 - /serverinfo: Melihat statistik server (pemilik server, total member, jumlah channel, booster, level boost, role).
+- /streamer [subcommand]: [Admin] Notifikasi siaran langsung YouTube & TikTok otomatis ke channel #notif-stream. Subcommand: add (daftar streamer, wajib di channel #notif-stream), test (preview kartu live privat/ephemeral), list (daftar streamer yang dipantau), remove (hapus streamer).
 - /ping: Mengecek latensi WebSocket dan kecepatan respons bot.
 
 8. PENGELOLAAN SERVER & MODERASI ADMIN (22 Fitur):
