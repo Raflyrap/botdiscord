@@ -64,14 +64,16 @@ async function getOrCreateRole(guild, { name, color, hoist = true, mentionable =
   );
   if (!role) {
     try {
-      role = await guild.roles.create({
+      const roleData = {
         name,
-        color,
-        colors: color !== undefined ? [color] : undefined,
         hoist,
         mentionable,
         reason: `Auto-setup role ${name}`,
-      });
+      };
+      if (typeof color === 'number' || typeof color === 'string') {
+        roleData.color = color;
+      }
+      role = await guild.roles.create(roleData);
     } catch (err) {
       console.warn(`Gagal membuat role ${name}:`, err.message);
       role = guild.roles.cache.find((r) => r.id !== guild.id && !r.managed);
@@ -1612,24 +1614,38 @@ async function handleGenderRoleSelection(interaction, chosenGender) {
   const targetRole = chosenGender === 'male' ? maleRole : femaleRole;
   const oppositeRole = chosenGender === 'male' ? femaleRole : maleRole;
 
+  const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+  const canManageRoles = botMember?.permissions.has(PermissionFlagsBits.ManageRoles);
+
   // Cabut role gender yang berlawanan jika sudah punya (hanya boleh pilih salah 1)
-  if (member.roles.cache.has(oppositeRole.id)) {
-    await member.roles.remove(oppositeRole).catch(console.error);
+  if (oppositeRole && member.roles.cache.has(oppositeRole.id)) {
+    if (canManageRoles && botMember.roles.highest.comparePositionTo(oppositeRole) > 0) {
+      await member.roles.remove(oppositeRole).catch((e) => console.warn(`[GENDER ROLE REMOVE WARN] ${guild.name}:`, e.message));
+    }
   }
 
   // Pasang role yang dipilih
-  await member.roles.add(targetRole).catch(console.error);
+  if (targetRole && canManageRoles && botMember.roles.highest.comparePositionTo(targetRole) > 0) {
+    await member.roles.add(targetRole).catch((e) => console.warn(`[GENDER ROLE ADD WARN] ${guild.name}:`, e.message));
+  } else if (!canManageRoles || (targetRole && botMember && botMember.roles.highest.comparePositionTo(targetRole) <= 0)) {
+    return interaction.reply({
+      content: `⚠️ Bot tidak memiliki izin atau posisi role bot berada di bawah role **${targetRole?.name}** di server ini. Mohon geser role bot ke posisi paling atas di Server Settings -> Roles.`,
+      flags: 64, // Ephemeral
+    });
+  }
 
   // Cek apakah member sudah terverifikasi (memiliki role Terverifikasi atau Member)
-  const isVerified = member.roles.cache.has(verifiedRole.id) || member.roles.cache.has(memberRole.id);
+  const isVerified = (verifiedRole && member.roles.cache.has(verifiedRole.id)) || (memberRole && member.roles.cache.has(memberRole.id));
 
   const cfg = getTemplateConfig(guild.id);
   const startHereMention = cfg?.channels?.startHereId ? `<#${cfg.channels.startHereId}>` : 'channel verifikasi (#start-here)';
 
   if (isVerified) {
     // Jika sudah verifikasi, pastikan role Member aktif (buka seluruh channel server)
-    if (!member.roles.cache.has(memberRole.id)) {
-      await member.roles.add(memberRole).catch(console.error);
+    if (memberRole && !member.roles.cache.has(memberRole.id)) {
+      if (canManageRoles && botMember.roles.highest.comparePositionTo(memberRole) > 0) {
+        await member.roles.add(memberRole).catch((e) => console.warn(`[MEMBER ROLE ADD WARN] ${guild.name}:`, e.message));
+      }
     }
 
     return interaction.reply({

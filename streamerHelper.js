@@ -84,6 +84,11 @@ async function ensureStreamerChannel(guild) {
 
     // 3. Jika tetap belum ada, buat Kategori dan Channel baru secara otomatis
     if (!channel) {
+      const me = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+      if (!me || !me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+        return null;
+      }
+
       let category = guild.channels.cache.find(
         (c) =>
           c.type === ChannelType.GuildCategory &&
