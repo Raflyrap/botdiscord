@@ -33,6 +33,7 @@ function getOfficialWebsiteUrl() {
 
 // Membaca file data monitor
 function loadMonitorData() {
+  const todayStr = new Date().toISOString().slice(0, 10);
   try {
     if (!fs.existsSync(DATA_PATH)) {
       const defaultData = {
@@ -44,8 +45,11 @@ function loadMonitorData() {
         serverListChannelId: null,
         serverListMessageId: null,
         updateLogsChannelId: null,
+        errorLogsChannelId: null,
         lastReportedCommit: null,
         totalCommandsExecuted: 0,
+        commandUsage: {},
+        dailyGrowth: { date: todayStr, joined: 0, left: 0 },
         lastUpdated: null,
       };
       fs.writeFileSync(DATA_PATH, JSON.stringify(defaultData, null, 2));
@@ -54,7 +58,14 @@ function loadMonitorData() {
     const raw = fs.readFileSync(DATA_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     if (!('updateLogsChannelId' in parsed)) parsed.updateLogsChannelId = null;
+    if (!('errorLogsChannelId' in parsed)) parsed.errorLogsChannelId = null;
     if (!('lastReportedCommit' in parsed)) parsed.lastReportedCommit = null;
+    if (!('commandUsage' in parsed) || typeof parsed.commandUsage !== 'object' || parsed.commandUsage === null) {
+      parsed.commandUsage = {};
+    }
+    if (!('dailyGrowth' in parsed) || typeof parsed.dailyGrowth !== 'object' || parsed.dailyGrowth === null) {
+      parsed.dailyGrowth = { date: todayStr, joined: 0, left: 0 };
+    }
     return parsed;
   } catch (err) {
     console.error('[BOT MONITOR] Error saat membaca botMonitorData.json:', err);
@@ -67,8 +78,11 @@ function loadMonitorData() {
       serverListChannelId: null,
       serverListMessageId: null,
       updateLogsChannelId: null,
+      errorLogsChannelId: null,
       lastReportedCommit: null,
       totalCommandsExecuted: 0,
+      commandUsage: {},
+      dailyGrowth: { date: todayStr, joined: 0, left: 0 },
       lastUpdated: null,
     };
   }
@@ -100,9 +114,13 @@ function formatUptime(uptimeSeconds) {
 }
 
 // Catat setiap kali ada slash command dieksekusi
-function recordCommandExecution() {
+function recordCommandExecution(commandName) {
   const data = loadMonitorData();
   data.totalCommandsExecuted = (data.totalCommandsExecuted || 0) + 1;
+  if (commandName && typeof commandName === 'string') {
+    if (!data.commandUsage) data.commandUsage = {};
+    data.commandUsage[commandName] = (data.commandUsage[commandName] || 0) + 1;
+  }
   saveMonitorData(data);
 }
 
@@ -419,6 +437,42 @@ async function ensureMonitoringChannels(client) {
     }
   }
 
+  // 7. Channel: error-logs (Peringatan & kendala teknis privat)
+  let errorLogsChannel = null;
+  if (data.errorLogsChannelId) {
+    errorLogsChannel = officialGuild.channels.cache.get(data.errorLogsChannelId) || (await officialGuild.channels.fetch(data.errorLogsChannelId).catch(() => null));
+  }
+  if (!errorLogsChannel) {
+    errorLogsChannel = officialGuild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildText && (c.name.includes('error-logs') || c.name.includes('bot-errors'))
+    );
+  }
+  if (!errorLogsChannel) {
+    try {
+      errorLogsChannel = await officialGuild.channels.create({
+        name: 'error-logs',
+        type: ChannelType.GuildText,
+        parent: categoryId,
+        permissionOverwrites: privateOverwrites,
+        topic: 'Log realtime error sistem, uncaught exception, dan kendala izin FlyBot privat khusus owner.',
+      });
+      data.errorLogsChannelId = errorLogsChannel.id;
+      saveMonitorData(data);
+      console.log(`[BOT MONITOR] Berhasil membuat channel: ${errorLogsChannel.name}`);
+    } catch (err) {
+      console.error('[BOT MONITOR] Gagal membuat channel error-logs:', err.message);
+    }
+  } else {
+    if (errorLogsChannel.parentId !== categoryId && categoryId) {
+      await errorLogsChannel.setParent(categoryId, { lockPermissions: false }).catch(() => {});
+    }
+    await errorLogsChannel.permissionOverwrites.set(privateOverwrites).catch(() => {});
+    if (data.errorLogsChannelId !== errorLogsChannel.id) {
+      data.errorLogsChannelId = errorLogsChannel.id;
+      saveMonitorData(data);
+    }
+  }
+
   return {
     category,
     dashboardChannel,
@@ -426,6 +480,7 @@ async function ensureMonitoringChannels(client) {
     serverLeaveChannel,
     serverListChannel,
     updateLogsChannel,
+    errorLogsChannel,
   };
 }
 
@@ -544,6 +599,16 @@ async function handleGuildCreate(guild, client) {
       console.warn('[GUILD JOIN AD] Gagal mengirim pesan sambutan iklan:', welcomeErr.message);
     }
 
+    try {
+      const monitorData = loadMonitorData();
+      const today = new Date().toISOString().slice(0, 10);
+      if (!monitorData.dailyGrowth || monitorData.dailyGrowth.date !== today) {
+        monitorData.dailyGrowth = { date: today, joined: 0, left: 0 };
+      }
+      monitorData.dailyGrowth.joined = (monitorData.dailyGrowth.joined || 0) + 1;
+      saveMonitorData(monitorData);
+    } catch {}
+
     // Refresh status live dashboard & daftar server secara realtime
     await updateLiveDashboard(client).catch(() => {});
     await updateServerListDashboard(client).catch(() => {});
@@ -587,11 +652,85 @@ async function handleGuildDelete(guild, client) {
       });
     }
 
+    try {
+      const monitorData = loadMonitorData();
+      const today = new Date().toISOString().slice(0, 10);
+      if (!monitorData.dailyGrowth || monitorData.dailyGrowth.date !== today) {
+        monitorData.dailyGrowth = { date: today, joined: 0, left: 0 };
+      }
+      monitorData.dailyGrowth.left = (monitorData.dailyGrowth.left || 0) + 1;
+      saveMonitorData(monitorData);
+    } catch {}
+
     // Refresh status live dashboard & daftar server secara realtime
     await updateLiveDashboard(client).catch(() => {});
     await updateServerListDashboard(client).catch(() => {});
   } catch (err) {
     console.error('[BOT MONITOR] Error pada handleGuildDelete:', err);
+  }
+}
+
+// Anti-flood cache untuk error logger
+const recentErrors = new Map();
+
+// Helper: Mengirim Log Peringatan Error Realtime ke Channel error-logs
+async function sendErrorLog(client, { title = 'System Error', error, guild, user, commandName } = {}) {
+  try {
+    if (!client) return;
+    const channels = await ensureMonitoringChannels(client).catch(() => null);
+    if (!channels?.errorLogsChannel) return;
+
+    const errMsg = error?.stack || error?.message || String(error) || 'Unknown Error';
+    const errSummary = error?.message || String(error);
+
+    // Throttle error identik dalam 30 detik agar tidak spam channel
+    const errorKey = `${title}_${errSummary}`;
+    const now = Date.now();
+    const lastSent = recentErrors.get(errorKey);
+    if (lastSent && now - lastSent < 30000) {
+      return;
+    }
+    recentErrors.set(errorKey, now);
+
+    if (recentErrors.size > 100) {
+      recentErrors.clear();
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xED4245) // Merah Error
+      .setAuthor({
+        name: 'FlyBot System • Peringatan Error Realtime',
+        iconURL: client.user.displayAvatarURL({ dynamic: true }),
+      })
+      .setTitle(`🚨 ${title}`)
+      .setDescription(
+        `Terdeteksi masalah teknis pada sistem bot:\n\n` +
+        `**Rincian Error:**\n` +
+        `\`\`\`js\n${errMsg.slice(0, 1500)}\n\`\`\``
+      )
+      .addFields(
+        {
+          name: 'Server / Lokasi',
+          value: guild ? `**${guild.name}** (\`${guild.id}\`)` : '`Internal / Global Host`',
+          inline: true,
+        },
+        {
+          name: 'Pengguna / Trigger',
+          value: user ? `<@${user.id}> (\`${user.tag || user.username}\`)` : '`System Process`',
+          inline: true,
+        },
+        {
+          name: 'Perintah',
+          value: commandName ? `\`/${commandName}\`` : '`Non-Command`',
+          inline: true,
+        }
+      )
+      .setFooter({ text: 'FlyBot Error Sentinel • Privat Owner' })
+      .setTimestamp();
+
+    await channels.errorLogsChannel.send({ embeds: [embed] }).catch(() => {});
+  } catch (logErr) {
+    console.error('[SEND ERROR LOG FAILED]:', logErr.message);
   }
 }
 
@@ -610,12 +749,41 @@ async function updateLiveDashboard(client) {
 
   // Status Lavalink Audio Node
   let lavalinkStatus = 'Offline';
+  let activePlayers = 0;
   try {
     if (client.lavalink?.nodeManager?.nodes) {
       const connectedNodes = [...client.lavalink.nodeManager.nodes.values()].filter((n) => n.connected);
       lavalinkStatus = connectedNodes.length > 0 ? `Online (${connectedNodes.length} Node Aktif)` : 'Offline';
     }
+    if (client.lavalink?.players) {
+      activePlayers = [...client.lavalink.players.values()].filter((p) => p.playing).length;
+    }
   } catch {}
+
+  // Hitung jumlah room patroli 24/7 aktif
+  let activePatroli = 0;
+  try {
+    const { getAllPatroliConfigs } = require('./patroliHelper');
+    activePatroli = Object.keys(getAllPatroliConfigs() || {}).length;
+  } catch {}
+
+  // Hitung Top 5 Perintah Terpopuler
+  const sortedCmds = Object.entries(data.commandUsage || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  let topCmdsText = '> • *Belum ada data perintah tercatat.*';
+  if (sortedCmds.length > 0) {
+    topCmdsText = sortedCmds
+      .map(([cmd, count], idx) => `> • **${idx + 1}.** \`/${cmd}\`: **${count.toLocaleString('id-ID')}x dipanggil**`)
+      .join('\n');
+  }
+
+  // Hitung Pertumbuhan Hari Ini
+  const today = new Date().toISOString().slice(0, 10);
+  const growth = data.dailyGrowth && data.dailyGrowth.date === today ? data.dailyGrowth : { joined: 0, left: 0 };
+  const netGrowth = (growth.joined || 0) - (growth.left || 0);
+  const netSign = netGrowth >= 0 ? `+${netGrowth}` : `${netGrowth}`;
 
   const dashboardEmbed = new EmbedBuilder()
     .setColor(0x5865F2) // Discord Blurple
@@ -627,17 +795,23 @@ async function updateLiveDashboard(client) {
     .setDescription(
       `Selamat datang di panel pemantauan privat resmi **FlyBot**.\n` +
       `Dashboard ini otomatis di-*refresh* secara **real-time** tanpa perlu mengetik perintah apa pun.\n\n` +
-      `**Statistik Global Jaringan**\n` +
+      `**Statistik Jaringan Global**\n` +
       `> • Total Server Terlayani: **${totalServers} Server**\n` +
       `> • Total Jangkauan Pengguna: **${totalMembers.toLocaleString('id-ID')} Anggota**\n` +
-      `> • Total Perintah Diproses: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')} Kali**\n\n` +
+      `> • Total Perintah Diproses: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')} Kali**\n` +
+      `> • Pertumbuhan Hari Ini: **${netSign} Server** (+${growth.joined || 0} Masuk / -${growth.left || 0} Keluar)\n\n` +
+      `**🏆 Top 5 Perintah Terpopuler**\n` +
+      `${topCmdsText}\n\n` +
+      `**🎵 Aktivitas Audio & Voice**\n` +
+      `> • Pemutar Musik Aktif: **${activePlayers} Server Sedang Memutar Musik**\n` +
+      `> • Patroli 24/7 Aktif: **${activePatroli} Voice Channel**\n` +
+      `> • Engine Lavalink: **${lavalinkStatus}**\n\n` +
       `**Kesehatan Server Host (VPS/Pterodactyl)**\n` +
       `> • Status Layanan: **Online (Optimal)**\n` +
       `> • Uptime Host: **${uptimeStr}**\n` +
       `> • Latensi Gateway Ping: **${wsPing} ms**\n` +
       `> • Penggunaan RAM (RSS): **${ramUsageMb} MB**\n` +
-      `> • Penggunaan RAM (Heap): **${heapUsedMb} MB**\n` +
-      `> • Audio Lavalink Engine: **${lavalinkStatus}**\n\n` +
+      `> • Penggunaan RAM (Heap): **${heapUsedMb} MB**\n\n` +
       `**Spesifikasi Lingkungan**\n` +
       `> • Node.js Runtime: **${process.version}**\n` +
       `> • Library: **Discord.js v14.18.0**\n` +
@@ -646,11 +820,23 @@ async function updateLiveDashboard(client) {
     .setFooter({ text: 'Pembaruan Real-Time Otomatis • FlyBot Official' })
     .setTimestamp();
 
+  // Tombol Aksi Cepat Dashboard
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('btn_monitor_refresh')
+      .setLabel('🔄 Refresh Sekarang')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('btn_monitor_toggle_maint')
+      .setLabel('🛠️ Mode Maintenance')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
   if (data.dashboardMessageId) {
     try {
       const existingMsg = await channels.dashboardChannel.messages.fetch(data.dashboardMessageId).catch(() => null);
       if (existingMsg) {
-        await existingMsg.edit({ embeds: [dashboardEmbed] });
+        await existingMsg.edit({ embeds: [dashboardEmbed], components: [actionRow] });
         data.lastUpdated = new Date().toISOString();
         saveMonitorData(data);
         return;
@@ -662,7 +848,7 @@ async function updateLiveDashboard(client) {
 
   // Jika belum ada pesan dashboard, buat pesan baru
   try {
-    const newMsg = await channels.dashboardChannel.send({ embeds: [dashboardEmbed] });
+    const newMsg = await channels.dashboardChannel.send({ embeds: [dashboardEmbed], components: [actionRow] });
     data.dashboardMessageId = newMsg.id;
     data.lastUpdated = new Date().toISOString();
     saveMonitorData(data);
@@ -954,4 +1140,5 @@ module.exports = {
   formatUptime,
   sendUpdateLog,
   checkAndPostUpdateLog,
+  sendErrorLog,
 };

@@ -4,9 +4,21 @@ require('dotenv').config();
 // Mencegah bot crash saat terjadi unhandled rejection atau network/voice error
 process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
+  try {
+    const { sendErrorLog } = require('./botMonitoringHelper');
+    if (typeof client !== 'undefined' && client.isReady()) {
+      sendErrorLog(client, { title: 'Unhandled Rejection', error: reason });
+    }
+  } catch {}
 });
 process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION]', err);
+  try {
+    const { sendErrorLog } = require('./botMonitoringHelper');
+    if (typeof client !== 'undefined' && client.isReady()) {
+      sendErrorLog(client, { title: 'Uncaught Exception', error: err });
+    }
+  } catch {}
 });
 
 const fs = require('fs');
@@ -75,6 +87,8 @@ const {
   handleGuildDelete,
   initBotMonitoring,
   recordCommandExecution,
+  sendErrorLog,
+  updateLiveDashboard,
 } = require('./botMonitoringHelper');
 const {
   isBotOwner,
@@ -329,6 +343,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
       process.exit(0);
     }, 2000);
     return;
+  }
+
+  // Handler tombol monitoring dashboard (Refresh & Toggle Maintenance)
+  if (interaction.isButton() && (interaction.customId === 'btn_monitor_refresh' || interaction.customId === 'btn_monitor_toggle_maint')) {
+    const { isBotOwner, getMaintenanceConfig, setMaintenanceConfig } = require('./ownerHelper');
+    const isOwner = await isBotOwner(interaction);
+    if (!isOwner) {
+      return interaction.reply({
+        content: 'Hanya Bot Owner yang dapat mengakses panel kendali monitoring ini.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    if (interaction.customId === 'btn_monitor_refresh') {
+      await updateLiveDashboard(interaction.client);
+      return interaction.reply({
+        content: 'Dashboard berhasil diperbarui dengan statistik realtime terbaru!',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    if (interaction.customId === 'btn_monitor_toggle_maint') {
+      const cfg = getMaintenanceConfig();
+      const nextStatus = !cfg.enabled;
+      setMaintenanceConfig({ enabled: nextStatus });
+      await updateLiveDashboard(interaction.client);
+      return interaction.reply({
+        content: `Mode Maintenance berhasil **${nextStatus ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}**!`,
+        flags: MessageFlags.Ephemeral,
+      });
+    }
   }
 
   // Handler interaktif Fitur Request Fitur (Khusus Server Official - Dynamic Require)
@@ -1417,7 +1462,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   // Catat eksekusi perintah untuk statistik realtime
   try {
-    recordCommandExecution();
+    recordCommandExecution(interaction.commandName);
   } catch {}
 
   const command = interaction.client.commands.get(interaction.commandName);
@@ -1447,6 +1492,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(`Terjadi error saat menjalankan command /${interaction.commandName}:`, error);
+
+    try {
+      sendErrorLog(interaction.client, {
+        title: `Error Command (/${interaction.commandName})`,
+        error,
+        guild: interaction.guild,
+        user: interaction.user,
+        commandName: interaction.commandName,
+      });
+    } catch {}
 
     const errorMessage = {
       content: 'Terjadi kesalahan internal saat menjalankan perintah ini.',
