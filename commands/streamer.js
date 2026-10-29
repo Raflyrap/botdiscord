@@ -152,7 +152,7 @@ module.exports = {
         });
       }
 
-      await interaction.deferReply();
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const platform = interaction.options.getString('platform');
       const target = interaction.options.getString('target').trim();
@@ -261,7 +261,7 @@ module.exports = {
       listEmbed.setFooter({ text: 'Gunakan /streamer remove untuk berhenti memantau streamer' });
       listEmbed.setTimestamp();
 
-      return interaction.reply({ embeds: [listEmbed] });
+      return interaction.reply({ embeds: [listEmbed], flags: MessageFlags.Ephemeral });
     }
 
     // ==========================================
@@ -280,6 +280,7 @@ module.exports = {
 
       return interaction.reply({
         content: `✅ Berhasil menghapus **${target}** dari daftar pemantauan live stream.`,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
