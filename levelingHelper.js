@@ -480,6 +480,7 @@ function claimDaily(guildId, userId) {
 
   return {
     success: true,
+    userData,
     coins: coinsReward,
     xp: xpReward,
     streak: userData.dailyStreak,

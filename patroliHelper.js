@@ -23,6 +23,7 @@ if (!global.__flybotPatroliReconnectTimeouts) {
 
 // Map untuk menyimpan audio player aktif per guild (guildId -> player)
 const activePlayers = new Map();
+const activeLoopTimeouts = new Map();
 
 function cancelPatroliReconnect(guildId) {
   if (global.__flybotPatroliReconnectTimeouts && global.__flybotPatroliReconnectTimeouts.has(guildId)) {
@@ -60,13 +61,35 @@ function playPatroliMusicLoop(guildId, connection) {
     // Saat audio selesai diputar -> otomatis loop memutar ulang dari awal tanpa henti
     player.on(AudioPlayerStatus.Idle, () => {
       if (isPatroliActive(guildId)) {
-        try {
-          const resource = createAudioResource(MUSIC_PATH);
-          player.play(resource);
-          console.log(`[PATROLI AUDIO] Looping music.mp3 di Guild ${guildId}`);
-        } catch (err) {
-          console.error(`[PATROLI AUDIO LOOP ERROR] Guild ${guildId}:`, err.message);
+        if (activeLoopTimeouts.has(guildId)) {
+          clearTimeout(activeLoopTimeouts.get(guildId));
         }
+
+        const now = Date.now();
+        const elapsed = now - (player._lastPlayTime || 0);
+        // Jika file selesai terlalu cepat (< 2 detik), beri jeda 3 detik untuk mencegah loop spam
+        const delay = elapsed < 2000 ? 3000 : 500;
+
+        const timeout = setTimeout(() => {
+          activeLoopTimeouts.delete(guildId);
+          if (isPatroliActive(guildId)) {
+            try {
+              player._lastPlayTime = Date.now();
+              const resource = createAudioResource(MUSIC_PATH);
+              player.play(resource);
+
+              // Rate-limit log per 5 menit agar tidak memenuhi log console
+              if (!player._lastLogTime || Date.now() - player._lastLogTime > 300000) {
+                player._lastLogTime = Date.now();
+                console.log(`[PATROLI AUDIO] Looping music.mp3 di Guild ${guildId}`);
+              }
+            } catch (err) {
+              console.error(`[PATROLI AUDIO LOOP ERROR] Guild ${guildId}:`, err.message);
+            }
+          }
+        }, delay);
+
+        activeLoopTimeouts.set(guildId, timeout);
       }
     });
 
@@ -75,15 +98,18 @@ function playPatroliMusicLoop(guildId, connection) {
       setTimeout(() => {
         if (isPatroliActive(guildId)) {
           try {
+            player._lastPlayTime = Date.now();
             const resource = createAudioResource(MUSIC_PATH);
             player.play(resource);
           } catch {}
         }
-      }, 2000);
+      }, 3000);
     });
   }
 
   try {
+    player._lastPlayTime = Date.now();
+    player._lastLogTime = Date.now();
     const resource = createAudioResource(MUSIC_PATH);
     player.play(resource);
     connection.subscribe(player);
@@ -236,6 +262,11 @@ function joinPatroliChannel(channel) {
 
 function leavePatroliChannel(guildId) {
   cancelPatroliReconnect(guildId);
+
+  if (activeLoopTimeouts.has(guildId)) {
+    clearTimeout(activeLoopTimeouts.get(guildId));
+    activeLoopTimeouts.delete(guildId);
+  }
 
   // Hentikan pemutaran audio
   const player = activePlayers.get(guildId);

@@ -1,4 +1,4 @@
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const lvl = require('./levelingHelper');
 const { syncMemberLevelRole, syncMemberAchievementRole } = require('./levelRoleHelper');
 
@@ -56,6 +56,19 @@ function buildAchievementEmbed({ member, user }, ach, ownedCount) {
     .setTimestamp();
 }
 
+function hasSendPermission(guild, ch) {
+  if (!ch || !ch.isTextBased()) return false;
+  const me = guild.members.me;
+  if (!me) return true;
+  const perms = ch.permissionsFor(me);
+  if (!perms) return false;
+  return perms.has([
+    PermissionFlagsBits.ViewChannel,
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.EmbedLinks,
+  ]);
+}
+
 async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChannel, result) {
   if (!result || !guild) return;
   const lvlCfg = lvl.getLevelConfig(guild.id) || {};
@@ -66,26 +79,29 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
     memberObj = await guild.members.fetch(user.id).catch(() => null);
   }
 
+  // Ambil userData dengan fallback aman jika result.userData tidak dikirim
+  const userData = result.userData || (user ? lvl.getUserData(guild.id, user.id) : null) || {};
+
   const resolveTargetChannel = async (configId, keywords) => {
     if (configId) {
       const ch = guild.channels.cache.get(configId) || (await guild.channels.fetch(configId).catch(() => null));
-      if (ch && ch.isTextBased()) return ch;
+      if (ch && hasSendPermission(guild, ch)) return ch;
     }
 
     let found = guild.channels.cache.find(
-      (c) => c.isTextBased() && keywords.some((kw) => c.name.toLowerCase().includes(kw))
+      (c) => c.isTextBased() && hasSendPermission(guild, c) && keywords.some((kw) => c.name.toLowerCase().includes(kw))
     );
     if (found) return found;
 
     const fetchedChannels = await guild.channels.fetch().catch(() => null);
     if (fetchedChannels) {
       found = fetchedChannels.find(
-        (c) => c && c.isTextBased() && keywords.some((kw) => c.name.toLowerCase().includes(kw))
+        (c) => c && c.isTextBased() && hasSendPermission(guild, c) && keywords.some((kw) => c.name.toLowerCase().includes(kw))
       );
       if (found) return found;
     }
 
-    return fallbackChannel && fallbackChannel.isTextBased() ? fallbackChannel : null;
+    return fallbackChannel && hasSendPermission(guild, fallbackChannel) ? fallbackChannel : null;
   };
 
   const ctx = { member: memberObj || member, user, guild };
@@ -99,8 +115,8 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
     const levelUpEmbed = buildLevelUpEmbed(ctx, {
       oldLevel: result.oldLevel,
       newLevel: result.newLevel,
-      xp: result.userData.xp,
-      totalMessages: result.userData.totalMessages || 0,
+      xp: userData.xp ?? result.totalXp ?? 0,
+      totalMessages: userData.totalMessages || 0,
       position: lvl.getUserRank(guild.id, user.id),
     });
 
@@ -111,12 +127,18 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
         embeds: [levelUpEmbed],
         flags: MessageFlags.SuppressNotifications,
         allowedMentions: { parse: [] }, // Auto-mute agar tidak spam notifikasi suara/popup
-      }).catch(console.error);
+      }).catch((err) => {
+        if (err.code === 50001 || err.code === 50013) {
+          console.warn(`[Leveling] Bot tidak memiliki akses kirim level-up di channel #${ch.name || ch.id}`);
+        } else {
+          console.error(`[Leveling] Gagal mengirim level up di #${ch.name || ch.id}:`, err.message);
+        }
+      });
     }
   }
 
   if (result.newAchievements && result.newAchievements.length > 0) {
-    const totalAch = result.userData.achievements.length;
+    const totalAch = Array.isArray(userData.achievements) ? userData.achievements.length : 0;
 
     // Sinkronkan role achievement (Role Achievement 1/100 s/d 99/100, atau Achievement MAX)
     if (memberObj) {
@@ -131,7 +153,13 @@ async function dispatchLevelUpAndAchievements(guild, member, user, fallbackChann
           embeds: [achEmbed],
           flags: MessageFlags.SuppressNotifications,
           allowedMentions: { parse: [] }, // Auto-mute agar tidak spam notifikasi suara/popup
-        }).catch(console.error);
+        }).catch((err) => {
+          if (err.code === 50001 || err.code === 50013) {
+            console.warn(`[Leveling] Bot tidak memiliki akses kirim prestasi di channel #${achChannel.name || achChannel.id}`);
+          } else {
+            console.error(`[Leveling] Gagal mengirim prestasi di #${achChannel.name || achChannel.id}:`, err.message);
+          }
+        });
       }
     }
   }
