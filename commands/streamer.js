@@ -177,10 +177,13 @@ module.exports = {
         checkInfo = tt;
       }
 
+      const finalTarget = checkInfo?.targetClean || target;
+
       // Daftarkan ke konfigurasi
       addStreamer(guild.id, {
         platform,
-        target,
+        target: finalTarget,
+        channelId: checkInfo?.channelId || null,
         name: validName,
         customMessage,
         roleId: rolePing ? rolePing.id : null,

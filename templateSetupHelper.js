@@ -1698,7 +1698,9 @@ async function handleVerificationButton(interaction) {
     });
   } else {
     // Tandai bahwa member sudah menekan tombol verifikasi
-    await member.roles.add(verifiedRole).catch(console.error);
+    await member.roles.add(verifiedRole).catch((err) => {
+      console.warn(`[VERIF WARNING] Gagal memberikan role ${verifiedRole?.name || 'verified'} di ${guild.name}: ${err.message}. Pastikan posisi role bot berada di atas role tersebut.`);
+    });
 
     return interaction.reply({
       content: `**Verifikasi Langkah 1 Berhasil!**\n**Wajib Memilih Role Gender**: Silakan buka channel ${selectRolesMention} lalu pilih role gender kamu (Laki-laki / Perempuan) untuk otomatis membuka seluruh channel server!`,

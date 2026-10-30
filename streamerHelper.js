@@ -176,27 +176,104 @@ async function ensureStreamerChannel(guild) {
 }
 
 /**
- * Periksa status Live YouTube berdasarkan Channel Handle / ID / URL
- * @param {string} target Handle atau Channel ID YouTube
+ * Resolusi target YouTube menjadi Channel ID, Handle, atau URL Live resmi
+ * @param {string} target Handle (@...), Channel ID (UC...), URL, atau Nama Channel
  */
-async function checkYouTubeLive(target) {
-  try {
-    let clean = target.trim();
-    // Bersihkan format URL jika user memasukkan URL lengkap
-    if (clean.includes('youtube.com/')) {
-      const matchHandle = clean.match(/@([a-zA-Z0-9_.-]+)/);
-      const matchChannel = clean.match(/\/channel\/([a-zA-Z0-9_-]{24})/);
-      if (matchHandle) clean = `@${matchHandle[1]}`;
-      else if (matchChannel) clean = matchChannel[1];
-    }
+async function resolveYouTubeTarget(target) {
+  let clean = target.trim();
 
-    let url;
-    if (clean.startsWith('UC') && clean.length === 24) {
-      url = `https://www.youtube.com/channel/${clean}/live`;
+  // Ekstrak jika formatnya URL YouTube lengkap
+  if (clean.includes('youtube.com/') || clean.includes('youtu.be/')) {
+    const handleMatch = clean.match(/@([a-zA-Z0-9_.-]+)/);
+    if (handleMatch) {
+      clean = `@${handleMatch[1]}`;
     } else {
-      const handle = clean.startsWith('@') ? clean : `@${clean}`;
-      url = `https://www.youtube.com/${handle}/live`;
+      const channelMatch = clean.match(/\/channel\/([a-zA-Z0-9_-]{24})/);
+      if (channelMatch) {
+        clean = channelMatch[1];
+      }
     }
+  }
+
+  // 1. Jika Channel ID langsung (UC...)
+  if (clean.startsWith('UC') && clean.length === 24) {
+    return {
+      type: 'channelId',
+      channelId: clean,
+      url: `https://www.youtube.com/channel/${clean}/live`,
+      clean,
+    };
+  }
+
+  // 2. Jika Handle (@...)
+  if (clean.startsWith('@')) {
+    return {
+      type: 'handle',
+      handle: clean,
+      url: `https://www.youtube.com/${clean}/live`,
+      clean,
+    };
+  }
+
+  // 3. Jika Handle tanpa tanda @ dan tanpa spasi (misal: "WindahBasudara")
+  if (!clean.includes(' ') && !clean.includes('/')) {
+    return {
+      type: 'handle',
+      handle: `@${clean}`,
+      url: `https://www.youtube.com/@${clean}/live`,
+      clean: `@${clean}`,
+    };
+  }
+
+  // 4. Jika input berupa nama dengan spasi (misal: "Windah Basudara"), cari channel resminya via search
+  try {
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(clean)}`;
+    const res = await fetch(searchUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    });
+    const html = await res.text();
+    const chMatch = html.match(
+      /"channelRenderer":\{"channelId":"([a-zA-Z0-9_-]{24})"[^}]*?"title":\{"simpleText":"([^"]+)"\}/
+    );
+    if (chMatch) {
+      return {
+        type: 'channelId',
+        channelId: chMatch[1],
+        channelName: chMatch[2],
+        url: `https://www.youtube.com/channel/${chMatch[1]}/live`,
+        clean: chMatch[2],
+      };
+    }
+  } catch (err) {
+    console.error('[RESOLVE YT SEARCH ERROR]:', err.message);
+  }
+
+  // Fallback ke @handle
+  const fallback = clean.replace(/\s+/g, '');
+  return {
+    type: 'handle',
+    handle: `@${fallback}`,
+    url: `https://www.youtube.com/@${fallback}/live`,
+    clean: `@${fallback}`,
+  };
+}
+
+/**
+ * Periksa status Live YouTube berdasarkan Channel Handle / ID / URL
+ * Menggunakan parsing ketat ytInitialPlayerResponse agar TIDAK PERNAH salah
+ * mendeteksi video rekomendasi streamer lain atau stream offline/upcoming.
+ *
+ * @param {string} target Handle (@...), Channel ID (UC...), atau nama channel
+ * @param {string|null} expectedChannelId ID channel yang diharapkan (opsional)
+ */
+async function checkYouTubeLive(target, expectedChannelId = null) {
+  try {
+    const resolved = await resolveYouTubeTarget(target);
+    const url = resolved.url;
 
     const res = await fetch(url, {
       headers: {
@@ -204,61 +281,108 @@ async function checkYouTubeLive(target) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       },
+      redirect: 'follow',
     });
 
+    if (res.status === 404) {
+      return {
+        success: true,
+        isLive: false,
+        reason: 'Channel tidak ditemukan (404)',
+        targetClean: resolved.clean,
+      };
+    }
+
     const html = await res.text();
-    const isLive = html.includes('"isLive":true') || html.includes('"liveStreamability"');
 
-    // Ambil Video ID
-    const vidMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-    const videoId = vidMatch ? vidMatch[1] : null;
+    // 1. Ekstrak data ytInitialPlayerResponse resmi dari YouTube
+    // Catatan: Jika channel TIDAK SEDANG LIVE, YouTube me-redirect /live ke halaman channel utama,
+    // sehingga ytInitialPlayerResponse TIDAK ADA di halaman tersebut.
+    const playerMatch = html.match(/var ytInitialPlayerResponse = ({.*?});(?:var|<\/script>)/s);
+    if (!playerMatch) {
+      // Channel sedang offline (tidak live)
+      let channelName = resolved.channelName || resolved.clean;
+      const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+      if (titleMatch && !titleMatch[1].includes('404')) {
+        channelName = titleMatch[1].replace(/ - YouTube$/, '').trim();
+      }
 
-    // Ambil Judul Siaran
-    let title = 'Sedang Melangsungkan Siaran Langsung!';
-    const titleMatch =
-      html.match(/"title":{"runs":\[{"text":"([^"]+)"}\]/) ||
-      html.match(/<meta name="title" content="([^"]+)">/) ||
-      html.match(/<title>([^<]+)<\/title>/);
-    if (titleMatch && titleMatch[1]) {
-      title = titleMatch[1].replace(/ - YouTube$/, '').trim();
+      const avatarMatch = html.match(/(https:\/\/yt3\.ggpht\.com\/[a-zA-Z0-9_\-\/=]+)/);
+      const avatar = avatarMatch ? avatarMatch[1] : 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png';
+
+      return {
+        success: true,
+        isLive: false,
+        videoId: null,
+        title: null,
+        channelName,
+        channelId: resolved.channelId || null,
+        avatar,
+        thumbnail: null,
+        url: resolved.url,
+        targetClean: resolved.clean,
+      };
     }
 
-    // Ambil Nama Channel
-    let channelName = clean;
-    const authorMatch =
-      html.match(/"ownerChannelName":"([^"]+)"/) ||
-      html.match(/"author":"([^"]+)"/) ||
-      html.match(/<link itemprop="name" content="([^"]+)">/);
-    if (authorMatch && authorMatch[1]) {
-      channelName = authorMatch[1].trim();
+    // 2. Parse ytInitialPlayerResponse
+    let playerData;
+    try {
+      playerData = JSON.parse(playerMatch[1]);
+    } catch {
+      return {
+        success: true,
+        isLive: false,
+        reason: 'Gagal parse data player YouTube',
+        targetClean: resolved.clean,
+      };
     }
 
-    // Ambil Thumbnail
-    let thumbnail = null;
-    if (videoId) {
-      thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
-    } else {
-      const thumbMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
-      if (thumbMatch) thumbnail = thumbMatch[1];
-    }
+    const videoDetails = playerData.videoDetails || {};
+    const playability = playerData.playabilityStatus || {};
 
-    // Ambil Avatar Channel jika ada
-    let avatar = 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png';
-    const avatarMatch = html.match(/"avatar":{"thumbnails":\[{"url":"([^"]+)"/);
-    if (avatarMatch && avatarMatch[1]) {
-      avatar = avatarMatch[1];
-    }
+    const videoId = videoDetails.videoId || null;
+    const channelName = videoDetails.author || resolved.channelName || resolved.clean;
+    const channelId = videoDetails.channelId || resolved.channelId || null;
+    const title = videoDetails.title || 'Sedang Melangsungkan Siaran Langsung!';
+
+    // VERIFIKASI KETAT SIARAN LANGSUNG:
+    // a. Harus memiliki videoId yang valid
+    // b. videoDetails.isLive HARUS true murni
+    // c. Bukan siaran upcoming / terjadwal yang belum mulai (isUpcoming !== true)
+    // d. playabilityStatus.status HARUS 'OK' (bukan 'LIVE_STREAM_OFFLINE')
+    // e. Jika expectedChannelId dicatat, channelId video HARUS COCOK agar streamer lain tidak tertukar!
+    const isActivelyLive =
+      !!videoId &&
+      videoDetails.isLive === true &&
+      videoDetails.isUpcoming !== true &&
+      playability.status === 'OK' &&
+      (!expectedChannelId || expectedChannelId === channelId);
+
+    // Ambil Thumbnail siaran langsung
+    const thumbs = videoDetails.thumbnail?.thumbnails || [];
+    const thumbnail = thumbs.length
+      ? thumbs[thumbs.length - 1].url
+      : videoId
+      ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+      : null;
+
+    // Ambil Avatar Channel
+    const avatarMatch = html.match(/(https:\/\/yt3\.ggpht\.com\/[a-zA-Z0-9_\-\/=]+)/);
+    const avatar = avatarMatch ? avatarMatch[1] : 'https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png';
 
     return {
       success: true,
-      isLive: !!(isLive && videoId),
+      isLive: isActivelyLive,
       videoId,
       title,
       channelName,
+      channelId,
       avatar,
       thumbnail,
       url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : url,
-      targetClean: clean,
+      targetClean: resolved.clean,
+      status: playability.status,
+      isUpcoming: !!videoDetails.isUpcoming,
     };
   } catch (err) {
     return {
@@ -270,14 +394,21 @@ async function checkYouTubeLive(target) {
 }
 
 /**
- * Periksa status Live TikTok berdasarkan Username
- * @param {string} username Username TikTok (tanpa tanda @)
+ * Periksa status Live TikTok berdasarkan Username atau URL
+ * @param {string} username Username TikTok atau link profil
  */
 async function checkTikTokLive(username) {
-  const clean = username.replace(/^@/, '').trim();
-  const tiktokConn = new TikTokLiveConnection(clean, {});
+  let clean = username.trim();
+  // Bersihkan format URL TikTok jika user memasukkan link lengkap
+  if (clean.includes('tiktok.com/')) {
+    const match = clean.match(/@([a-zA-Z0-9_.-]+)/);
+    if (match) clean = match[1];
+    else clean = clean.split('/').pop().replace(/^@/, '');
+  }
+  clean = clean.replace(/^@/, '').trim();
 
   try {
+    const tiktokConn = new TikTokLiveConnection(clean, {});
     const isLive = await tiktokConn.fetchIsLive().catch(() => false);
     let roomInfo = null;
 
@@ -493,9 +624,10 @@ async function checkAllStreamers(client) {
       for (const streamer of cfg.streamers) {
         try {
           if (streamer.platform === 'youtube') {
-            const yt = await checkYouTubeLive(streamer.target);
+            const yt = await checkYouTubeLive(streamer.target, streamer.channelId);
             if (yt.success) {
               if (yt.channelName) streamer.name = yt.channelName;
+              if (yt.channelId && !streamer.channelId) streamer.channelId = yt.channelId;
               streamer.lastCheckTime = Date.now();
 
               // Jika streamer baru saja mulai LIVE dan belum dinotifikasi
@@ -599,6 +731,7 @@ module.exports = {
   getGuildStreamerConfig,
   ensureStreamerChannel,
   isStreamerChannel,
+  resolveYouTubeTarget,
   checkYouTubeLive,
   checkTikTokLive,
   buildLiveEmbed,

@@ -1530,6 +1530,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
       content: `Selamat datang, <@${member.id}>!`,
       embeds: [payload.embed],
       files: payload.files,
+    }).catch((err) => {
+      console.warn(`[WELCOME WARNING] Tidak dapat mengirim pesan sambutan di #${channel.name}: ${err.message}`);
     });
     console.log(`[WELCOME] Mengirim sambutan ber-banner untuk ${member.user.tag} di #${channel.name}`);
 
