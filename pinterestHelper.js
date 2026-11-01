@@ -59,3 +59,4 @@ async function searchPinterest(query, limit = 5) {
 module.exports = {
   searchPinterest,
 };
+

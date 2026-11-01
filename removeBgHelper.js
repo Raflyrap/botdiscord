@@ -59,3 +59,4 @@ async function removeBgImage(imageUrl) {
 module.exports = {
   removeBgImage,
 };
+

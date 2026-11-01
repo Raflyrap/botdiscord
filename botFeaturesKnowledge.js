@@ -115,7 +115,7 @@ Semua mini games bisa dimainkan lewat tombol interaktif di channel masing-masing
 13. UTILITAS SEHARI-HARI:
 - /afk [alasan]: Setel status sedang tidak di tempat. Kalo ada yang mention lo di chat, bot bakal ngabarin kalo lo lagi AFK beserta alasannya. Status AFK otomatis dicabut begitu lo ngetik chat lagi.
 - /remind [waktu] [pesan]: Pasang alarm/pengingat waktu. Format waktu: 10s (detik), 15m (menit), 2h (jam), 1d (hari). Bot bakal kirim pesan pengingat ke DM lo tepat waktu. Contoh: /remind 30m Angkat jemuran.
-- /stalk [platform] [id/username]: Kepoin profil publik game atau sosmed secara privat & instan di channel #stalk. Platform didukung: Mobile Legends, Roblox, TikTok, Discord (User ID), Instagram, GitHub, Twitter/X, Minecraft.
+- /stalk [platform] [id/username]: Kepoin profil publik game atau sosmed secara privat & instan di channel #stalk. Platform didukung: Mobile Legends, Roblox, TikTok, Discord (User ID), GitHub, Twitter/X, Minecraft.
 - /userinfo [@user]: Cek detail teknis akun Discord seseorang (umur akun, tanggal join, role, avatar).
 - /serverinfo: Cek statistik lengkap server (total member, owner, channel, boost level).
 - /request-fitur: Kirim aspirasi atau ide fitur baru yang lo pengen ada di FlyBot. Member lain bisa ikut voting dan developer bakal update statusnya (Dipertimbangkan, Diterima, Ditolak, Selesai).

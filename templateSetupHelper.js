@@ -633,7 +633,6 @@ async function setupCommunity(guild, roles) {
       '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
       '• **TikTok**: Profil, bio, followers, total likes, video, & avatar HD\n' +
       '• **Discord**: Akun, avatar animasi GIF, banner animasi GIF via User ID\n' +
-      '• **Instagram**: Profil, nama akun, & link Instagram\n' +
       '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
       '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
       '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +

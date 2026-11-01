@@ -365,44 +365,9 @@ async function stalkDiscord(userId) {
   }
 }
 
-/**
- * Stalk profil Instagram
- * @param {string} username
- */
-async function stalkInstagram(username) {
-  const cleanUsn = String(username || '').replace(/^@/, '').trim();
-  if (!cleanUsn) return { success: false, error: 'Username Instagram tidak boleh kosong.' };
-
-  try {
-    const res = await fetch(`https://api.snowping.cfd/api/stalker/instagram?usn=${encodeURIComponent(cleanUsn)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    if (!res.ok) return { success: false, error: `Gagal mengakses API Instagram (status: ${res.status})` };
-    const data = await res.json();
-    if (data && data.status === 200 && data.result) {
-      const r = data.result;
-      return {
-        success: true,
-        data: {
-          username: r.username?.replace(/^@/, '') || cleanUsn,
-          name: r.name || cleanUsn,
-          profileUrl: r.profileUrl || `https://instagram.com/${cleanUsn}`,
-          avatarUrl: r.avatar || null,
-          followers: r.followers || 'Tidak tersedia',
-          uploads: r.uploads || 'Tidak tersedia',
-        },
-      };
-    }
-    return { success: false, error: data?.error || data?.message || 'Akun Instagram tidak ditemukan.' };
-  } catch (err) {
-    return { success: false, error: `Error saat stalk Instagram: ${err.message}` };
-  }
-}
-
 module.exports = {
   stalkMlbb,
   stalkRoblox,
   stalkTikTok,
   stalkDiscord,
-  stalkInstagram,
 };

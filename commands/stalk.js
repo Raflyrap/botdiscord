@@ -8,12 +8,12 @@ const {
   ButtonStyle,
   MessageFlags,
 } = require('discord.js');
-const { stalkMlbb, stalkRoblox, stalkTikTok, stalkDiscord, stalkInstagram } = require('../stalkHelper');
+const { stalkMlbb, stalkRoblox, stalkTikTok, stalkDiscord } = require('../stalkHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('stalk')
-    .setDescription('Stalk akun Mobile Legends, Roblox, GitHub, Twitter, Minecraft, TikTok, Discord, Instagram')
+    .setDescription('Stalk akun Mobile Legends, Roblox, TikTok, Discord, GitHub, Twitter, Minecraft')
     .addSubcommand((sub) =>
       sub
         .setName('mlbb')
@@ -61,17 +61,6 @@ module.exports = {
           opt
             .setName('user_id')
             .setDescription('User ID Discord (contoh: 1559514149795401799)')
-            .setRequired(true)
-        )
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('instagram')
-        .setDescription('Stalk profil dan link akun Instagram')
-        .addStringOption((opt) =>
-          opt
-            .setName('username')
-            .setDescription('Username akun Instagram (tanpa tanda @)')
             .setRequired(true)
         )
     )
@@ -480,47 +469,6 @@ module.exports = {
       }
 
       return interaction.editReply({ embeds: [embed] });
-    }
-
-    // 9. Subcommand: Instagram
-    if (subcommand === 'instagram') {
-      const username = interaction.options.getString('username');
-      const result = await stalkInstagram(username);
-
-      if (!result.success) {
-        return interaction.editReply({
-          content: `Gagal stalk Instagram: ${result.error}`,
-        });
-      }
-
-      const d = result.data;
-      const embed = new EmbedBuilder()
-        .setColor(0xE1306C) // Instagram Pink
-        .setAuthor({
-          name: 'FlyBot Sosmed Stalker • Instagram',
-          iconURL: interaction.client.user.displayAvatarURL(),
-        })
-        .setTitle(`${d.name} (@${d.username})`)
-        .setURL(d.profileUrl)
-        .setDescription(`Detail profil Instagram untuk akun **@${d.username}**.`)
-        .addFields(
-          { name: 'Nama Akun', value: d.name, inline: true },
-          { name: 'Username', value: `@${d.username}`, inline: true },
-          { name: 'Followers', value: d.followers, inline: true },
-          { name: 'Total Postingan', value: d.uploads, inline: true }
-        )
-        .setFooter({ text: 'FlyBot Stalker • Instagram' })
-        .setTimestamp();
-
-      if (d.avatarUrl) {
-        embed.setThumbnail(d.avatarUrl);
-      }
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Buka Profil Instagram').setStyle(ButtonStyle.Link).setURL(d.profileUrl)
-      );
-
-      return interaction.editReply({ embeds: [embed], components: [row] });
     }
   },
 };
