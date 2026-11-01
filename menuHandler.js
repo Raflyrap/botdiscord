@@ -67,6 +67,8 @@ function getMainDashboard(guild, member) {
         value: [
           line('/ai', 'Tanya dan diskusi dengan AI'),
           line('/hd', 'Tingkatkan resolusi & ketajaman gambar (2x / 4x)'),
+          line('/removebg', 'Hapus background foto jadi transparan instan'),
+          line('/pinterest', 'Cari gambar estetik & wallpaper di Pinterest'),
           line('/afk', 'Pasang status sedang tidak di tempat'),
           line('/remind', 'Pasang pengingat jadwal otomatis'),
           line('/stalk', 'Lihat profil media sosial Twitter, GitHub, dll'),

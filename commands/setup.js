@@ -205,7 +205,7 @@ function getSetupDashboard(guild) {
       `4. **───────Community───────**\n` +
       `   • ngobrol, stalk profil akun\n` +
       `5. **───────Cinematography───────**\n` +
-      `   • fotografi, videografi, hd-foto (Auto-HD AI 2x/4x Super-Resolution)\n` +
+      `   • fotografi, videografi, hd-foto (Auto-HD AI), remove-bg (Auto Remove Background), pinterest (Galeri Pencarian)\n` +
       `6. **───────Music───────**\n` +
       `   • play-music (wajib /play di sini), sharelink-music (forum berbagi playlist & link lagu)\n` +
       `7. **───────Entertainment───────**\n` +

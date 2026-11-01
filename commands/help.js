@@ -43,9 +43,9 @@ const CATEGORIES = {
   },
   utility: {
     label: 'Utilitas & Gambar HD',
-    name: 'Utilitas & Gambar HD',
-    description: 'Peningkat resolusi gambar instan (AI Upscale 2x/4x), status AFK otomatis, alarm reminder, dan informasi akun.',
-    commands: ['hd', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
+    name: 'Utilitas, Gambar HD & Desain',
+    description: 'Peningkat resolusi gambar (AI Upscale 2x/4x), remove background, pencarian Pinterest, status AFK, alarm reminder, dan info akun.',
+    commands: ['hd', 'removebg', 'pinterest', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
@@ -113,8 +113,8 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Utilitas & Gambar HD (9 Perintah)',
-        value: '`/hd`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`, `/request-fitur`',
+        name: 'Utilitas & Desain Gambar (11 Perintah)',
+        value: '`/hd`, `/removebg`, `/pinterest`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`, `/request-fitur`',
         inline: false,
       },
       {

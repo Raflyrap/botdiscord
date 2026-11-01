@@ -74,10 +74,22 @@ BAGIAN 2: PANDUAN LENGKAP UNTUK USER BIASA
   * Reply (balas) foto seseorang di chat lalu ketik "/hd".
   * Upload foto di channel khusus #🖼️︱hd-foto (semua foto yang dikirim di channel ini otomatis langsung di-HD-kan tanpa perlu ngetik apa pun).
 
-6. GENERATOR GAMBAR & FANART AI (#ai-fanart):
+7. REMOVE BACKGROUND GAMBAR (AUTO-REMOVEBG & /removebg):
+- /removebg [gambar / url]: Hapus background foto instan secara otomatis menjadi PNG transparan berkualitas tinggi.
+- Cara alternatif:
+  * Upload foto langsung dengan caption "/removebg".
+  * Reply foto seseorang di chat lalu ketik "/removebg".
+  * Upload foto di channel khusus #✂️︱remove-bg (semua gambar yang diunggah di channel ini otomatis langsung dipisahkan latar belakangnya jadi PNG transparan).
+
+8. PENCARIAN GAMBAR PINTEREST (AUTO-PINTEREST & /pinterest):
+- /pinterest [query] [jumlah]: Cari gambar estetik, wallpaper, avatar, atau inspirasi visual dari Pinterest.
+- Dilengkapi tombol interaktif "Sebelumnya" dan "Berikutnya" untuk menjelajahi seluruh koleksi foto hasil pencarian.
+- Channel khusus #📌︱pinterest: Tinggal ketik kata kunci pencarian apa saja di channel ini (contoh: anime aesthetic, cyberpunk car), bot langsung mencarikan gambarnya.
+
+9. GENERATOR GAMBAR & FANART AI (#ai-fanart):
 - Masuk ke channel #ai-fanart, kirim prompt teks deskripsi gambar yang lo mau (contoh: "cyberpunk cat with neon sunglasses in tokyo"). Bot bakal langsung buatkan gambar ilustrasinya.
 
-7. DOWNLOADER SOSIAL MEDIA OTOMATIS (Tanpa Watermark):
+10. DOWNLOADER SOSIAL MEDIA OTOMATIS (Tanpa Watermark):
 - Kirim link video sosial media ke channel yang sesuai:
   * #tiktok-convert: Download video TikTok tanpa watermark.
   * #instagram-convert: Download reels, video, atau post Instagram.
@@ -86,7 +98,7 @@ BAGIAN 2: PANDUAN LENGKAP UNTUK USER BIASA
 - Bot otomatis download dan ngirimin videonya langsung ke channel.
 - Fitur Auto Cleanup 24H: Pesan di channel convert otomatis dihapus setelah 24 jam supaya channel gak numpuk dan tetap bersih.
 
-8. MINI GAMES & ARENA HIBURAN BERHADIAH:
+11. MINI GAMES & ARENA HIBURAN BERHADIAH:
 Semua mini games bisa dimainkan lewat tombol interaktif di channel masing-masing:
 - #🪙︱tebak-koin: Adu tebak sisi koin Heads atau Tails. Pasang taruhan koin, kalo tebakan lo bener koin lo bertambah plus dapet XP.
 - #🔢︱tebak-angka: Tebak angka rahasia antara 1 sampai 100. Bot bakal kasih petunjuk apakah tebakan lo terlalu tinggi atau terlalu rendah.
@@ -94,16 +106,16 @@ Semua mini games bisa dimainkan lewat tombol interaktif di channel masing-masing
 - #🎰︱gacha-slot (atau /slot [taruhan]): Spin mesin slot buah 3-reel. Cocokkan simbol dan raih JACKPOT 777 dengan hadiah sampai 15x lipat taruhan dan bonus XP melimpah.
 - #🔤︱sambung-kata: Duel sambung kata resmi KBBI melawan FlyBot. Bot kasih kata, lo harus bales pake kata baku yang diawali 2 huruf terakhir kata sebelumnya dalam batas waktu 30 detik. Kalo berhasil lo dapet koin dan XP.
 
-9. LEVELING, RANKING & SISTEM EKONOMI:
+12. LEVELING, RANKING & SISTEM EKONOMI:
 - /profile [@user]: Tampilkan kartu profil visual keren berisi Level, Rank server, Total XP, Saldo Koin dompet, Status Reputasi, serta tombol "Lihat Prestasi".
 - /daily: Klaim koin dan XP gratisan setiap hari (reset 24 jam).
 - /leaderboard: Papan peringkat Top Global member teraktif (ranking XP) dan member terkaya (ranking Koin).
 - /pay [@user] [jumlah]: Transfer koin lo ke teman di server.
 
-10. UTILITAS SEHARI-HARI:
+13. UTILITAS SEHARI-HARI:
 - /afk [alasan]: Setel status sedang tidak di tempat. Kalo ada yang mention lo di chat, bot bakal ngabarin kalo lo lagi AFK beserta alasannya. Status AFK otomatis dicabut begitu lo ngetik chat lagi.
 - /remind [waktu] [pesan]: Pasang alarm/pengingat waktu. Format waktu: 10s (detik), 15m (menit), 2h (jam), 1d (hari). Bot bakal kirim pesan pengingat ke DM lo tepat waktu. Contoh: /remind 30m Angkat jemuran.
-- /stalk [platform] [id]: Kepoin profil publik game atau sosmed secara privat & instan di channel #stalk. Platform didukung: Mobile Legends, Roblox, GitHub, Twitter/X, Minecraft.
+- /stalk [platform] [id/username]: Kepoin profil publik game atau sosmed secara privat & instan di channel #stalk. Platform didukung: Mobile Legends, Roblox, TikTok, Discord (User ID), Instagram, GitHub, Twitter/X, Minecraft.
 - /userinfo [@user]: Cek detail teknis akun Discord seseorang (umur akun, tanggal join, role, avatar).
 - /serverinfo: Cek statistik lengkap server (total member, owner, channel, boost level).
 - /request-fitur: Kirim aspirasi atau ide fitur baru yang lo pengen ada di FlyBot. Member lain bisa ikut voting dan developer bakal update statusnya (Dipertimbangkan, Diterima, Ditolak, Selesai).
@@ -121,7 +133,7 @@ BAGIAN 3: PANDUAN LENGKAP UNTUK ADMIN & PEMILIK SERVER
   2) Official: Pengumuman dan update bot (hanya admin/bot yg bisa ngetik, member cuma bisa react).
   3) Notify: Notifikasi welcome, leave, level up, dan achievements.
   4) Community: Obrolan umum, share media, stalk akun, dan report.
-  5) Cinematography: Galeri fotografi dan videografi.
+  5) Cinematography: Galeri fotografi, videografi, hd-foto (Auto-HD AI), remove-bg (Auto Remove Background), dan pinterest (Galeri Pencarian Gambar).
   6) Entertainment: Meme, fanart AI, auto chat AI, prompt AI, gaming setup, forum playlist musik.
   7) Mini Games: Arena tebak koin, tebak angka, suit jepang, slot, sambung kata.
   8) Voice Lounges: Trigger "➕︱Buat Room Voice" (Join-to-Create) di urutan paling bawah.

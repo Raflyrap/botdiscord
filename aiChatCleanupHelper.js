@@ -6,7 +6,7 @@ const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 const AI_CHANNEL_KEYWORDS = ['ai-generating', 'ai-prompt', 'ai-promt', 'ai-fanart'];
 const SOSMED_CHANNEL_KEYWORDS = ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'];
 const MINIGAME_CHANNEL_KEYWORDS = ['tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata'];
-const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo'];
+const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo', 'remove-bg', 'removebg', 'pinterest'];
 const STALK_CHANNEL_KEYWORDS = ['stalk'];
 
 /**

@@ -631,6 +631,9 @@ async function setupCommunity(guild, roles) {
       '**Platform yang Didukung:**\n' +
       '• **Mobile Legends (MLBB)**: Nickname akun, region server, status bundle & promo event top-up\n' +
       '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
+      '• **TikTok**: Profil, bio, followers, total likes, video, & avatar HD\n' +
+      '• **Discord**: Akun, avatar animasi GIF, banner animasi GIF via User ID\n' +
+      '• **Instagram**: Profil, nama akun, & link Instagram\n' +
       '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
       '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
       '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
@@ -719,6 +722,20 @@ async function setupCinematography(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  const removeBg = await getOrCreateChannel(guild, {
+    name: '✂️︱remove-bg',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const pinterest = await getOrCreateChannel(guild, {
+    name: '📌︱pinterest',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
   // Sambungkan ke hdChannelConfig
   setHdConfig(guild.id, {
     categoryId: category.id,
@@ -747,7 +764,46 @@ async function setupCinematography(guild, roles) {
     await hdFoto.send({ embeds: [guideEmbed] }).catch(() => {});
   }
 
-  return { category, fotografi, videografi, hdFoto };
+  // Kirim panduan Auto-RemoveBG jika channel masih baru / kosong
+  const rbgMsgs = await removeBg.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!rbgMsgs || rbgMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setAuthor({ name: `${guild.name} • Studio Remove Background`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Studio Auto Remove-BG')
+      .setDescription(
+        `Selamat datang di channel khusus Auto Remove Background!\n\n` +
+        `**Cara Pakai (Otomatis & Cepat):**\n` +
+        `• Cukup **kirim atau upload foto apa saja** ke channel ini, bot akan otomatis memisahkan latar belakang dan mengirimkan file PNG transparan beresolusi tinggi tanpa perlu mengetik perintah apa pun.\n` +
+        `• Kamu juga bisa menggunakan perintah \`/removebg\` di channel lain.\n\n` +
+        `> 💡 **Tips Unduh Kualitas Penuh:**\n` +
+        `> Klik tombol "Buka Gambar Transparan" pada hasil untuk menyimpan gambar PNG tanpa kompresi!`
+      )
+      .setFooter({ text: 'FlyBot AI Background Remover' })
+      .setTimestamp();
+    await removeBg.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  // Kirim panduan Pinterest jika channel masih baru / kosong
+  const pinMsgs = await pinterest.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!pinMsgs || pinMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0xe60023)
+      .setAuthor({ name: `${guild.name} • Galeri Pinterest`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Galeri Pencarian Pinterest')
+      .setDescription(
+        `Selamat datang di channel pencarian gambar & wallpaper Pinterest!\n\n` +
+        `**Cara Pakai (Otomatis & Praktis):**\n` +
+        `• Cukup **ketik kata kunci pencarian apa saja** di channel ini (contoh: \`anime aesthetic\`, \`cyberpunk wallpaper\`, \`minimalist car\`), bot akan langsung mencarikan koleksi foto berkualitas tinggi untuk kamu!\n` +
+        `• Gunakan tombol **Sebelumnya** dan **Berikutnya** di bawah gambar untuk melihat koleksi foto lainnya.\n` +
+        `• Kamu juga bisa menggunakan perintah \`/pinterest [query]\` di channel lain.`
+      )
+      .setFooter({ text: 'FlyBot Pinterest Search Explorer' })
+      .setTimestamp();
+    await pinterest.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  return { category, fotografi, videografi, hdFoto, removeBg, pinterest };
 }
 
 /**
@@ -1540,6 +1596,8 @@ async function setupFullTemplate(guild) {
       achievementsId: notify.achievements.id,
       stalkId: community.stalk.id,
       hdFotoId: cinematography.hdFoto.id,
+      removeBgId: cinematography.removeBg?.id || null,
+      pinterestId: cinematography.pinterest?.id || null,
       playMusicId: music.playMusic.id,
       sharelinkMusicId: music.sharelinkMusic.id,
       aiFanartId: entertainment.aiFanart.id,

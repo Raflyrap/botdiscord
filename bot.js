@@ -528,6 +528,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.reply({ content: 'Penghapusan dibatalkan.', flags: MessageFlags.Ephemeral });
     }
 
+    // Tombol Navigasi Gambar Pinterest
+    if (interaction.customId.startsWith('btn_pin_')) {
+      const parts = interaction.customId.split('_');
+      // format: btn_pin_${searchId}_${targetIdx}
+      const searchId = parts[2];
+      const targetIdx = parseInt(parts[3], 10) || 0;
+      const { pinSearchCache, buildPinRow } = require('./commands/pinterest');
+      const cached = pinSearchCache.get(searchId);
+
+      if (!cached || !cached.images) {
+        return interaction.reply({
+          content: 'Sesi pencarian Pinterest ini sudah kedaluwarsa. Silakan lakukan pencarian baru dengan `/pinterest`.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      const imgCount = cached.images.length;
+      const validIdx = Math.max(0, Math.min(targetIdx, imgCount - 1));
+      const targetImage = cached.images[validIdx];
+
+      const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+        .setDescription(`Menampilkan gambar **${validIdx + 1} dari ${imgCount}** yang ditemukan.`)
+        .setImage(targetImage)
+        .setFooter({ text: `Halaman ${validIdx + 1} / ${imgCount} • Dicari oleh ${interaction.user.username}` });
+
+      const row = buildPinRow(searchId, validIdx, imgCount, targetImage);
+
+      return interaction.update({ embeds: [updatedEmbed], components: [row] });
+    }
+
     // Tombol Buka Jawaban AI Privat (Only you can see this • Dismiss message)
     if (interaction.customId.startsWith('btn_ephemeral_ai_')) {
       const resId = interaction.customId.replace('btn_ephemeral_ai_', '');
@@ -2135,6 +2165,167 @@ client.on(Events.MessageCreate, async (message) => {
       }
     } catch (err) {
       console.error('Error saat memproses HD gambar di chat:', err);
+    }
+  }
+
+  // === FITUR AUTO REMOVE-BG DI CHANNEL KHUSUS REMOVE-BG ===
+  const isRemoveBgChannel = message.guild && message.channel?.name && message.channel.name.toLowerCase().includes('remove-bg');
+  if (isRemoveBgChannel) {
+    const targetImageUrl = extractImageUrlFromMessage(message);
+    if (targetImageUrl) {
+      try {
+        const processingMsg = await message.reply('Sedang memisahkan dan menghapus background gambar kamu bray, tunggu sebentar...');
+        const { removeBgImage } = require('./removeBgHelper');
+        const result = await removeBgImage(targetImageUrl);
+
+        if (result.success) {
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('Background Gambar Berhasil Dihapus')
+            .setDescription(
+              `Background foto berhasil dipisahkan dan diubah menjadi transparan (PNG murni).\n\n` +
+              `• Format: **${(result.format || 'png').toUpperCase()}**\n` +
+              `• Ukuran File: **${result.size || 'N/A'}**\n\n` +
+              `> **Tips:** Klik tombol **"Buka Gambar Transparan"** di bawah untuk menyimpan gambar kualitas penuh tanpa kompresi Discord!`
+            )
+            .setImage(result.resultUrl)
+            .setFooter({ text: `FlyBot Auto-RemoveBG • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Buka Gambar Transparan')
+              .setStyle(ButtonStyle.Link)
+              .setURL(result.resultUrl)
+          );
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            components: [row],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal menghapus background: ${result.error}`,
+          });
+        }
+        return;
+      } catch (err) {
+        console.error('Error saat Auto-RemoveBG di channel khusus:', err);
+      }
+    }
+  }
+
+  // === FITUR REMOVEBG VIA CAPTION /removebg ATAU REPLY FOTO /removebg ===
+  const isRemoveBgCommand =
+    cleanContent === '/removebg' ||
+    cleanContent.startsWith('/removebg ') ||
+    cleanContent === '!removebg' ||
+    cleanContent.startsWith('!removebg ');
+
+  if (isRemoveBgCommand) {
+    try {
+      let targetImageUrl = extractImageUrlFromMessage(message);
+      if (!targetImageUrl && message.reference && message.reference.messageId) {
+        const repliedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+        if (repliedMessage) {
+          targetImageUrl = extractImageUrlFromMessage(repliedMessage);
+        }
+      }
+
+      if (targetImageUrl) {
+        const processingMsg = await message.reply('Sedang menghapus background gambar kamu bray, tunggu sebentar...');
+        const { removeBgImage } = require('./removeBgHelper');
+        const result = await removeBgImage(targetImageUrl);
+
+        if (result.success) {
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('Background Gambar Berhasil Dihapus')
+            .setDescription(
+              `Background foto berhasil dipisahkan dan diubah menjadi transparan (PNG murni).\n\n` +
+              `• Format: **${(result.format || 'png').toUpperCase()}**\n` +
+              `• Ukuran File: **${result.size || 'N/A'}**\n\n` +
+              `> **Tips:** Klik tombol **"Buka Gambar Transparan"** di bawah untuk menyimpan gambar kualitas penuh tanpa kompresi Discord!`
+            )
+            .setImage(result.resultUrl)
+            .setFooter({ text: `FlyBot RemoveBG • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Buka Gambar Transparan')
+              .setStyle(ButtonStyle.Link)
+              .setURL(result.resultUrl)
+          );
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            components: [row],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal menghapus background: ${result.error}`,
+          });
+        }
+        return;
+      } else {
+        await message.reply('Tidak ditemukan gambar bray. Kirim gambar langsung dengan caption `/removebg`, atau reply foto orang lain lalu ketik `/removebg`.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error saat /removebg di chat:', err);
+    }
+  }
+
+  // === FITUR AUTO PINTEREST DI CHANNEL KHUSUS PINTEREST ===
+  const isPinterestChannel = message.guild && message.channel?.name && message.channel.name.toLowerCase().includes('pinterest');
+  if (isPinterestChannel && !message.author.bot && message.content.trim()) {
+    try {
+      const pinQuery = message.content.trim();
+      const processingMsg = await message.reply(`Mencari gambar Pinterest untuk **"${pinQuery}"**...`);
+      const { searchPinterest } = require('./pinterestHelper');
+      const { pinSearchCache, buildPinRow } = require('./commands/pinterest');
+
+      const res = await searchPinterest(pinQuery, 5);
+      if (res.success && res.images && res.images.length > 0) {
+        const searchId = `${Date.now()}_${message.author.id}`;
+        pinSearchCache.set(searchId, {
+          query: pinQuery,
+          images: res.images,
+          userId: message.author.id,
+        });
+        setTimeout(() => pinSearchCache.delete(searchId), 15 * 60 * 1000);
+
+        const firstImage = res.images[0];
+        const embed = new EmbedBuilder()
+          .setColor(0xE60023)
+          .setAuthor({
+            name: 'FlyBot Search • Pinterest Image Gallery',
+            iconURL: client.user.displayAvatarURL(),
+          })
+          .setTitle(`Hasil Pinterest: "${pinQuery}"`)
+          .setDescription(`Menampilkan gambar **1 dari ${res.images.length}** yang ditemukan.`)
+          .setImage(firstImage)
+          .setFooter({ text: `Halaman 1 / ${res.images.length} • Diminta oleh ${message.author.username}` })
+          .setTimestamp();
+
+        const row = buildPinRow(searchId, 0, res.images.length, firstImage);
+
+        await processingMsg.edit({
+          content: null,
+          embeds: [embed],
+          components: [row],
+        });
+      } else {
+        await processingMsg.edit({
+          content: `Tidak dapat menemukan gambar Pinterest untuk kata kunci **"${pinQuery}"**: ${res.error || 'Hasil kosong.'}`,
+        });
+      }
+      return;
+    } catch (err) {
+      console.error('Error saat Auto-Pinterest di channel khusus:', err);
     }
   }
 

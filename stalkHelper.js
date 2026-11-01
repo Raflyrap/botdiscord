@@ -292,7 +292,117 @@ async function stalkRoblox(username) {
   }
 }
 
+/**
+ * Stalk profil TikTok
+ * @param {string} username
+ */
+async function stalkTikTok(username) {
+  const cleanUsn = String(username || '').replace(/^@/, '').trim();
+  if (!cleanUsn) return { success: false, error: 'Username TikTok tidak boleh kosong.' };
+
+  try {
+    const res = await fetch(`https://api.snowping.cfd/api/stalker/tiktok?usn=${encodeURIComponent(cleanUsn)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (!res.ok) return { success: false, error: `Gagal mengakses API TikTok (status: ${res.status})` };
+    const data = await res.json();
+    if (data && data.status === 200 && data.result) {
+      const r = data.result;
+      return {
+        success: true,
+        data: {
+          username: r.username || cleanUsn,
+          name: r.name || cleanUsn,
+          bio: r.bio || 'Tidak ada bio.',
+          followers: r.followers ? Number(r.followers).toLocaleString() : '0',
+          following: r.following ? Number(r.following).toLocaleString() : '0',
+          likes: r.likes ? Number(r.likes).toLocaleString() : '0',
+          videoCount: r.videoCount ? Number(r.videoCount).toLocaleString() : '0',
+          avatarUrl: r.avatar || null,
+          profileUrl: `https://www.tiktok.com/@${cleanUsn}`,
+        },
+      };
+    }
+    return { success: false, error: data?.error || data?.message || 'Akun TikTok tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, error: `Error saat stalk TikTok: ${err.message}` };
+  }
+}
+
+/**
+ * Stalk profil Discord berdasarkan User ID
+ * @param {string} userId
+ */
+async function stalkDiscord(userId) {
+  const cleanId = String(userId || '').trim();
+  if (!cleanId || !/^\d{17,20}$/.test(cleanId)) {
+    return { success: false, error: 'User ID Discord harus berupa 17-20 digit angka valid.' };
+  }
+
+  try {
+    const res = await fetch(`https://api.snowping.cfd/api/stalker/discord?id=${encodeURIComponent(cleanId)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (!res.ok) return { success: false, error: `Gagal mengakses API Discord (status: ${res.status})` };
+    const data = await res.json();
+    if (data && data.status === 200 && data.result?.profile) {
+      const p = data.result.profile;
+      return {
+        success: true,
+        data: {
+          id: p.id,
+          username: p.username || 'Unknown',
+          discriminator: p.discriminator || '0',
+          globalName: p.global_name || p.username || 'Unknown',
+          avatarUrl: p.avatar || null,
+          bannerUrl: p.banner || null,
+        },
+      };
+    }
+    return { success: false, error: data?.error || data?.message || 'User ID Discord tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, error: `Error saat stalk Discord: ${err.message}` };
+  }
+}
+
+/**
+ * Stalk profil Instagram
+ * @param {string} username
+ */
+async function stalkInstagram(username) {
+  const cleanUsn = String(username || '').replace(/^@/, '').trim();
+  if (!cleanUsn) return { success: false, error: 'Username Instagram tidak boleh kosong.' };
+
+  try {
+    const res = await fetch(`https://api.snowping.cfd/api/stalker/instagram?usn=${encodeURIComponent(cleanUsn)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (!res.ok) return { success: false, error: `Gagal mengakses API Instagram (status: ${res.status})` };
+    const data = await res.json();
+    if (data && data.status === 200 && data.result) {
+      const r = data.result;
+      return {
+        success: true,
+        data: {
+          username: r.username?.replace(/^@/, '') || cleanUsn,
+          name: r.name || cleanUsn,
+          profileUrl: r.profileUrl || `https://instagram.com/${cleanUsn}`,
+          avatarUrl: r.avatar || null,
+          followers: r.followers || 'Tidak tersedia',
+          uploads: r.uploads || 'Tidak tersedia',
+        },
+      };
+    }
+    return { success: false, error: data?.error || data?.message || 'Akun Instagram tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, error: `Error saat stalk Instagram: ${err.message}` };
+  }
+}
+
 module.exports = {
   stalkMlbb,
   stalkRoblox,
+  stalkTikTok,
+  stalkDiscord,
+  stalkInstagram,
 };

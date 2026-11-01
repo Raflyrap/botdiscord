@@ -8,12 +8,12 @@ const {
   ButtonStyle,
   MessageFlags,
 } = require('discord.js');
-const { stalkMlbb, stalkRoblox } = require('../stalkHelper');
+const { stalkMlbb, stalkRoblox, stalkTikTok, stalkDiscord, stalkInstagram } = require('../stalkHelper');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('stalk')
-    .setDescription('Stalk akun Mobile Legends (MLBB), Roblox, GitHub, Twitter, Minecraft')
+    .setDescription('Stalk akun Mobile Legends, Roblox, GitHub, Twitter, Minecraft, TikTok, Discord, Instagram')
     .addSubcommand((sub) =>
       sub
         .setName('mlbb')
@@ -39,6 +39,39 @@ module.exports = {
           opt
             .setName('username')
             .setDescription('Username akun Roblox pemain (contoh: Builderman atau Roblox)')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('tiktok')
+        .setDescription('Stalk profil, followers, total likes, video, dan bio akun TikTok')
+        .addStringOption((opt) =>
+          opt
+            .setName('username')
+            .setDescription('Username akun TikTok (tanpa tanda @)')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('discord')
+        .setDescription('Stalk avatar animasi, banner, dan info akun Discord berdasarkan User ID')
+        .addStringOption((opt) =>
+          opt
+            .setName('user_id')
+            .setDescription('User ID Discord (contoh: 1559514149795401799)')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('instagram')
+        .setDescription('Stalk profil dan link akun Instagram')
+        .addStringOption((opt) =>
+          opt
+            .setName('username')
+            .setDescription('Username akun Instagram (tanpa tanda @)')
             .setRequired(true)
         )
     )
@@ -365,6 +398,126 @@ module.exports = {
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setLabel('Buka di NameMC').setStyle(ButtonStyle.Link).setURL(namemcUrl)
+      );
+
+      return interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    // 7. Subcommand: TikTok
+    if (subcommand === 'tiktok') {
+      const username = interaction.options.getString('username');
+      const result = await stalkTikTok(username);
+
+      if (!result.success) {
+        return interaction.editReply({
+          content: `Gagal stalk TikTok: ${result.error}`,
+        });
+      }
+
+      const d = result.data;
+      const embed = new EmbedBuilder()
+        .setColor(0xFE2C55) // TikTok Red
+        .setAuthor({
+          name: 'FlyBot Sosmed Stalker • TikTok',
+          iconURL: interaction.client.user.displayAvatarURL(),
+        })
+        .setTitle(`${d.name} (@${d.username})`)
+        .setURL(d.profileUrl)
+        .setDescription(`> *${d.bio}*`)
+        .addFields(
+          { name: 'Followers', value: `\`${d.followers}\``, inline: true },
+          { name: 'Following', value: `\`${d.following}\``, inline: true },
+          { name: 'Total Likes', value: `\`${d.likes}\``, inline: true },
+          { name: 'Total Video', value: `\`${d.videoCount}\``, inline: true }
+        )
+        .setFooter({ text: 'FlyBot Stalker • TikTok' })
+        .setTimestamp();
+
+      if (d.avatarUrl) {
+        embed.setThumbnail(d.avatarUrl);
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Buka Profil TikTok').setStyle(ButtonStyle.Link).setURL(d.profileUrl)
+      );
+
+      return interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    // 8. Subcommand: Discord
+    if (subcommand === 'discord') {
+      const userId = interaction.options.getString('user_id');
+      const result = await stalkDiscord(userId);
+
+      if (!result.success) {
+        return interaction.editReply({
+          content: `Gagal stalk Discord: ${result.error}`,
+        });
+      }
+
+      const d = result.data;
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2) // Discord Blurple
+        .setAuthor({
+          name: 'FlyBot Stalker • Akun Discord',
+          iconURL: interaction.client.user.displayAvatarURL(),
+        })
+        .setTitle(`${d.globalName} (@${d.username})`)
+        .setDescription(`Informasi profil Discord untuk User ID \`${d.id}\`.`)
+        .addFields(
+          { name: 'Global Name', value: d.globalName, inline: true },
+          { name: 'Username', value: `@${d.username}`, inline: true },
+          { name: 'User ID', value: `\`${d.id}\``, inline: true }
+        )
+        .setFooter({ text: 'FlyBot Stalker • Discord User' })
+        .setTimestamp();
+
+      if (d.avatarUrl) {
+        embed.setThumbnail(d.avatarUrl);
+      }
+      if (d.bannerUrl) {
+        embed.setImage(d.bannerUrl);
+      }
+
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+    // 9. Subcommand: Instagram
+    if (subcommand === 'instagram') {
+      const username = interaction.options.getString('username');
+      const result = await stalkInstagram(username);
+
+      if (!result.success) {
+        return interaction.editReply({
+          content: `Gagal stalk Instagram: ${result.error}`,
+        });
+      }
+
+      const d = result.data;
+      const embed = new EmbedBuilder()
+        .setColor(0xE1306C) // Instagram Pink
+        .setAuthor({
+          name: 'FlyBot Sosmed Stalker • Instagram',
+          iconURL: interaction.client.user.displayAvatarURL(),
+        })
+        .setTitle(`${d.name} (@${d.username})`)
+        .setURL(d.profileUrl)
+        .setDescription(`Detail profil Instagram untuk akun **@${d.username}**.`)
+        .addFields(
+          { name: 'Nama Akun', value: d.name, inline: true },
+          { name: 'Username', value: `@${d.username}`, inline: true },
+          { name: 'Followers', value: d.followers, inline: true },
+          { name: 'Total Postingan', value: d.uploads, inline: true }
+        )
+        .setFooter({ text: 'FlyBot Stalker • Instagram' })
+        .setTimestamp();
+
+      if (d.avatarUrl) {
+        embed.setThumbnail(d.avatarUrl);
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Buka Profil Instagram').setStyle(ButtonStyle.Link).setURL(d.profileUrl)
       );
 
       return interaction.editReply({ embeds: [embed], components: [row] });
