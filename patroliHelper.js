@@ -78,11 +78,8 @@ function playPatroliMusicLoop(guildId, connection) {
               const resource = createAudioResource(MUSIC_PATH);
               player.play(resource);
 
-              // Rate-limit log per 5 menit agar tidak memenuhi log console
-              if (!player._lastLogTime || Date.now() - player._lastLogTime > 300000) {
-                player._lastLogTime = Date.now();
-                console.log(`[PATROLI AUDIO] Looping music.mp3 di Guild ${guildId}`);
-              }
+              // Berjalan secara background silent loop agar log console tetap bersih
+              player._lastLogTime = Date.now();
             } catch (err) {
               console.error(`[PATROLI AUDIO LOOP ERROR] Guild ${guildId}:`, err.message);
             }

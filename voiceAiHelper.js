@@ -151,7 +151,8 @@ async function buildGuildContext(guild, voiceChannel) {
       `INSTRUKSI PENTING TENTANG SERVER:\n` +
       `1. Kamu tahu persis seluruh isi server ini! Jika ada yang nanya nama grup/server ini apa, sebutkan nama "${guild.name}".\n` +
       `2. Jika disuruh bacakan/sebutkan kategori atau channel apa saja yang ada di grup ini, sebutkan dengan santai dan tepat sesuai data di atas.\n` +
-      `3. Jika ada yang minta setel/putar lagu musik, beri tahu dengan santai bahwa untuk setel musik bisa langsung ketik perintah slash /play di chat!\n\n` +
+      `3. Jika ada yang minta setel/putar lagu musik, beri tahu dengan santai bahwa untuk setel musik bisa langsung ketik perintah slash /play di chat!\n` +
+      `4. Jika ada teman atau admin di voice yang menanyakan cara pakai atau setup fitur FlyBot (misalnya cara setel lagu, cara bikin voice room sendiri, cara main game, cara verifikasi, atau cara setup server), jelaskan langkah intisarinya secara singkat, jelas, dan asik lewat suara, lalu sebutkan perintah slash yang bisa mereka ketik di chat (seperti /play, /setup, atau /menu).\n\n` +
       FLYBOT_KNOWLEDGE
     );
   } catch (err) {
@@ -285,9 +286,20 @@ function connectRealtimeWebSocket(session) {
 
   ws.addEventListener('close', () => {
     console.log(`[REALTIME WS] Terputus untuk Guild ${session.guildId}`);
-    if (activeSessions.has(session.guildId)) {
+    if (activeSessions.has(session.guildId) && !session.isLeaving) {
+      // Cek apakah channel dan member manusia masih ada sebelum mencoba reconnect
+      const guild = session.client?.guilds?.cache?.get(session.guildId);
+      const channel = guild?.channels?.cache?.get(session.channelId);
+      const hasHumans = channel?.members?.some((m) => !m.user.bot);
+
+      if (!channel || !hasHumans) {
+        console.log(`[VOICE AI] Channel kosong atau tidak ada user di Guild ${session.guildId}. Menghentikan sesi.`);
+        stopVoiceAiSession(session.guildId, false);
+        return;
+      }
+
       setTimeout(() => {
-        if (activeSessions.has(session.guildId)) {
+        if (activeSessions.has(session.guildId) && !session.isLeaving) {
           session.ws = connectRealtimeWebSocket(session);
         }
       }, 2000);
@@ -362,7 +374,19 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     historyItemIds: [],
     activeListeners: new Set(),
     stats: { questionsAnswered: 0, startTime: Date.now() },
+    lastInteractionTime: Date.now(),
+    idleInterval: null,
   };
+
+  // Auto timeout jika hening selama 10 menit tanpa interaksi suara
+  session.idleInterval = setInterval(() => {
+    if (!activeSessions.has(guildId)) return;
+    const idleMs = Date.now() - (session.lastInteractionTime || Date.now());
+    if (idleMs > 10 * 60 * 1000 && !session.isSpeaking && !session.isProcessing) {
+      console.log(`[VOICE AI] Guild ${guildId} tidak ada aktivitas selama 10 menit. Menghentikan sesi otomatis.`);
+      stopVoiceAiSession(guildId, true);
+    }
+  }, 30000);
 
   // Reset status saat audio selesai diputar
   player.on(AudioPlayerStatus.Idle, () => {
@@ -445,6 +469,7 @@ function sendRealtimeTextMessage(session, text) {
  */
 function handleUserSpeaking(session, userId) {
   session.activeListeners.add(userId);
+  session.lastInteractionTime = Date.now();
 
   try {
     const opusStream = session.connection.receiver.subscribe(userId, {
@@ -530,6 +555,11 @@ async function stopVoiceAiSession(guildId, withFarewell = true) {
 
   if (session.isLeaving) return false;
   session.isLeaving = true;
+
+  if (session.idleInterval) {
+    clearInterval(session.idleInterval);
+    session.idleInterval = null;
+  }
 
   // Jika diminta berpamitan lewat suara dan koneksi WebSocket serta player masih aktif
   if (withFarewell && session.ws && session.ws.readyState === 1 && session.connection) {

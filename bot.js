@@ -1179,36 +1179,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setFooter({ text: `Halaman ${currentPage} dari ${totalPages} • Total ${allAchs.length} Prestasi` })
         .setTimestamp();
 
-      const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_1`)
-          .setLabel('Awal')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-        new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_1`)
-          .setLabel('Sebelumnya')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(true),
-        new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_2`)
-          .setLabel('Berikutnya')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(totalPages <= 1),
-        new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_${totalPages}`)
-          .setLabel('Akhir')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(totalPages <= 1)
-      );
+      function buildAchNavRow(tId, currP, totalP) {
+        return new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`btn_ach_nav_${tId}_first_1`)
+            .setLabel('Awal')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currP <= 1),
+          new ButtonBuilder()
+            .setCustomId(`btn_ach_nav_${tId}_prev_${Math.max(1, currP - 1)}`)
+            .setLabel('Sebelumnya')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currP <= 1),
+          new ButtonBuilder()
+            .setCustomId(`btn_ach_nav_${tId}_next_${Math.min(totalP, currP + 1)}`)
+            .setLabel('Berikutnya')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currP >= totalP),
+          new ButtonBuilder()
+            .setCustomId(`btn_ach_nav_${tId}_last_${totalP}`)
+            .setLabel('Akhir')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currP >= totalP)
+        );
+      }
+
+      const navRow = buildAchNavRow(targetId, currentPage, totalPages);
 
       return interaction.reply({ embeds: [achListEmbed], components: [navRow], flags: MessageFlags.Ephemeral });
     }
 
-    if (interaction.customId.startsWith('btn_ach_page_')) {
+    if (interaction.customId.startsWith('btn_ach_nav_') || interaction.customId.startsWith('btn_ach_page_')) {
       const parts = interaction.customId.split('_');
-      const targetId = parts[3];
-      const reqPage = parseInt(parts[4], 10) || 1;
+      let targetId, reqPage;
+      if (parts[2] === 'nav') {
+        targetId = parts[3];
+        reqPage = parseInt(parts[5], 10) || 1;
+      } else {
+        targetId = parts[3];
+        reqPage = parseInt(parts[4], 10) || 1;
+      }
       const targetUser = await interaction.client.users.fetch(targetId).catch(() => interaction.user);
 
       const lvl = require('./levelingHelper');
@@ -1243,25 +1253,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const navRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_1`)
+          .setCustomId(`btn_ach_nav_${targetId}_first_1`)
           .setLabel('Awal')
           .setStyle(ButtonStyle.Secondary)
-          .setDisabled(currentPage === 1),
+          .setDisabled(currentPage <= 1),
         new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_${currentPage - 1}`)
+          .setCustomId(`btn_ach_nav_${targetId}_prev_${Math.max(1, currentPage - 1)}`)
           .setLabel('Sebelumnya')
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(currentPage === 1),
+          .setDisabled(currentPage <= 1),
         new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_${currentPage + 1}`)
+          .setCustomId(`btn_ach_nav_${targetId}_next_${Math.min(totalPages, currentPage + 1)}`)
           .setLabel('Berikutnya')
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(currentPage === totalPages),
+          .setDisabled(currentPage >= totalPages),
         new ButtonBuilder()
-          .setCustomId(`btn_ach_page_${targetId}_${totalPages}`)
+          .setCustomId(`btn_ach_nav_${targetId}_last_${totalPages}`)
           .setLabel('Akhir')
           .setStyle(ButtonStyle.Secondary)
-          .setDisabled(currentPage === totalPages)
+          .setDisabled(currentPage >= totalPages)
       );
 
       return interaction.update({ embeds: [achListEmbed], components: [navRow] });
@@ -1625,6 +1635,28 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
     await handleVoiceStateUpdate(oldState, newState);
   } catch (error) {
     console.error('Error saat handleVoiceStateUpdate:', error);
+  }
+
+  // Auto-leave Voice AI jika voice channel kosong, caller keluar, atau bot terputus
+  try {
+    const { getVoiceAiSession, stopVoiceAiSession } = require('./voiceAiHelper');
+    const guildId = oldState.guild?.id || newState.guild?.id;
+    const voiceAiSession = getVoiceAiSession(guildId);
+    if (voiceAiSession) {
+      const channel = (oldState.guild || newState.guild)?.channels.cache.get(voiceAiSession.channelId);
+      if (!channel) {
+        stopVoiceAiSession(guildId, false);
+      } else {
+        const nonBotMembers = channel.members.filter((m) => !m.user.bot);
+        if (nonBotMembers.size === 0) {
+          stopVoiceAiSession(guildId, false);
+        } else if (voiceAiSession.callerUserId && !channel.members.has(voiceAiSession.callerUserId)) {
+          stopVoiceAiSession(guildId, true);
+        }
+      }
+    }
+  } catch (e) {
+    // Abaikan jika tidak ada sesi aktif
   }
 
   // Jika bot terputus dari voice channel padahal mode patroli aktif, sambungkan kembali otomatis
