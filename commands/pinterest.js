@@ -8,7 +8,7 @@ const {
 const { searchPinterest } = require('../pinterestHelper');
 
 // Cache pagination hasil pencarian pinterest sementara (key: searchId)
-const pinSearchCache = new Map();
+const pinSearchCache = global.__flybotPinCache || (global.__flybotPinCache = new Map());
 
 function buildPinRow(searchId, currIdx, totalImgs, directUrl) {
   return new ActionRowBuilder().addComponents(
@@ -66,7 +66,7 @@ module.exports = {
         });
       }
 
-      const searchId = `${Date.now()}_${interaction.user.id}`;
+      const searchId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
       pinSearchCache.set(searchId, {
         query,
         images: res.images,

@@ -531,17 +531,42 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Tombol Navigasi Gambar Pinterest
     if (interaction.customId.startsWith('btn_pin_')) {
       const parts = interaction.customId.split('_');
-      // format: btn_pin_${searchId}_${targetIdx}
-      const searchId = parts[2];
-      const targetIdx = parseInt(parts[3], 10) || 0;
+      // Format baru: btn_pin_<alphanumericSearchId>_<targetIdx>
+      // Format lama: btn_pin_<timestamp>_<userId>_<targetIdx>
+      const targetIdx = parseInt(parts[parts.length - 1], 10) || 0;
+      const searchId = parts.slice(2, parts.length - 1).join('_');
       const { pinSearchCache, buildPinRow } = require('./commands/pinterest');
-      const cached = pinSearchCache.get(searchId);
+      let cached = pinSearchCache.get(searchId);
 
-      if (!cached || !cached.images) {
+      // Fallback: Jika cache kosong/expired, coba auto re-query dari embed title
+      if (!cached || !cached.images || cached.images.length === 0) {
+        const embedTitle = interaction.message.embeds[0]?.title || '';
+        const match = embedTitle.match(/Hasil Pinterest:\s*"([^"]+)"/i);
+        if (match && match[1]) {
+          await interaction.deferUpdate().catch(() => {});
+          try {
+            const { searchPinterest } = require('./pinterestHelper');
+            const refetch = await searchPinterest(match[1], 10);
+            if (refetch.success && refetch.images && refetch.images.length > 0) {
+              cached = {
+                query: match[1],
+                images: refetch.images,
+                userId: interaction.user.id,
+              };
+              pinSearchCache.set(searchId, cached);
+              setTimeout(() => pinSearchCache.delete(searchId), 15 * 60 * 1000);
+            }
+          } catch (e) {
+            console.error('Gagal re-query Pinterest:', e);
+          }
+        }
+      }
+
+      if (!cached || !cached.images || cached.images.length === 0) {
         return interaction.reply({
           content: 'Sesi pencarian Pinterest ini sudah kedaluwarsa. Silakan lakukan pencarian baru dengan `/pinterest`.',
           flags: MessageFlags.Ephemeral,
-        });
+        }).catch(() => {});
       }
 
       const imgCount = cached.images.length;
@@ -555,7 +580,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const row = buildPinRow(searchId, validIdx, imgCount, targetImage);
 
-      return interaction.update({ embeds: [updatedEmbed], components: [row] });
+      if (interaction.deferred) {
+        return interaction.editReply({ embeds: [updatedEmbed], components: [row] });
+      } else {
+        return interaction.update({ embeds: [updatedEmbed], components: [row] });
+      }
     }
 
     // Tombol Buka Jawaban AI Privat (Only you can see this • Dismiss message)
@@ -2290,7 +2319,7 @@ client.on(Events.MessageCreate, async (message) => {
 
       const res = await searchPinterest(pinQuery, 5);
       if (res.success && res.images && res.images.length > 0) {
-        const searchId = `${Date.now()}_${message.author.id}`;
+        const searchId = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
         pinSearchCache.set(searchId, {
           query: pinQuery,
           images: res.images,
