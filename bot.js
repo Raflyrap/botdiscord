@@ -3,7 +3,23 @@ require('dotenv').config();
 
 // Mencegah bot crash saat terjadi unhandled rejection atau network/voice error
 process.on('unhandledRejection', (reason) => {
+  const errMsg = reason?.stack || reason?.message || String(reason || '');
   console.error('[UNHANDLED REJECTION]', reason);
+
+  // Abaikan error jaringan transient dari server Lavalink publik atau Discord interaction timeout
+  if (
+    errMsg.includes('does not provide any /v4/info') ||
+    errMsg.includes('Proxy error') ||
+    errMsg.includes('Socket got terminated') ||
+    errMsg.includes('Too many websocket connections') ||
+    errMsg.includes('10062') || // Unknown interaction
+    errMsg.includes('40060') || // Already acknowledged
+    errMsg.includes('ECONNRESET') ||
+    errMsg.includes('ETIMEDOUT')
+  ) {
+    return;
+  }
+
   try {
     const { sendErrorLog } = require('./botMonitoringHelper');
     if (typeof client !== 'undefined' && client.isReady()) {
@@ -12,7 +28,20 @@ process.on('unhandledRejection', (reason) => {
   } catch {}
 });
 process.on('uncaughtException', (err) => {
+  const errMsg = err?.stack || err?.message || String(err || '');
   console.error('[UNCAUGHT EXCEPTION]', err);
+
+  if (
+    errMsg.includes('does not provide any /v4/info') ||
+    errMsg.includes('Proxy error') ||
+    errMsg.includes('Socket got terminated') ||
+    errMsg.includes('10062') ||
+    errMsg.includes('40060') ||
+    errMsg.includes('ECONNRESET')
+  ) {
+    return;
+  }
+
   try {
     const { sendErrorLog } = require('./botMonitoringHelper');
     if (typeof client !== 'undefined' && client.isReady()) {

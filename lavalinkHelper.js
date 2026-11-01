@@ -90,8 +90,18 @@ async function searchTrackWithFallback(player, query, requester) {
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Hanya menggunakan node publik yang terbukti stabil, aktif, dan mendukung v4 tanpa rate-limit spam
+  // Menggunakan node publik stabil yang mendukung Lavalink v4 dengan auto-failover
   const defaultNodes = [
+    {
+      id: 'serenetia-v4',
+      host: 'lavalink.serenetia.com',
+      port: 443,
+      authorization: 'youshallnotpass',
+      secure: true,
+      requestTimeout: 10000,
+      retryDelay: 15000,
+      retryAmount: 5,
+    },
     {
       id: 'jirayu-v4',
       host: 'lavalink.jirayu.net',

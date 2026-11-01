@@ -683,6 +683,20 @@ async function sendErrorLog(client, { title = 'System Error', error, guild, user
     const errMsg = error?.stack || error?.message || String(error) || 'Unknown Error';
     const errSummary = error?.message || String(error);
 
+    // Abaikan error transient jaringan server Lavalink publik atau timeout interaksi Discord
+    if (
+      errMsg.includes('does not provide any /v4/info') ||
+      errMsg.includes('Proxy error') ||
+      errMsg.includes('Socket got terminated') ||
+      errMsg.includes('Too many websocket connections') ||
+      errMsg.includes('10062') ||
+      errMsg.includes('40060') ||
+      errMsg.includes('ECONNRESET') ||
+      errMsg.includes('ETIMEDOUT')
+    ) {
+      return;
+    }
+
     // Throttle error identik dalam 30 detik agar tidak spam channel
     const errorKey = `${title}_${errSummary}`;
     const now = Date.now();
