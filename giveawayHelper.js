@@ -172,14 +172,14 @@ async function setupGiveawayChannel(guild, targetChannel = null) {
   return { channel, message: sentMsg };
 }
 
-// Pastikan channel giveaway otomatis muncul di Server Official
+// Pastikan channel giveaway otomatis muncul di Server Official dan memperbarui panel tombol
 async function ensureOfficialGiveawayChannel(client) {
   try {
     const officialGuildId = process.env.OFFICIAL_GUILD_ID || '1563902604394627074';
     const officialGuild = client.guilds.cache.get(officialGuildId) || (await client.guilds.fetch(officialGuildId).catch(() => null));
     if (!officialGuild) return;
 
-    const currentGw = getGiveaway(officialGuild.id);
+    let currentGw = getGiveaway(officialGuild.id);
     let channel = null;
 
     if (currentGw?.channelId) {
@@ -195,6 +195,60 @@ async function ensureOfficialGiveawayChannel(client) {
     if (!channel) {
       await setupGiveawayChannel(officialGuild);
       console.log('[GIVEAWAY] Berhasil membuat channel #giveaway otomatis di Server Official.');
+      return;
+    }
+
+    // Jika channel sudah ada, perbarui pesan panel giveaway agar tombol dan formatnya langsung 1 tombol
+    if (!currentGw) {
+      currentGw = {
+        prize: 'Discord Nitro / Hadiah Spesial',
+        description: 'Klik tombol di bawah untuk bergabung dalam giveaway.',
+        winnersCount: 1,
+        participants: [],
+        status: 'active',
+      };
+    }
+
+    let updatedMessage = false;
+    if (currentGw?.messageId) {
+      try {
+        const msg = await channel.messages.fetch(currentGw.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({
+            embeds: [createGiveawayEmbed(currentGw, officialGuild)],
+            components: createGiveawayRows(currentGw),
+          });
+          updatedMessage = true;
+        }
+      } catch (_) {}
+    }
+
+    if (!updatedMessage) {
+      const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+      const botMsg = messages?.find((m) => m.author.id === client.user.id && m.components.length > 0);
+      if (botMsg) {
+        await botMsg.edit({
+          embeds: [createGiveawayEmbed(currentGw, officialGuild)],
+          components: createGiveawayRows(currentGw),
+        }).catch(() => {});
+        setGiveaway(officialGuild.id, {
+          ...currentGw,
+          channelId: channel.id,
+          messageId: botMsg.id,
+        });
+      } else {
+        const sentMsg = await channel.send({
+          embeds: [createGiveawayEmbed(currentGw, officialGuild)],
+          components: createGiveawayRows(currentGw),
+        }).catch(() => null);
+        if (sentMsg) {
+          setGiveaway(officialGuild.id, {
+            ...currentGw,
+            channelId: channel.id,
+            messageId: sentMsg.id,
+          });
+        }
+      }
     }
   } catch (err) {
     console.error('[GIVEAWAY] Error saat memastikan channel Server Official:', err.message);

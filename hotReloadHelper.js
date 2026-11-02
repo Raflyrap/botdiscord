@@ -35,6 +35,8 @@ const PROTECTED_DATA_FILES = [
   'featureRequests.json',
   'hdChannelConfig.json',
   'patroliConfig.json',
+  'giveawayData.json',
+  'modularSetupConfig.json',
 ];
 
 /**
