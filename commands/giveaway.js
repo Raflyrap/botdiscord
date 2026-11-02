@@ -52,7 +52,7 @@ module.exports = {
 
     return interaction.reply({
       embeds: [adminEmbed],
-      components: [createAdminGiveawayRows(participants.length)],
+      components: [createAdminGiveawayRows(participants.length, isEnded)],
       flags: MessageFlags.Ephemeral,
     });
   },

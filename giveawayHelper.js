@@ -98,8 +98,14 @@ function createGiveawayRows(data) {
   return [new ActionRowBuilder().addComponents(joinBtn)];
 }
 
-// Membangun ActionRow Tombol Kontrol Khusus Admin / Owner (Privat Ephemeral)
-function createAdminGiveawayRows(participantsCount = 0) {
+// Membangun ActionRow Tombol Kontrol Khusus Admin / Owner (5 TOMBOL LENGKAP DALAM 1 BARIS)
+function createAdminGiveawayRows(participantsCount = 0, isEnded = false) {
+  const joinBtn = new ButtonBuilder()
+    .setCustomId('btn_giveaway_join')
+    .setLabel('Ikut Giveaway')
+    .setStyle(isEnded ? ButtonStyle.Secondary : ButtonStyle.Primary)
+    .setDisabled(isEnded);
+
   const editBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_edit')
     .setLabel('Edit Hadiah')
@@ -113,14 +119,134 @@ function createAdminGiveawayRows(participantsCount = 0) {
   const startBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_start')
     .setLabel('Mulai Gacha')
-    .setStyle(ButtonStyle.Success);
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(isEnded);
 
   const resetBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_reset')
     .setLabel('Reset')
     .setStyle(ButtonStyle.Danger);
 
-  return new ActionRowBuilder().addComponents(editBtn, listBtn, startBtn, resetBtn);
+  return new ActionRowBuilder().addComponents(joinBtn, editBtn, listBtn, startBtn, resetBtn);
+}
+
+// Memperbarui atau membuat Utas Privat (Private Thread) khusus Admin (Berisi 5 tombol langsung)
+async function updateAdminThreadPanel(channel, guild, gwData) {
+  if (!channel || !channel.threads) return;
+  try {
+    let thread = null;
+    if (gwData.adminThreadId) {
+      thread = channel.threads.cache.get(gwData.adminThreadId) || await channel.threads.fetch(gwData.adminThreadId).catch(() => null);
+    }
+
+    if (!thread) {
+      const active = await channel.threads.fetchActive().catch(() => null);
+      thread = active?.threads?.find((t) => t.name.includes('admin-giveaway') || t.name.includes('panel-admin'));
+    }
+
+    if (!thread) {
+      const archived = await channel.threads.fetchArchived({ type: 'private' }).catch(() => null);
+      thread = archived?.threads?.find((t) => t.name.includes('admin-giveaway') || t.name.includes('panel-admin'));
+    }
+
+    if (!thread) {
+      thread = await channel.threads.create({
+        name: '👑︱admin-giveaway',
+        autoArchiveDuration: 10080,
+        type: ChannelType.PrivateThread,
+        reason: 'Panel kontrol 5 tombol giveaway khusus Admin dan Owner',
+      }).catch((e) => {
+        console.warn('[GIVEAWAY] Info pembuatan private thread:', e.message);
+        return null;
+      });
+
+      if (thread && guild.ownerId) {
+        await thread.members.add(guild.ownerId).catch(() => {});
+      }
+    }
+
+    if (!thread) return;
+
+    if (thread.archived) {
+      await thread.setArchived(false).catch(() => {});
+    }
+
+    const participants = gwData.participants || [];
+    const isEnded = gwData.status === 'ended';
+    const adminEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Panel Kontrol Giveaway (Khusus Admin & Owner)')
+      .setDescription(
+        `Channel Publik: <#${channel.id}>\n\n` +
+        `**Status Giveaway:**\n` +
+        `> • Hadiah: **${gwData.prize || 'Hadiah Spesial'}**\n` +
+        `> • Kuota Pemenang: **${gwData.winnersCount || 1} Orang**\n` +
+        `> • Total Peserta Rahasia: **${participants.length} Orang**\n` +
+        `> • Status: **${isEnded ? 'Selesai (Sudah Diundi)' : 'Sedang Berlangsung'}**\n\n` +
+        `Gunakan 5 tombol di bawah untuk mengontrol giveaway secara langsung:`
+      )
+      .setFooter({ text: 'Panel Privat Admin • 5 Tombol Kontrol Langsung' })
+      .setTimestamp();
+
+    const row = createAdminGiveawayRows(participants.length, isEnded);
+
+    let sentMsg = null;
+    if (gwData.adminMessageId) {
+      sentMsg = await thread.messages.fetch(gwData.adminMessageId).catch(() => null);
+    }
+
+    if (sentMsg) {
+      await sentMsg.edit({ embeds: [adminEmbed], components: [row] }).catch(() => {});
+    } else {
+      const messages = await thread.messages.fetch({ limit: 10 }).catch(() => null);
+      const botMsg = messages?.find((m) => m.author.id === guild.client.user.id && m.components.length > 0);
+      if (botMsg) {
+        await botMsg.edit({ embeds: [adminEmbed], components: [row] }).catch(() => {});
+        gwData.adminMessageId = botMsg.id;
+      } else {
+        const newMsg = await thread.send({ embeds: [adminEmbed], components: [row] }).catch(() => null);
+        if (newMsg) {
+          gwData.adminMessageId = newMsg.id;
+        }
+      }
+    }
+
+    gwData.adminThreadId = thread.id;
+    setGiveaway(guild.id, {
+      adminThreadId: thread.id,
+      adminMessageId: gwData.adminMessageId,
+    });
+  } catch (err) {
+    console.error('[GIVEAWAY] Gagal sinkronisasi panel admin thread:', err.message);
+  }
+}
+
+// Menyinkronkan pesan publik (1 tombol) dan panel admin thread (5 tombol)
+async function syncGiveawayPanels(guild, gwData = null) {
+  if (!guild) return;
+  const gw = gwData || getGiveaway(guild.id);
+  if (!gw || !gw.channelId) return;
+
+  try {
+    const channel = guild.channels.cache.get(gw.channelId) || await guild.channels.fetch(gw.channelId).catch(() => null);
+    if (!channel) return;
+
+    if (gw.messageId) {
+      try {
+        const msg = await channel.messages.fetch(gw.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({
+            embeds: [createGiveawayEmbed(gw, guild)],
+            components: createGiveawayRows(gw),
+          });
+        }
+      } catch (_) {}
+    }
+
+    await updateAdminThreadPanel(channel, guild, gw);
+  } catch (err) {
+    console.error('[GIVEAWAY SYNC] Error:', err.message);
+  }
 }
 
 // Setup channel giveaway untuk guild tertentu
@@ -163,11 +289,12 @@ async function setupGiveawayChannel(guild, targetChannel = null) {
 
   const sentMsg = await channel.send({ embeds: [embed], components: rows });
 
-  setGiveaway(guild.id, {
-    ...existingData,
-    channelId: channel.id,
-    messageId: sentMsg.id,
-  });
+  existingData.channelId = channel.id;
+  existingData.messageId = sentMsg.id;
+  setGiveaway(guild.id, existingData);
+
+  // Buat panel 5 tombol khusus admin di Private Thread
+  await updateAdminThreadPanel(channel, guild, existingData);
 
   return { channel, message: sentMsg };
 }
@@ -231,25 +358,24 @@ async function ensureOfficialGiveawayChannel(client) {
           embeds: [createGiveawayEmbed(currentGw, officialGuild)],
           components: createGiveawayRows(currentGw),
         }).catch(() => {});
-        setGiveaway(officialGuild.id, {
-          ...currentGw,
-          channelId: channel.id,
-          messageId: botMsg.id,
-        });
+        currentGw.channelId = channel.id;
+        currentGw.messageId = botMsg.id;
+        setGiveaway(officialGuild.id, currentGw);
       } else {
         const sentMsg = await channel.send({
           embeds: [createGiveawayEmbed(currentGw, officialGuild)],
           components: createGiveawayRows(currentGw),
         }).catch(() => null);
         if (sentMsg) {
-          setGiveaway(officialGuild.id, {
-            ...currentGw,
-            channelId: channel.id,
-            messageId: sentMsg.id,
-          });
+          currentGw.channelId = channel.id;
+          currentGw.messageId = sentMsg.id;
+          setGiveaway(officialGuild.id, currentGw);
         }
       }
     }
+
+    // Pastikan Private Thread Admin dengan 5 tombol lengkap terupdate
+    await updateAdminThreadPanel(channel, officialGuild, currentGw);
   } catch (err) {
     console.error('[GIVEAWAY] Error saat memastikan channel Server Official:', err.message);
   }
@@ -290,6 +416,7 @@ async function handleGiveawayJoin(interaction) {
     statusMsg = 'Selamat, kamu berhasil terdaftar dalam giveaway ini.';
   }
   setGiveaway(interaction.guildId, { participants: gw.participants });
+  syncGiveawayPanels(interaction.guild, gw).catch(() => {});
 
   // Khusus Admin/Owner: Tampilkan panel kontrol privat beserta jumlah peserta rahasia
   if (isAdmin) {
@@ -401,6 +528,7 @@ async function handleGiveawayEditSubmit(interaction) {
   gw.status = 'active';
 
   setGiveaway(interaction.guildId, gw);
+  syncGiveawayPanels(interaction.guild, gw).catch(() => {});
 
   // Perbarui pesan panel di channel publik
   if (gw.channelId && gw.messageId) {
@@ -498,6 +626,7 @@ async function handleGiveawayStart(interaction) {
   gw.winners = winners;
   gw.status = 'ended';
   setGiveaway(interaction.guildId, gw);
+  syncGiveawayPanels(interaction.guild, gw).catch(() => {});
 
   // Perbarui pesan panel di channel publik
   if (gw.channelId && gw.messageId) {
@@ -577,6 +706,7 @@ async function handleGiveawayReset(interaction) {
   gw.status = 'active';
 
   setGiveaway(interaction.guildId, gw);
+  syncGiveawayPanels(interaction.guild, gw).catch(() => {});
 
   // Perbarui pesan panel di channel publik
   if (gw.channelId && gw.messageId) {
@@ -620,5 +750,6 @@ module.exports = {
   handleGiveawayList,
   handleGiveawayStart,
   handleGiveawayReset,
+  syncGiveawayPanels,
 };
 
