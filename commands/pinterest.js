@@ -57,6 +57,16 @@ module.exports = {
     const query = interaction.options.getString('query');
     const limit = interaction.options.getInteger('jumlah') || 5;
 
+    // Validasi apakah fitur Pinterest sudah disetup di server ini
+    if (interaction.guild) {
+      const { isFeatureConfigured } = require('../modularSetupHelper');
+      if (!isFeatureConfigured(interaction.guild, 'pinterest')) {
+        return interaction.editReply({
+          content: 'Fitur Pinterest belum diaktifkan di server ini. Administrator server perlu menjalankan perintah `/setpinterest` terlebih dahulu untuk membuat atau menghubungkan channel galeri Pinterest.',
+        });
+      }
+    }
+
     try {
       const res = await searchPinterest(query, limit);
 

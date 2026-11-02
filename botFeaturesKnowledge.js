@@ -139,7 +139,20 @@ BAGIAN 3: PANDUAN LENGKAP UNTUK ADMIN & PEMILIK SERVER
   8) Voice Lounges: Trigger "➕︱Buat Room Voice" (Join-to-Create) di urutan paling bawah.
 - Seluruh hak akses channel (permission @everyone, bot, dan member) langsung diatur rapi otomatis.
 
-2. PEMBERSIHAN & RESET SERVER (/delete):
+2. SETUP MANDIRI MODULAR PER-FITUR (Tanpa Merombak Server):
+- Jika pemilik server sudah punya struktur server sendiri dan HANYA ingin memasang fitur tertentu dari FlyBot, gunakan perintah setup per-fitur berikut:
+  * /setpinterest [channel]: Mengatur channel khusus pencarian foto Pinterest otomatis.
+  * /setremovebg [channel]: Mengatur channel khusus studio hapus background instan.
+  * /sethd [aksi]: Mengatur studio HD foto AI.
+  * /setwelcome [channel]: Mengatur channel pesan sambutan banner member baru.
+  * /setaigenerating [channel]: Mengatur channel obrolan cerdas BotFly AI.
+  * /setaiprompt [channel]: Mengatur studio racik prompt Midjourney/DALL-E.
+  * /setfanart [channel]: Mengatur studio review visual & konsep fanart AI.
+  * /setgames [aksi]: Mengatur arena 3 mini games (tebak koin, angka, suit).
+  * /setmusic [channel]: Mengatur channel khusus pemutaran musik /play.
+- Admin bebas memilih: bisa pilih channel yang sudah ada di server, atau biarkan opsi channel kosong agar bot otomatis membuatkan channel baru yang rapi.
+
+3. PEMBERSIHAN & RESET SERVER (/delete):
 - Fitur khusus Administrator untuk merapikan atau membersihkan server.
 - Cara Pakai: Jalankan /delete.
   * Opsi 1: Hapus 1 Channel yang sedang aktif.

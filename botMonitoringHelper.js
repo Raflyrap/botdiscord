@@ -573,9 +573,17 @@ async function handleGuildCreate(guild, client) {
             `> • **Dynamic Temp Voice**: Otomatisasi ruang voice pribadi (Join-to-Create).\n` +
             `> • **Support Ticket**: Sistem tiket komprehensif untuk pengaduan & support member.\n` +
             `> • **Server Stats & Leveling**: Kartu profil XP, leaderboard, dan statistik otomatis.\n\n` +
-            `**Mulai Menjelajah:**\n` +
-            `> • Gunakan \`/help\` untuk melihat seluruh menu dan tutorial perintah.\n` +
-            `> • Gunakan \`/setup\` untuk memasang channel server otomatis sekali klik.\n\n` +
+            `**Langkah Awal & Panduan Penggunaan:**\n` +
+            `> • **Ketik \`/help\`** untuk membuka daftar lengkap perintah dan tutorial panduan bot.\n` +
+            `> • Gunakan **/setup** jika ingin memasang seluruh template kategori & channel server otomatis (All-in-One).\n` +
+            `> • Atau aktifkan fitur secara mandiri sesuai kebutuhan server kamu:\n` +
+            `>   - \`/setpinterest\` — Channel galeri pencarian gambar Pinterest\n` +
+            `>   - \`/setremovebg\` — Channel studio otomatis Remove Background\n` +
+            `>   - \`/sethd\` — Channel studio peningkat resolusi HD foto\n` +
+            `>   - \`/setwelcome\` — Channel sambutan banner member baru\n` +
+            `>   - \`/setaigenerating\` — Channel obrolan cerdas BotFly AI\n` +
+            `>   - \`/setgames\` — Arena mini games tebak koin, angka & suit\n` +
+            `>   - \`/setmusic\` — Channel pemutaran musik HQ Lavalink v4\n\n` +
             `**Komunitas Resmi FlyBot:**\n` +
             `Ingin request fitur, lapor kendala, diskusi teknis, atau berdiskusi dengan sesama pengguna? Kunjungi website resmi atau server official kami.`
           )

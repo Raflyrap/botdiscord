@@ -1985,16 +1985,21 @@ client.on(Events.MessageCreate, async (message) => {
   // === FITUR KHUSUS CHANNEL TEMPLATE KOMUNITAS & ENTERTAINMENT ===
   if (message.guild && message.channel?.name) {
     const chName = message.channel.name.toLowerCase();
+    const { getTemplateConfig } = require('./templateSetupHelper');
+    const templateCfg = getTemplateConfig(message.guild.id);
+    const isAiGen = message.channel.id === templateCfg?.channels?.aiGeneratingId || chName.includes('ai-generating');
+    const isAiPrompt = message.channel.id === templateCfg?.channels?.aiPromptId || chName.includes('ai-prompt') || chName.includes('ai-promt');
+    const isAiFanart = message.channel.id === templateCfg?.channels?.aiFanartId || chName.includes('ai-fanart');
 
     // 1. Channel AI Generating, AI Prompt, AI Fanart: Otomatis diskusi bareng BotFly AI (Respon Privat: Only you can see this)
-    if (chName.includes('ai-generating') || chName.includes('ai-prompt') || chName.includes('ai-promt') || chName.includes('ai-fanart')) {
+    if (isAiGen || isAiPrompt || isAiFanart) {
       if (!message.content.startsWith('/') && !message.content.startsWith('!')) {
         try {
           await message.channel.sendTyping().catch(() => {});
 
           let aiType = 'generating';
-          if (chName.includes('fanart')) aiType = 'fanart';
-          else if (chName.includes('promt') || chName.includes('prompt')) aiType = 'prompt';
+          if (isAiFanart) aiType = 'fanart';
+          else if (isAiPrompt) aiType = 'prompt';
 
           // Ekstrak URL gambar jika ada attachment (terutama untuk review/inspirasi di ai-fanart)
           const attachedImage = message.attachments.find(att => att.contentType?.startsWith('image/'))?.url || null;
@@ -2204,7 +2209,12 @@ client.on(Events.MessageCreate, async (message) => {
   }
 
   // === FITUR AUTO REMOVE-BG DI CHANNEL KHUSUS REMOVE-BG ===
-  const isRemoveBgChannel = message.guild && message.channel?.name && message.channel.name.toLowerCase().includes('remove-bg');
+  const { getTemplateConfig } = require('./templateSetupHelper');
+  const templateCfg = message.guild ? getTemplateConfig(message.guild.id) : null;
+  const isRemoveBgChannel = message.guild && (
+    message.channel?.id === templateCfg?.channels?.removeBgId ||
+    (message.channel?.name && message.channel.name.toLowerCase().includes('remove-bg'))
+  );
   if (isRemoveBgChannel) {
     const targetImageUrl = extractImageUrlFromMessage(message);
     if (targetImageUrl) {
@@ -2315,7 +2325,10 @@ client.on(Events.MessageCreate, async (message) => {
   }
 
   // === FITUR AUTO PINTEREST DI CHANNEL KHUSUS PINTEREST ===
-  const isPinterestChannel = message.guild && message.channel?.name && message.channel.name.toLowerCase().includes('pinterest');
+  const isPinterestChannel = message.guild && (
+    message.channel?.id === templateCfg?.channels?.pinterestId ||
+    (message.channel?.name && message.channel.name.toLowerCase().includes('pinterest'))
+  );
   if (isPinterestChannel && !message.author.bot && message.content.trim()) {
     try {
       const pinQuery = message.content.trim();

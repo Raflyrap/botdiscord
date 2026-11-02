@@ -50,9 +50,10 @@ const CATEGORIES = {
   admin: {
     label: 'Server Setup & Moderasi',
     name: 'Server Setup & Moderasi',
-    description: 'All-in-One server setup template, verifikasi member, panel tiket bantuan, statistik channel, audit log, dan perapian channel.',
+    description: 'Setup template server all-in-one atau per-fitur mandiri, verifikasi member, tiket bantuan, statistik channel, audit log, dan perapian channel.',
     commands: [
-      'menu', 'setup', 'delete', 'sethd', 'setwelcome', 'welcometest', 'setverif',
+      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'welcometest',
+      'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setmusic', 'setverif',
       'verif', 'autorole', 'ticket', 'setticket', 'stats', 'log', 'antitoxic',
       'buatembed', 'embedpreset', 'buatchannel', 'buatkategori', 'editkategori',
       'editnama', 'hapuschannel', 'geserchannel', 'rapihkan', 'role',
@@ -86,10 +87,12 @@ function createOverviewEmbed(guild, user, client) {
     .setTitle('Pusat Panduan & Daftar Perintah FlyBot')
     .setDescription(
       `Selamat datang di sistem bantuan **FlyBot**! Tersedia total **${totalCommands} perintah slash** yang terbagi dalam berbagai kategori.\n\n` +
-      `**Tips Praktis:**\n` +
-      `• Gunakan dropdown menu di bawah untuk menelusuri perintah per kategori.\n` +
+      `**Panduan Praktis:**\n` +
+      `• Gunakan dropdown menu di bawah untuk melihat rincian perintah per kategori.\n` +
       `• Ketik **\`/help perintah:<nama>\`** untuk melihat panduan detail suatu perintah.\n` +
-      `• Kamu juga dapat mengetik **\`/menu\`** untuk membuka dashboard kontrol interaktif dengan tombol 1-klik tanpa perlu mengetik manual!`
+      `• Ketik **\`/menu\`** untuk dashboard kontrol interaktif dengan tombol 1-klik.\n` +
+      `• **Setup Mandiri (Per Fitur):** Ingin mengaktifkan fitur tertentu saja tanpa membuat ulang seluruh server? Gunakan perintah modular seperti \`/setpinterest\`, \`/setremovebg\`, \`/sethd\`, \`/setwelcome\`, \`/setaigenerating\`, \`/setgames\`, atau \`/setmusic\`.\n` +
+      `• **Setup Lengkap (All-in-One):** Gunakan \`/setup\` untuk membuat seluruh kategori & channel server otomatis.`
     )
     .addFields(
       {
@@ -118,8 +121,8 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Server Setup & Moderasi (24 Perintah)',
-        value: '`/menu`, `/setup`, `/delete`, `/sethd`, `/setwelcome`, `/setverif`, `/verif`, `/ticket`, `/stats`, `/log`, `/antitoxic`, `/role`, dll.',
+        name: 'Server Setup & Moderasi (30 Perintah)',
+        value: '`/menu`, `/setup`, `/delete`, `/setpinterest`, `/setremovebg`, `/sethd`, `/setwelcome`, `/setaigenerating`, `/setgames`, `/setmusic`, `/ticket`, `/stats`, `/log`, `/antitoxic`, dll.',
         inline: false,
       },
       {

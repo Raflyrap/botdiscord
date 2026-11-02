@@ -28,6 +28,16 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
+    // Validasi apakah fitur Remove-BG sudah disetup di server ini
+    if (interaction.guild) {
+      const { isFeatureConfigured } = require('../modularSetupHelper');
+      if (!isFeatureConfigured(interaction.guild, 'removebg')) {
+        return interaction.editReply({
+          content: 'Fitur Remove Background belum diaktifkan di server ini. Administrator server perlu menjalankan perintah `/setremovebg` terlebih dahulu untuk membuat atau menghubungkan channel studio Remove BG.',
+        });
+      }
+    }
+
     const attachment = interaction.options.getAttachment('gambar');
     const urlInput = interaction.options.getString('url');
 
