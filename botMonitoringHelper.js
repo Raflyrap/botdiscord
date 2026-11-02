@@ -487,6 +487,8 @@ async function ensureMonitoringChannels(client) {
 // Event: Ketika BotFly dimasukkan ke server baru (guildCreate)
 async function handleGuildCreate(guild, client) {
   try {
+    client = client || guild?.client;
+    if (!client) return;
     const channels = await ensureMonitoringChannels(client);
     const totalServers = client.guilds.cache.size;
     const totalMembers = client.guilds.cache.reduce((sum, g) => sum + (g.memberCount || 0), 0);
@@ -620,6 +622,8 @@ async function handleGuildCreate(guild, client) {
 // Event: Ketika BotFly dikeluarkan dari server (guildDelete)
 async function handleGuildDelete(guild, client) {
   try {
+    client = client || guild?.client;
+    if (!client) return;
     const channels = await ensureMonitoringChannels(client);
     const totalServers = client.guilds.cache.size;
     const totalMembers = client.guilds.cache.reduce((sum, g) => sum + (g.memberCount || 0), 0);

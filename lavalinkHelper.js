@@ -99,8 +99,8 @@ function initLavalink(client) {
       authorization: 'youshallnotpass',
       secure: true,
       requestTimeout: 10000,
-      retryDelay: 15000,
-      retryAmount: 5,
+      retryDelay: 10000,
+      retryAmount: 100,
     },
     {
       id: 'jirayu-v4',
@@ -109,8 +109,8 @@ function initLavalink(client) {
       authorization: 'youshallnotpass',
       secure: true,
       requestTimeout: 10000,
-      retryDelay: 15000,
-      retryAmount: 5,
+      retryDelay: 10000,
+      retryAmount: 100,
     },
   ];
 
@@ -170,15 +170,15 @@ function initLavalink(client) {
       const fails = (failureCounts.get(node.id) || 0) + 1;
       failureCounts.set(node.id, fails);
 
-      // Circuit breaker: jika node memutus dengan code 4000 (rate limit) atau terputus berulang >= 3x
-      if (code === 4000 || (reasonStr && reasonStr.includes('Too many websocket connections')) || fails >= 3) {
-        console.warn(`[LAVALINK v4] Node '${node.id}' sedang dibatasi/overload oleh server penyedia. Menghentikan reconnect otomatis.`);
+      // Hanya matikan reconnect jika server menolak autentikasi permanen (code 4000)
+      if (code === 4000 || (reasonStr && reasonStr.includes('Too many websocket connections') && fails >= 10)) {
+        console.warn(`[LAVALINK v4] Node '${node.id}' ditolak oleh server penyedia (${reasonStr}). Menghentikan reconnect sementara.`);
         try {
           node.options.retryAmount = 0;
           node.disconnect();
         } catch (_) {}
       } else {
-        console.warn(`[LAVALINK v4] Node '${node.id}' terputus. Alasan:`, reasonStr);
+        console.warn(`[LAVALINK v4] Node '${node.id}' terputus (${reasonStr}). Otomatis menghubungkan ulang...`);
       }
     })
     .on('error', (node, error) => {
@@ -292,6 +292,21 @@ function initLavalink(client) {
         channel.send(`Gagal memutar lagu **${track?.info?.title || 'tidak diketahui'}**: ${payload?.exception?.message || 'Sumber audio tidak dapat diakses.'}`).catch(() => {});
       }
     });
+
+  // Watchdog: Jika semua node terputus, coba picu connect ulang setiap 60 detik
+  setInterval(() => {
+    if (manager?.nodeManager?.nodes) {
+      const hasConnected = [...manager.nodeManager.nodes.values()].some((n) => n.connected);
+      if (!hasConnected) {
+        for (const [, n] of manager.nodeManager.nodes) {
+          if (!n.connected) {
+            n.options.retryAmount = 100;
+            n.connect().catch(() => {});
+          }
+        }
+      }
+    }
+  }, 60000);
 
   return manager;
 }

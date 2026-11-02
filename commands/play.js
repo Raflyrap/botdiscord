@@ -84,6 +84,16 @@ module.exports = {
     await interaction.deferReply();
 
     try {
+      // Pastikan ada setidaknya 1 node Lavalink yang aktif
+      const hasConnectedNode = [...lavalink.nodeManager.nodes.values()].some((n) => n.connected);
+      if (!hasConnectedNode) {
+        // Picu reconnect segera ke seluruh node
+        for (const [, n] of lavalink.nodeManager.nodes) {
+          if (!n.connected) n.connect().catch(() => {});
+        }
+        return interaction.editReply('Server audio sedang menghubungkan ulang ke node musik. Silakan coba kembali dalam beberapa saat!');
+      }
+
       // Ambil player yang sudah ada atau buat player baru
       let player = lavalink.getPlayer(interaction.guildId);
       if (!player) {

@@ -334,7 +334,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 // Event saat bot diundang atau bergabung ke server baru
 client.on(Events.GuildCreate, async (guild) => {
   try {
-    if (typeof handleGuildCreate === 'function') handleGuildCreate(guild);
+    if (typeof handleGuildCreate === 'function') await handleGuildCreate(guild, client);
     await ensureStreamerChannel(guild).catch(() => {});
   } catch (err) {
     console.error('[GUILD CREATE EVENT ERROR]:', err.message);
