@@ -259,17 +259,21 @@ async function ensureOfficialGiveawayChannel(client) {
 async function handleGiveawayJoin(interaction) {
   const gw = getGiveaway(interaction.guildId);
   if (!gw) {
-    return interaction.reply({
+    await interaction.reply({
       content: 'Data giveaway tidak ditemukan.',
       flags: MessageFlags.Ephemeral,
     });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+    return;
   }
 
   if (gw.status === 'ended') {
-    return interaction.reply({
+    await interaction.reply({
       content: 'Giveaway ini telah berakhir. Nantikan sesi giveaway berikutnya.',
       flags: MessageFlags.Ephemeral,
     });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+    return;
   }
 
   const participants = gw.participants || [];
@@ -298,21 +302,27 @@ async function handleGiveawayJoin(interaction) {
         `> • Total Peserta Saat Ini: **${gw.participants.length} Orang**\n` +
         `> • Status: **${gw.status === 'ended' ? 'Selesai' : 'Sedang Berlangsung'}**\n\n` +
         `Gunakan tombol di bawah untuk mengelola giveaway:`
-      );
+      )
+      .setFooter({ text: 'Pesan privat ini akan otomatis hilang dalam 10 detik agar tidak mengganggu.' });
 
     const adminRow = createAdminGiveawayRows(gw.participants.length);
-    return interaction.reply({
+    await interaction.reply({
       embeds: [adminEmbed],
       components: [adminRow],
       flags: MessageFlags.Ephemeral,
     });
+
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+    return;
   }
 
-  // Member biasa: Hanya notifikasi status sederhana, tanpa tombol admin & tanpa info peserta lain
-  return interaction.reply({
-    content: statusMsg,
+  // Member biasa: Hanya notifikasi status sederhana, tanpa tombol admin & tanpa info peserta lain (hilang dalam 10 detik)
+  await interaction.reply({
+    content: `${statusMsg} *(Pesan ini otomatis hilang dalam 10 detik)*`,
     flags: MessageFlags.Ephemeral,
   });
+
+  setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
 }
 
 // Helper: Cek hak akses admin/owner
@@ -413,41 +423,50 @@ async function handleGiveawayEditSubmit(interaction) {
       `• Hadiah: **${prize}**\n` +
       `• Kuota Pemenang: **${winnersCount} Orang**\n` +
       `• Total Peserta Rahasia: **${gw.participants.length} Orang**`
-    );
+    )
+    .setFooter({ text: 'Pesan ini otomatis hilang dalam 10 detik.' });
 
-  return interaction.reply({
+  await interaction.reply({
     embeds: [adminEmbed],
     components: [createAdminGiveawayRows(gw.participants.length)],
     flags: MessageFlags.Ephemeral,
   });
+
+  setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
 }
 
 // Handler Tombol: List Peserta
 async function handleGiveawayList(interaction) {
   if (!isGiveawayAdmin(interaction)) {
-    return interaction.reply({
+    await interaction.reply({
       content: 'Hanya Administrator atau Owner server yang dapat melihat daftar peserta!',
       flags: MessageFlags.Ephemeral,
     });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+    return;
   }
 
   const gw = getGiveaway(interaction.guildId);
   const participants = gw?.participants || [];
 
   if (participants.length === 0) {
-    return interaction.reply({
+    await interaction.reply({
       content: 'Belum ada peserta yang mengikuti giveaway ini.',
       flags: MessageFlags.Ephemeral,
     });
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
+    return;
   }
 
   const listMentions = participants.slice(0, 50).map((id, idx) => `${idx + 1}. <@${id}>`).join('\n');
   const remaining = participants.length > 50 ? `\n...dan ${participants.length - 50} peserta lainnya.` : '';
 
-  return interaction.reply({
-    content: `**Daftar Peserta Giveaway (${participants.length} Orang):**\n${listMentions}${remaining}`,
+  await interaction.reply({
+    content: `**Daftar Peserta Giveaway (${participants.length} Orang):**\n${listMentions}${remaining}\n\n*(Pesan ini otomatis hilang dalam 10 detik)*`,
     flags: MessageFlags.Ephemeral,
   });
+
+  setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
 }
 
 // Handler Tombol: Mulai Gacha Undian Pemenang
@@ -518,6 +537,7 @@ async function handleGiveawayStart(interaction) {
   await interaction.editReply({
     content: `Pengundian berhasil selesai. Pemenang: ${winnerTags}`,
   });
+  setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
 
   // Kirim DM otomatis ke setiap pemenang
   for (const winnerId of winners) {
@@ -576,10 +596,11 @@ async function handleGiveawayReset(interaction) {
     .setTitle('Giveaway Berhasil Direset')
     .setDescription('Daftar peserta telah dikosongkan (0 Peserta) dan sesi giveaway baru telah dibuka kembali.');
 
-  return interaction.update({
+  await interaction.update({
     embeds: [adminEmbed],
     components: [createAdminGiveawayRows(0)],
   });
+  setTimeout(() => interaction.deleteReply().catch(() => {}), 10000);
 }
 
 module.exports = {
