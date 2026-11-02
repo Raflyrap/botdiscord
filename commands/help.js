@@ -52,8 +52,9 @@ const CATEGORIES = {
     name: 'Server Setup & Moderasi',
     description: 'Setup template server all-in-one atau per-fitur mandiri, verifikasi member, tiket bantuan, statistik channel, audit log, dan perapian channel.',
     commands: [
-      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'welcometest',
-      'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setmusic', 'setverif',
+      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'setleave', 'welcometest',
+      'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setsambungkata', 'setslot', 'setmusic',
+      'setstalk', 'setsosmed', 'setvoicehub', 'setverif',
       'verif', 'autorole', 'ticket', 'setticket', 'stats', 'log', 'antitoxic',
       'buatembed', 'embedpreset', 'buatchannel', 'buatkategori', 'editkategori',
       'editnama', 'hapuschannel', 'geserchannel', 'rapihkan', 'role',
@@ -91,12 +92,12 @@ function createOverviewEmbed(guild, user, client) {
       `• Gunakan dropdown menu di bawah untuk melihat rincian perintah per kategori.\n` +
       `• Ketik **\`/help perintah:<nama>\`** untuk melihat panduan detail suatu perintah.\n` +
       `• Ketik **\`/menu\`** untuk dashboard kontrol interaktif dengan tombol 1-klik.\n` +
-      `• **Setup Mandiri (Per Fitur):** Ingin mengaktifkan fitur tertentu saja tanpa membuat ulang seluruh server? Gunakan perintah modular seperti \`/setpinterest\`, \`/setremovebg\`, \`/sethd\`, \`/setwelcome\`, \`/setaigenerating\`, \`/setgames\`, atau \`/setmusic\`.\n` +
+      `• **Setup Mandiri (Per Fitur):** Ingin mengaktifkan fitur tertentu saja tanpa membuat ulang seluruh server? Gunakan perintah modular seperti \`/setpinterest\`, \`/setremovebg\`, \`/sethd\`, \`/setwelcome\`, \`/setleave\`, \`/setstalk\`, \`/setsosmed\`, \`/setvoicehub\`, \`/setgames\`, atau \`/setmusic\`.\n` +
       `• **Setup Lengkap (All-in-One):** Gunakan \`/setup\` untuk membuat seluruh kategori & channel server otomatis.`
     )
     .addFields(
       {
-        name: 'Musik HD Lavalink (9 Perintah)',
+        name: 'Musik HD (9 Perintah)',
         value: '`/play`, `/pause`, `/resume`, `/skip`, `/stop`, `/queue`, `/shuffle`, `/repeat`, `/volume`',
         inline: false,
       },
@@ -121,8 +122,8 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Server Setup & Moderasi (30 Perintah)',
-        value: '`/menu`, `/setup`, `/delete`, `/setpinterest`, `/setremovebg`, `/sethd`, `/setwelcome`, `/setaigenerating`, `/setgames`, `/setmusic`, `/ticket`, `/stats`, `/log`, `/antitoxic`, dll.',
+        name: 'Server Setup & Moderasi (36 Perintah)',
+        value: '`/menu`, `/setup`, `/delete`, `/setpinterest`, `/setremovebg`, `/sethd`, `/setwelcome`, `/setleave`, `/setstalk`, `/setsosmed`, `/setvoicehub`, `/setgames`, `/setmusic`, dll.',
         inline: false,
       },
       {

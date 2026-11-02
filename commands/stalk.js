@@ -121,6 +121,16 @@ module.exports = {
     // Respon stalk dibuat Ephemeral (Only you can see this • Dismiss message) demi keamanan dan privasi
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    // Validasi apakah fitur Stalk sudah diaktifkan di server ini
+    if (interaction.guild) {
+      const { isFeatureConfigured } = require('../modularSetupHelper');
+      if (!isFeatureConfigured(interaction.guild, 'stalk')) {
+        return interaction.editReply({
+          content: 'Fitur Stalker belum diaktifkan di server ini. Administrator server dapat mengaktifkannya menggunakan perintah `/setstalk` untuk membuat atau menentukan channel khusus stalk.',
+        });
+      }
+    }
+
     // 2. Subcommand: Mobile Legends (MLBB)
     if (subcommand === 'mlbb') {
       const userId = interaction.options.getString('user_id');

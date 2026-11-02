@@ -175,7 +175,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
         .setAuthor({ name: `${guild.name} • Music Studio`, iconURL: guild.client.user.displayAvatarURL() })
         .setTitle('Channel Khusus Pemutaran Musik')
         .setDescription(
-          'Gunakan perintah `/play <judul/link>` di channel ini untuk memutar lagu berkualitas HD Lavalink v4 bersama di Voice Channel!\n\n' +
+          'Gunakan perintah `/play <judul/link>` di channel ini untuk memutar lagu berkualitas HD bersama di Voice Channel!\n\n' +
           '• Sumber didukung: Spotify, YouTube, SoundCloud\n' +
           '• Perintah pendukung: `/queue`, `/skip`, `/volume`, `/pause`, `/resume`, `/stop`'
         )
@@ -184,6 +184,141 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
       await channel.send({ embeds: [guideEmbed] }).catch(() => {});
     }
     channelsCfg.playMusicId = channel.id;
+  } else if (featureKey === 'stalk') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'COMMUNITY');
+      channel = await getOrCreateChannel(guild, {
+        name: '🔍︱stalk',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+
+      const guideEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setAuthor({ name: `${guild.name} • Stalker Profil`, iconURL: guild.client.user.displayAvatarURL() })
+        .setTitle('Channel Khusus Stalking Profil Akun')
+        .setDescription(
+          'Gunakan perintah `/stalk` di channel ini untuk melihat profil publik game dan media sosial secara instan & privat:\n\n' +
+          '• Mobile Legends: `/stalk mlbb [user_id] [server_id]`\n' +
+          '• Roblox: `/stalk roblox [username]`\n' +
+          '• TikTok: `/stalk tiktok [username]`\n' +
+          '• Discord: `/stalk discord [user_id]`\n' +
+          '• GitHub: `/stalk github [username]`\n' +
+          '• Twitter/X: `/stalk twitter [username]`\n' +
+          '• Minecraft: `/stalk minecraft [username]`\n\n' +
+          '*Respon bersifat privat (hanya kamu yang bisa melihat).*'
+        )
+        .setFooter({ text: 'FlyBot Multi Stalker' });
+
+      await channel.send({ embeds: [guideEmbed] }).catch(() => {});
+    }
+    channelsCfg.stalkId = channel.id;
+  } else if (featureKey === 'leave') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'NOTIFIKASI');
+      channel = await getOrCreateChannel(guild, {
+        name: '👋︱leave',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+    }
+    channelsCfg.leaveId = channel.id;
+    const { setGuildConfig } = require('./welcomeHelper');
+    setGuildConfig(guild.id, { leaveChannel: channel.id });
+  } else if (featureKey === 'voicehub') {
+    const category = await getOrCreateModularCategory(guild, 'VOICE LOUNGES');
+    const voiceOverwrites = [
+      {
+        id: guild.roles.everyone.id,
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.Speak],
+      },
+      {
+        id: guild.client.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.Connect,
+          PermissionFlagsBits.Speak,
+          PermissionFlagsBits.MoveMembers,
+          PermissionFlagsBits.ManageChannels,
+        ],
+      },
+    ];
+
+    channel = await getOrCreateChannel(guild, {
+      name: '➕︱Buat Room Voice',
+      type: ChannelType.GuildVoice,
+      parentId: category.id,
+      permissionOverwrites: voiceOverwrites,
+    });
+
+    channelsCfg.hubVoiceId = channel.id;
+    const { setTempVoiceConfig } = require('./tempVoiceHelper');
+    setTempVoiceConfig(guild.id, channel.id, category.id);
+  } else if (featureKey === 'sosmed') {
+    const { setupSosmedConverter } = require('./templateSetupHelper');
+    const role = guild.roles.cache.find(r => r.name.toLowerCase() === 'member' && !r.managed) || { id: guild.roles.everyone.id };
+    const res = await setupSosmedConverter(guild, { member: role });
+    channelsCfg.tiktokConvertId = res.tiktokConvert.id;
+    channelsCfg.instagramConvertId = res.instagramConvert.id;
+    channelsCfg.facebookConvertId = res.facebookConvert.id;
+    channelsCfg.youtubeConvertId = res.youtubeConvert.id;
+    channel = res.tiktokConvert;
+  } else if (featureKey === 'sambungkata') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'MINI GAMES');
+      channel = await getOrCreateChannel(guild, {
+        name: '🔤︱sambung-kata',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+
+      const { getSambungKataPanelEmbed, getSambungKataActionRow } = require('./sambungKataHelper');
+      await channel.send({
+        embeds: [getSambungKataPanelEmbed(guild)],
+        components: [getSambungKataActionRow()],
+      }).catch(() => {});
+    }
+    channelsCfg.sambungKataId = channel.id;
+    const { setGameConfig } = require('./gameHelper');
+    setGameConfig(guild.id, { sambungKataChannelId: channel.id });
+  } else if (featureKey === 'slot') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'MINI GAMES');
+      channel = await getOrCreateChannel(guild, {
+        name: '🎰︱gacha-slot',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+
+      const { getSlotChannelRow } = require('./gameHelper');
+      const slotEmbed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setAuthor({ name: `${guild.name} • Arena Mini Games`, iconURL: guild.client.user.displayAvatarURL() })
+        .setTitle('Arena Mesin Slot Buah 777')
+        .setDescription(
+          'Selamat datang di Arena Mesin Slot Buah.\n' +
+          'Gunakan saldo koin hasil chat, klaim /daily, dan kemenangan game untuk memutar mesin slot buah dan raih JACKPOT 777 hingga 15x lipat!\n\n' +
+          'Tabel Pembayaran Slot Buah:\n' +
+          '• 3x 7️⃣ -- JACKPOT 777 15x Taruhan (+100 XP)\n' +
+          '• 3x 🍒 -- Triple Ceri 10x Taruhan (+75 XP)\n' +
+          '• 3x 🍇 -- Triple Anggur 7x Taruhan (+60 XP)\n' +
+          '• 3x 🍉 -- Triple Semangka 5x Taruhan (+50 XP)\n' +
+          '• 3x 🍊 -- Triple Jeruk 4x Taruhan (+40 XP)\n' +
+          '• 3x 🍋 / 🍓 -- Triple Lemon/Stroberi 3x Taruhan (+30 XP)\n' +
+          '• 2 Buah Kembar -- Match Dua Buah 1.5x Taruhan (+15 XP)\n' +
+          '• Tidak Cocok -- Zonk (+5 XP Partisipasi)\n\n' +
+          'Klik salah satu tombol taruhan di bawah atau ketik /slot untuk langsung memutar mesin slot!'
+        )
+        .setFooter({ text: 'FlyBot Gacha Slot 777' });
+
+      await channel.send({
+        embeds: [slotEmbed],
+        components: [getSlotChannelRow()],
+      }).catch(() => {});
+    }
+    channelsCfg.slotId = channel.id;
+    const { setGameConfig } = require('./gameHelper');
+    setGameConfig(guild.id, { slotChannelId: channel.id });
   }
 
   setTemplateConfig(guild.id, { channels: channelsCfg });
@@ -204,6 +339,11 @@ function removeModularFeature(guildId, featureKey) {
     aiprompt: 'aiPromptId',
     fanart: 'aiFanartId',
     music: 'playMusicId',
+    stalk: 'stalkId',
+    leave: 'leaveId',
+    voicehub: 'hubVoiceId',
+    sambungkata: 'sambungKataId',
+    slot: 'slotId',
   };
 
   const prop = keyMap[featureKey];
@@ -230,6 +370,12 @@ function isFeatureConfigured(guild, featureKey) {
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
     music: ['play-music', 'playmusic', 'musik'],
+    stalk: ['stalk'],
+    leave: ['leave', 'left', 'goodbye', 'sampai-jumpa', 'keluar'],
+    voicehub: ['buat-room-voice', 'buat room voice', 'room-voice'],
+    sambungkata: ['sambung-kata', 'sambungkata'],
+    slot: ['gacha-slot', 'slot'],
+    sosmed: ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'],
   };
 
   const idMap = {
@@ -239,6 +385,12 @@ function isFeatureConfigured(guild, featureKey) {
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
     music: chCfg.playMusicId,
+    stalk: chCfg.stalkId,
+    leave: chCfg.leaveId,
+    voicehub: chCfg.hubVoiceId,
+    sambungkata: chCfg.sambungKataId,
+    slot: chCfg.slotId,
+    sosmed: chCfg.tiktokConvertId || chCfg.instagramConvertId,
   };
 
   const configuredId = idMap[featureKey];
@@ -248,7 +400,6 @@ function isFeatureConfigured(guild, featureKey) {
 
   const keywords = nameKeywords[featureKey] || [];
   return guild.channels.cache.some((c) => {
-    if (c.type !== ChannelType.GuildText) return false;
     const clean = c.name.toLowerCase();
     return keywords.some((kw) => clean.includes(kw));
   });
@@ -269,6 +420,12 @@ function getActiveFeatureChannel(guild, featureKey) {
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
     music: chCfg.playMusicId,
+    stalk: chCfg.stalkId,
+    leave: chCfg.leaveId,
+    voicehub: chCfg.hubVoiceId,
+    sambungkata: chCfg.sambungKataId,
+    slot: chCfg.slotId,
+    sosmed: chCfg.tiktokConvertId,
   };
 
   const configuredId = idMap[featureKey];
@@ -284,11 +441,16 @@ function getActiveFeatureChannel(guild, featureKey) {
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
     music: ['play-music', 'playmusic', 'musik'],
+    stalk: ['stalk'],
+    leave: ['leave', 'left', 'goodbye', 'sampai-jumpa', 'keluar'],
+    voicehub: ['buat-room-voice', 'buat room voice', 'room-voice'],
+    sambungkata: ['sambung-kata', 'sambungkata'],
+    slot: ['gacha-slot', 'slot'],
+    sosmed: ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'],
   };
 
   const keywords = nameKeywords[featureKey] || [];
   return guild.channels.cache.find((c) => {
-    if (c.type !== ChannelType.GuildText) return false;
     const clean = c.name.toLowerCase();
     return keywords.some((kw) => clean.includes(kw));
   }) || null;
@@ -300,3 +462,4 @@ module.exports = {
   isFeatureConfigured,
   getActiveFeatureChannel,
 };
+

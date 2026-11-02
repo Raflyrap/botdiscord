@@ -141,14 +141,20 @@ BAGIAN 3: PANDUAN LENGKAP UNTUK ADMIN & PEMILIK SERVER
 
 2. SETUP MANDIRI MODULAR PER-FITUR (Tanpa Merombak Server):
 - Jika pemilik server sudah punya struktur server sendiri dan HANYA ingin memasang fitur tertentu dari FlyBot, gunakan perintah setup per-fitur berikut:
+  * /setstalk [channel]: Mengatur channel khusus stalking profil akun game & sosmed (MLBB, Roblox, TikTok, Discord ID, GitHub, Twitter).
+  * /setsosmed [aksi]: Mengatur kategori & 4 channel auto-downloader sosmed tanpa watermark (TikTok, Instagram, Facebook, YouTube) dengan auto-clean 24 jam.
+  * /setvoicehub [aksi]: Mengatur sistem Voice Hub otomatis Join-to-Create room pribadi dengan panel kontrol interaktif.
   * /setpinterest [channel]: Mengatur channel khusus pencarian foto Pinterest otomatis.
   * /setremovebg [channel]: Mengatur channel khusus studio hapus background instan.
   * /sethd [aksi]: Mengatur studio HD foto AI.
   * /setwelcome [channel]: Mengatur channel pesan sambutan banner member baru.
+  * /setleave [channel]: Mengatur channel log member keluar dari server.
   * /setaigenerating [channel]: Mengatur channel obrolan cerdas BotFly AI.
   * /setaiprompt [channel]: Mengatur studio racik prompt Midjourney/DALL-E.
   * /setfanart [channel]: Mengatur studio review visual & konsep fanart AI.
   * /setgames [aksi]: Mengatur arena 3 mini games (tebak koin, angka, suit).
+  * /setsambungkata [channel]: Mengatur arena duel sambung kata KBBI berhadiah koin & XP.
+  * /setslot [channel]: Mengatur arena mesin slot buah 777 berhadiah jackpot.
   * /setmusic [channel]: Mengatur channel khusus pemutaran musik /play.
 - Admin bebas memilih: bisa pilih channel yang sudah ada di server, atau biarkan opsi channel kosong agar bot otomatis membuatkan channel baru yang rapi.
 
