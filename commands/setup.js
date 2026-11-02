@@ -45,7 +45,7 @@ function createResultEmbed(featureKey, result, guild) {
       .setDescription(
         `Kategori **${result.category.name}** dan channel resmi telah siap:\n\n` +
         `• <#${result.announcement.id}> — Pengumuman resmi server\n` +
-        `• <#${result.officialEvent.id}> — Event dan kegiatan komunitas\n` +
+        `• <#${result.giveaway.id}> — Channel giveaway & event berhadiah interaktif\n` +
         `• <#${result.helpCenter.id}> — Pusat bantuan & tiket support\n\n` +
         `*Channel ini hanya bisa diketik oleh Owner/Bot, member hanya bisa membaca dan memberi reaksi.*`
       );
@@ -130,7 +130,7 @@ function createResultEmbed(featureKey, result, guild) {
         `**1. Get Started** (Akses Awal Sebelum Verifikasi)\n` +
         `└ <#${result.getStarted.rulesChannel.id}>, <#${result.getStarted.startHereChannel.id}>, <#${result.getStarted.selectRolesChannel.id}>\n\n` +
         `**2. Official** (Hanya Owner & Bot Chat, Member React)\n` +
-        `└ <#${result.official.announcement.id}>, <#${result.official.officialEvent.id}>, <#${result.official.helpCenter.id}>\n\n` +
+        `└ <#${result.official.announcement.id}>, <#${result.official.giveaway.id}>, <#${result.official.helpCenter.id}>\n\n` +
         `**3. Notify** (Notifikasi Welcome, Leave, Levels & Achievements)\n` +
         `└ <#${result.notify.welcome.id}>, <#${result.notify.leave.id}>, <#${result.notify.levels.id}>, <#${result.notify.achievements.id}>\n\n` +
         `**4. Community** (Obrolan & Stalk Profil)\n` +

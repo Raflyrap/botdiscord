@@ -335,6 +335,14 @@ client.once(Events.ClientReady, async (readyClient) => {
   } catch (err) {
     console.error('[STREAMER MONITOR INIT] Error:', err.message);
   }
+
+  // Pastikan Channel Giveaway Otomatis Muncul di Server Official
+  try {
+    const { ensureOfficialGiveawayChannel } = require('./giveawayHelper');
+    ensureOfficialGiveawayChannel(readyClient).catch(() => {});
+  } catch (err) {
+    console.error('[GIVEAWAY INIT] Error:', err.message);
+  }
 });
 
 // Event saat bot diundang atau bergabung ke server baru
@@ -532,6 +540,28 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.customId === 'btn_delete_cancel') {
       return interaction.reply({ content: 'Penghapusan dibatalkan.', flags: MessageFlags.Ephemeral });
+    }
+
+    // === SISTEM GIVEAWAY INTERAKTIF ===
+    if (interaction.customId === 'btn_giveaway_join') {
+      const { handleGiveawayJoin } = require('./giveawayHelper');
+      return handleGiveawayJoin(interaction);
+    }
+    if (interaction.customId === 'btn_giveaway_edit') {
+      const { handleGiveawayEditButton } = require('./giveawayHelper');
+      return handleGiveawayEditButton(interaction);
+    }
+    if (interaction.customId === 'btn_giveaway_list') {
+      const { handleGiveawayList } = require('./giveawayHelper');
+      return handleGiveawayList(interaction);
+    }
+    if (interaction.customId === 'btn_giveaway_start') {
+      const { handleGiveawayStart } = require('./giveawayHelper');
+      return handleGiveawayStart(interaction);
+    }
+    if (interaction.customId === 'btn_giveaway_reset') {
+      const { handleGiveawayReset } = require('./giveawayHelper');
+      return handleGiveawayReset(interaction);
     }
 
     // Tombol Navigasi Gambar Pinterest
@@ -1500,6 +1530,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
           flags: MessageFlags.Ephemeral,
         });
       }
+    }
+
+    if (interaction.customId === 'modal_giveaway_edit') {
+      const { handleGiveawayEditSubmit } = require('./giveawayHelper');
+      return handleGiveawayEditSubmit(interaction);
     }
   }
 

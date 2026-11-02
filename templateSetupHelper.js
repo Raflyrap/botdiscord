@@ -394,12 +394,20 @@ async function setupOfficial(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
-  const officialEvent = await getOrCreateChannel(guild, {
-    name: '✨︱official-event',
+  const giveaway = await getOrCreateChannel(guild, {
+    name: '🎉︱giveaway',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
+    topic: 'Channel resmi event berhadiah & giveaway server!',
   });
+
+  // Pasang panel giveaway jika belum ada
+  const gwMsgs = await giveaway.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!gwMsgs || gwMsgs.size === 0) {
+    const { setupGiveawayChannel } = require('./giveawayHelper');
+    await setupGiveawayChannel(guild, giveaway).catch(() => {});
+  }
 
   const helpCenter = await getOrCreateChannel(guild, {
     name: '❓︱help-center',
@@ -459,7 +467,7 @@ async function setupOfficial(guild, roles) {
     await announcement.send({ embeds: [annEmbed] }).catch(() => {});
   }
 
-  return { category, announcement, officialEvent, helpCenter };
+  return { category, announcement, giveaway, helpCenter };
 }
 
 /**
@@ -1593,6 +1601,7 @@ async function setupFullTemplate(guild) {
       leaveId: notify.leave.id,
       levelsId: notify.levels.id,
       achievementsId: notify.achievements.id,
+      giveawayId: official.giveaway?.id || null,
       stalkId: community.stalk.id,
       hdFotoId: cinematography.hdFoto.id,
       removeBgId: cinematography.removeBg?.id || null,
