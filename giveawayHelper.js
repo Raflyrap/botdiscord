@@ -49,9 +49,8 @@ function setGiveaway(guildId, updates) {
   return data[guildId];
 }
 
-// Membangun Embed Panel Giveaway
+// Membangun Embed Panel Giveaway Publik (Tanpa Emoji, Tanpa Jumlah/Daftar Peserta)
 function createGiveawayEmbed(data, guild) {
-  const participants = data.participants || [];
   const winnersCount = data.winnersCount || 1;
   const isEnded = data.status === 'ended';
   const prize = data.prize || 'Discord Nitro / Hadiah Spesial';
@@ -63,68 +62,65 @@ function createGiveawayEmbed(data, guild) {
   }
 
   const embed = new EmbedBuilder()
-    .setColor(isEnded ? 0x57F287 : 0xFEE75C)
+    .setColor(isEnded ? 0x57F287 : 0x5865F2)
     .setAuthor({
-      name: `${guild.name} • Official Giveaway`,
+      name: `${guild.name} • Giveaway Resmi`,
       iconURL: guild.iconURL() || guild.client.user.displayAvatarURL(),
     })
-    .setTitle(`🎉 GIVEAWAY: ${prize}`)
+    .setTitle(`GIVEAWAY: ${prize}`)
     .setDescription(
       `${desc}\n\n` +
       `**Informasi Giveaway:**\n` +
-      `> • Total Peserta: **${participants.length} Peserta**\n` +
       `> • Kuota Pemenang: **${winnersCount} Pemenang**\n` +
       `> • Status: **${isEnded ? 'Selesai (Sudah Diundi)' : 'Sedang Berlangsung'}**\n` +
       (isEnded ? `> • Pemenang: ${winnerText}\n` : '')
     )
     .setFooter({
       text: isEnded
-        ? 'Giveaway telah berakhir • Nantikan giveaway berikutnya!'
-        : 'Klik tombol di bawah untuk bergabung dalam giveaway!',
+        ? 'Giveaway telah berakhir. Nantikan sesi giveaway berikutnya.'
+        : 'Klik tombol di bawah untuk bergabung dalam giveaway.',
     })
     .setTimestamp();
 
   return embed;
 }
 
-// Membangun ActionRow Tombol
+// Membangun ActionRow Tombol Publik (HANYA 1 TOMBOL IKUT GIVEAWAY, TANPA EMOJI, TANPA ANGKA)
 function createGiveawayRows(data) {
-  const participants = data.participants || [];
   const isEnded = data.status === 'ended';
 
-  // Row 1: Tombol Member (Ikut Giveaway)
   const joinBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_join')
-    .setLabel(`🎉 Ikut Giveaway (${participants.length})`)
+    .setLabel('Ikut Giveaway')
     .setStyle(isEnded ? ButtonStyle.Secondary : ButtonStyle.Success)
     .setDisabled(isEnded);
 
-  const row1 = new ActionRowBuilder().addComponents(joinBtn);
+  return [new ActionRowBuilder().addComponents(joinBtn)];
+}
 
-  // Row 2: Tombol Kontrol Owner / Admin Server
+// Membangun ActionRow Tombol Kontrol Khusus Admin / Owner (Privat Ephemeral)
+function createAdminGiveawayRows(participantsCount = 0) {
   const editBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_edit')
-    .setLabel('📝 Edit Hadiah')
+    .setLabel('Edit Hadiah')
     .setStyle(ButtonStyle.Secondary);
 
   const listBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_list')
-    .setLabel('👥 List Peserta')
+    .setLabel(`List Peserta (${participantsCount})`)
     .setStyle(ButtonStyle.Primary);
 
   const startBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_start')
-    .setLabel('🎲 Mulai Gacha')
-    .setStyle(ButtonStyle.Primary);
+    .setLabel('Mulai Gacha')
+    .setStyle(ButtonStyle.Success);
 
   const resetBtn = new ButtonBuilder()
     .setCustomId('btn_giveaway_reset')
-    .setLabel('🔄 Reset')
+    .setLabel('Reset')
     .setStyle(ButtonStyle.Danger);
 
-  const row2 = new ActionRowBuilder().addComponents(editBtn, listBtn, startBtn, resetBtn);
-
-  return [row1, row2];
+  return new ActionRowBuilder().addComponents(editBtn, listBtn, startBtn, resetBtn);
 }
 
 // Setup channel giveaway untuk guild tertentu
@@ -217,7 +213,7 @@ async function handleGiveawayJoin(interaction) {
 
   if (gw.status === 'ended') {
     return interaction.reply({
-      content: 'Giveaway ini telah berakhir. Nantikan sesi giveaway berikutnya!',
+      content: 'Giveaway ini telah berakhir. Nantikan sesi giveaway berikutnya.',
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -225,34 +221,44 @@ async function handleGiveawayJoin(interaction) {
   const participants = gw.participants || [];
   const userId = interaction.user.id;
   const isAlreadyJoined = participants.includes(userId);
+  const isAdmin = isGiveawayAdmin(interaction);
 
+  let statusMsg = '';
   if (isAlreadyJoined) {
-    // Batalkan keikutsertaan
     gw.participants = participants.filter((id) => id !== userId);
-    setGiveaway(interaction.guildId, { participants: gw.participants });
-
-    const embed = createGiveawayEmbed(gw, interaction.guild);
-    const rows = createGiveawayRows(gw);
-    await interaction.update({ embeds: [embed], components: rows });
-
-    return interaction.followUp({
-      content: 'Kamu telah membatalkan keikutsertaan dalam giveaway ini.',
-      flags: MessageFlags.Ephemeral,
-    });
+    statusMsg = 'Kamu telah membatalkan keikutsertaan dalam giveaway ini.';
   } else {
-    // Tambah keikutsertaan
     gw.participants.push(userId);
-    setGiveaway(interaction.guildId, { participants: gw.participants });
+    statusMsg = 'Selamat, kamu berhasil terdaftar dalam giveaway ini.';
+  }
+  setGiveaway(interaction.guildId, { participants: gw.participants });
 
-    const embed = createGiveawayEmbed(gw, interaction.guild);
-    const rows = createGiveawayRows(gw);
-    await interaction.update({ embeds: [embed], components: rows });
+  // Khusus Admin/Owner: Tampilkan panel kontrol privat beserta jumlah peserta rahasia
+  if (isAdmin) {
+    const adminEmbed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Panel Kontrol Giveaway (Khusus Owner / Admin)')
+      .setDescription(
+        `${statusMsg}\n\n` +
+        `**Informasi Peserta Rahasia:**\n` +
+        `> • Total Peserta Saat Ini: **${gw.participants.length} Orang**\n` +
+        `> • Status: **${gw.status === 'ended' ? 'Selesai' : 'Sedang Berlangsung'}**\n\n` +
+        `Gunakan tombol di bawah untuk mengelola giveaway:`
+      );
 
-    return interaction.followUp({
-      content: 'Selamat! Kamu berhasil terdaftar dalam giveaway ini. Semoga beruntung!',
+    const adminRow = createAdminGiveawayRows(gw.participants.length);
+    return interaction.reply({
+      embeds: [adminEmbed],
+      components: [adminRow],
       flags: MessageFlags.Ephemeral,
     });
   }
+
+  // Member biasa: Hanya notifikasi status sederhana, tanpa tombol admin & tanpa info peserta lain
+  return interaction.reply({
+    content: statusMsg,
+    flags: MessageFlags.Ephemeral,
+  });
 }
 
 // Helper: Cek hak akses admin/owner
@@ -332,15 +338,32 @@ async function handleGiveawayEditSubmit(interaction) {
 
   setGiveaway(interaction.guildId, gw);
 
-  const embed = createGiveawayEmbed(gw, interaction.guild);
-  const rows = createGiveawayRows(gw);
-
-  if (interaction.message) {
-    await interaction.message.edit({ embeds: [embed], components: rows }).catch(() => {});
+  // Perbarui pesan panel di channel publik
+  if (gw.channelId && gw.messageId) {
+    try {
+      const ch = interaction.guild.channels.cache.get(gw.channelId) || await interaction.guild.channels.fetch(gw.channelId).catch(() => null);
+      if (ch) {
+        const msg = await ch.messages.fetch(gw.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({ embeds: [createGiveawayEmbed(gw, interaction.guild)], components: createGiveawayRows(gw) });
+        }
+      }
+    } catch (_) {}
   }
 
+  const adminEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('Pengaturan Giveaway Berhasil Diperbarui')
+    .setDescription(
+      `Pengaturan giveaway publik telah diperbarui.\n\n` +
+      `• Hadiah: **${prize}**\n` +
+      `• Kuota Pemenang: **${winnersCount} Orang**\n` +
+      `• Total Peserta Rahasia: **${gw.participants.length} Orang**`
+    );
+
   return interaction.reply({
-    content: `Pengaturan giveaway berhasil diperbarui!\n• Hadiah: **${prize}**\n• Kuota Pemenang: **${winnersCount} Orang**`,
+    embeds: [adminEmbed],
+    components: [createAdminGiveawayRows(gw.participants.length)],
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -387,12 +410,12 @@ async function handleGiveawayStart(interaction) {
 
   if (participants.length === 0) {
     return interaction.reply({
-      content: 'Belum ada peserta yang bergabung dalam giveaway ini! Tidak dapat melakukan pengundian.',
+      content: 'Belum ada peserta yang bergabung dalam giveaway ini. Tidak dapat melakukan pengundian.',
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   // Acak pemenang
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
@@ -403,29 +426,43 @@ async function handleGiveawayStart(interaction) {
   gw.status = 'ended';
   setGiveaway(interaction.guildId, gw);
 
-  const embed = createGiveawayEmbed(gw, interaction.guild);
-  const rows = createGiveawayRows(gw);
-
-  if (interaction.message) {
-    await interaction.message.edit({ embeds: [embed], components: rows }).catch(() => {});
+  // Perbarui pesan panel di channel publik
+  if (gw.channelId && gw.messageId) {
+    try {
+      const ch = interaction.guild.channels.cache.get(gw.channelId) || await interaction.guild.channels.fetch(gw.channelId).catch(() => null);
+      if (ch) {
+        const msg = await ch.messages.fetch(gw.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({ embeds: [createGiveawayEmbed(gw, interaction.guild)], components: createGiveawayRows(gw) });
+        }
+      }
+    } catch (_) {}
   }
 
-  // Kirim pengumuman di channel
+  // Kirim pengumuman di channel publik
   const winnerTags = winners.map((id) => `<@${id}>`).join(' ');
   const announceEmbed = new EmbedBuilder()
     .setColor(0x57F287)
     .setTitle('SELAMAT KEPADA PEMENANG GIVEAWAY!')
     .setDescription(
-      `Selamat kepada: ${winnerTags}!\n\n` +
+      `Selamat kepada: ${winnerTags}\n\n` +
       `Kalian memenangkan: **${gw.prize || 'Hadiah Spesial'}**!\n\n` +
       `Silakan hubungi Administrator / Penyelenggara (<@${interaction.user.id}>) untuk mengklaim hadiah kamu.`
     )
     .setFooter({ text: 'FlyBot Official Giveaway System' })
     .setTimestamp();
 
+  // Kirim ke channel giveaway tempat panel berada
+  const targetChannel = interaction.guild.channels.cache.get(gw.channelId) || interaction.channel;
+  if (targetChannel && typeof targetChannel.send === 'function') {
+    await targetChannel.send({
+      content: `Selamat ${winnerTags}!`,
+      embeds: [announceEmbed],
+    }).catch(() => {});
+  }
+
   await interaction.editReply({
-    content: `Selamat ${winnerTags}!`,
-    embeds: [announceEmbed],
+    content: `Pengundian berhasil selesai. Pemenang: ${winnerTags}`,
   });
 
   // Kirim DM otomatis ke setiap pemenang
@@ -467,14 +504,27 @@ async function handleGiveawayReset(interaction) {
 
   setGiveaway(interaction.guildId, gw);
 
-  const embed = createGiveawayEmbed(gw, interaction.guild);
-  const rows = createGiveawayRows(gw);
+  // Perbarui pesan panel di channel publik
+  if (gw.channelId && gw.messageId) {
+    try {
+      const ch = interaction.guild.channels.cache.get(gw.channelId) || await interaction.guild.channels.fetch(gw.channelId).catch(() => null);
+      if (ch) {
+        const msg = await ch.messages.fetch(gw.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({ embeds: [createGiveawayEmbed(gw, interaction.guild)], components: createGiveawayRows(gw) });
+        }
+      }
+    } catch (_) {}
+  }
 
-  await interaction.update({ embeds: [embed], components: rows });
+  const adminEmbed = new EmbedBuilder()
+    .setColor(0xED4245)
+    .setTitle('Giveaway Berhasil Direset')
+    .setDescription('Daftar peserta telah dikosongkan (0 Peserta) dan sesi giveaway baru telah dibuka kembali.');
 
-  return interaction.followUp({
-    content: 'Giveaway berhasil direset! Daftar peserta telah dikosongkan dan sesi giveaway baru telah dibuka kembali.',
-    flags: MessageFlags.Ephemeral,
+  return interaction.update({
+    embeds: [adminEmbed],
+    components: [createAdminGiveawayRows(0)],
   });
 }
 
@@ -485,6 +535,8 @@ module.exports = {
   setGiveaway,
   createGiveawayEmbed,
   createGiveawayRows,
+  createAdminGiveawayRows,
+  isGiveawayAdmin,
   setupGiveawayChannel,
   ensureOfficialGiveawayChannel,
   handleGiveawayJoin,
@@ -494,3 +546,4 @@ module.exports = {
   handleGiveawayStart,
   handleGiveawayReset,
 };
+

@@ -54,7 +54,7 @@ const CATEGORIES = {
     commands: [
       'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'setleave', 'welcometest',
       'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setsambungkata', 'setslot', 'setmusic',
-      'setstalk', 'setsosmed', 'setvoicehub', 'setgiveaway', 'setverif',
+      'setstalk', 'setsosmed', 'setvoicehub', 'setgiveaway', 'giveaway', 'setverif',
       'verif', 'autorole', 'ticket', 'setticket', 'stats', 'log', 'antitoxic',
       'buatembed', 'embedpreset', 'buatchannel', 'buatkategori', 'editkategori',
       'editnama', 'hapuschannel', 'geserchannel', 'rapihkan', 'role',
