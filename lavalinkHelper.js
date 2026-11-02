@@ -102,16 +102,6 @@ function initLavalink(client) {
       retryDelay: 10000,
       retryAmount: 100,
     },
-    {
-      id: 'jirayu-v4',
-      host: 'lavalink.jirayu.net',
-      port: 443,
-      authorization: 'youshallnotpass',
-      secure: true,
-      requestTimeout: 10000,
-      retryDelay: 10000,
-      retryAmount: 100,
-    },
   ];
 
   const configuredNodes = [];
