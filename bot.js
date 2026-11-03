@@ -39,6 +39,7 @@ process.on('uncaughtException', (err) => {
     errMsg.includes('Proxy erro') ||
     errMsg.includes('Unexpected token') ||
     errMsg.includes('Socket got terminated') ||
+    errMsg.includes('WebSocket was closed before the connection was established') ||
     errMsg.includes('10062') ||
     errMsg.includes('40060') ||
     errMsg.includes('ECONNRESET')

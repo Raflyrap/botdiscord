@@ -89,7 +89,11 @@ module.exports = {
       if (!hasConnectedNode) {
         // Picu reconnect segera ke seluruh node
         for (const [, n] of lavalink.nodeManager.nodes) {
-          if (!n.connected) n.connect().catch(() => {});
+          if (!n.connected) {
+            try {
+              n.connect();
+            } catch (_) {}
+          }
         }
         return interaction.editReply('Server audio sedang menghubungkan ulang ke node musik. Silakan coba kembali dalam beberapa saat!');
       }

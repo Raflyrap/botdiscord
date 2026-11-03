@@ -90,17 +90,37 @@ async function searchTrackWithFallback(player, query, requester) {
  * @returns {LavalinkManager}
  */
 function initLavalink(client) {
-  // Menggunakan node publik stabil yang mendukung Lavalink v4 dengan auto-failover
+  // Menggunakan node publik aktif stabil yang mendukung Lavalink v4 dengan multi-node failover
   const defaultNodes = [
     {
-      id: 'serenetia-v4',
-      host: 'lavalink.serenetia.com',
+      id: 'millo-v4',
+      host: 'lava-v4.millohost.my.id',
       port: 443,
-      authorization: 'youshallnotpass',
+      authorization: 'https://discord.gg/mjS5J2K3ep',
       secure: true,
       requestTimeout: 10000,
       retryDelay: 10000,
-      retryAmount: 100,
+      retryAmount: 50,
+    },
+    {
+      id: 'nazha-v4',
+      host: 'lavalink.nazha.online',
+      port: 443,
+      authorization: 'nazhafreelava',
+      secure: true,
+      requestTimeout: 10000,
+      retryDelay: 10000,
+      retryAmount: 50,
+    },
+    {
+      id: 'kasawa-v4',
+      host: 'lava2.kasawa.pro',
+      port: 2334,
+      authorization: 'youshallnotpass',
+      secure: false,
+      requestTimeout: 10000,
+      retryDelay: 10000,
+      retryAmount: 50,
     },
   ];
 
@@ -290,8 +310,10 @@ function initLavalink(client) {
       if (!hasConnected) {
         for (const [, n] of manager.nodeManager.nodes) {
           if (!n.connected) {
-            n.options.retryAmount = 100;
-            n.connect().catch(() => {});
+            n.options.retryAmount = 50;
+            try {
+              n.connect();
+            } catch (_) {}
           }
         }
       }
