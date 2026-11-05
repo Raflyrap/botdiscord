@@ -56,6 +56,7 @@ module.exports = {
         `Efek transformasi hitamkan berhasil diterapkan pada gambar.\n\n` +
         `• Format: **PNG**\n` +
         `• Ukuran: **${result.size}**\n` +
+        `• Engine: **${result.engine || 'AI Neural Engine'}**\n` +
         `• Deteksi Kulit: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**`
       )
       .setImage('attachment://hitamkan.png')

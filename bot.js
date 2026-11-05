@@ -2435,6 +2435,7 @@ client.on(Events.MessageCreate, async (message) => {
               `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
               `• Format: **PNG**\n` +
               `• Ukuran File: **${result.size}**\n` +
+              `• Engine: **${result.engine || 'AI Neural Engine'}**\n` +
               `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**\n\n` +
               `> **Tips:** Klik foto lalu pilih "Buka yang asli" untuk melihat gambar kualitas penuh!`
             )
@@ -2490,6 +2491,7 @@ client.on(Events.MessageCreate, async (message) => {
               `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
               `• Format: **PNG**\n` +
               `• Ukuran File: **${result.size}**\n` +
+              `• Engine: **${result.engine || 'AI Neural Engine'}**\n` +
               `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**`
             )
             .setImage('attachment://hitamkan.png')
