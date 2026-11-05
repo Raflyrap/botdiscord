@@ -1,7 +1,8 @@
 const sharp = require('sharp');
 
 /**
- * Memproses gambar untuk mengubah tone wajah/kulit terang menjadi gelap/hitam
+ * Memproses gambar untuk mengubah tone kulit wajah & tubuh menjadi hitam pekat (African dark skin tone)
+ * secara presisi tanpa mempengaruhi warna baju, rambut, tembok, atau background.
  * @param {string|Buffer} input - URL gambar atau Buffer
  * @returns {Promise<{success: boolean, buffer?: Buffer, format?: string, size?: string, error?: string}>}
  */
@@ -28,7 +29,6 @@ async function hitamkanImage(input) {
     const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
     let skinCount = 0;
-    const totalPixels = info.width * info.height;
 
     // Iterasi setiap pixel RGBA / RGB
     for (let i = 0; i < data.length; i += info.channels) {
@@ -36,45 +36,69 @@ async function hitamkanImage(input) {
       const g = data[i + 1];
       const b = data[i + 2];
 
-      // Deteksi warna kulit manusia (Kombinasi model RGB & YCbCr)
-      const rgbSkin =
-        r > 65 &&
-        g > 25 &&
-        b > 15 &&
-        r - g >= 6 &&
-        r > b &&
-        Math.max(r, g, b) - Math.min(r, g, b) >= 6;
-
+      // Ruang warna YCbCr
       const y = 0.299 * r + 0.587 * g + 0.114 * b;
       const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
       const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-      const ycbcrSkin = cb >= 60 && cb <= 145 && cr >= 115 && cr <= 190 && y > 25;
 
-      if (rgbSkin || ycbcrSkin) {
+      // Ruang warna HSV
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+      const s = max === 0 ? 0 : delta / max;
+
+      let h = 0;
+      if (delta > 0) {
+        if (max === r) h = ((g - b) / delta) % 6;
+        else if (max === g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+      }
+
+      // Deteksi presisi kulit manusia (Face & Skin Detector)
+      // Kulit manusia alami memiliki dominansi R > G > B dengan selisih yang konsisten
+      const isRgbSkin = (r > g) && (g > b) && (r - g >= 15) && (g - b >= 8) && (r - b >= 26);
+      const isHueSkin = (h >= 0 && h <= 45) || (h >= 350 && h <= 360);
+      const isSatSkin = s >= 0.13 && s <= 0.72;
+      const isYCbCrSkin = cb >= 75 && cb <= 132 && cr >= 130 && cr <= 180 && y >= 45;
+
+      let skinWeight = 0;
+      if (isRgbSkin && isHueSkin && isSatSkin) {
+        skinWeight = 1.0;
+      } else if (isYCbCrSkin && (r > g) && (g >= b) && (r - b >= 20)) {
+        skinWeight = 0.85;
+      }
+
+      // Filter pengecualian (bukan kulit):
+      // - Saturasi terlalu pekat / neon (baju bermotif warna-warni)
+      // - Terlalu gelap (rambut hitam, mata, alis, bayangan pekat)
+      if (s > 0.75 || y < 40) {
+        skinWeight = 0;
+      }
+
+      if (skinWeight > 0) {
         skinCount++;
-        // Transformasi warna kulit menjadi hitam/gelap natural (Melanin Enhancement)
-        data[i] = Math.max(10, Math.floor(r * 0.22));
-        data[i + 1] = Math.max(8, Math.floor(g * 0.18));
-        data[i + 2] = Math.max(6, Math.floor(b * 0.14));
+        // Hitamkan ke tone kulit Afrika (Deep African Melanin Skin Tone)
+        // Menjaga bayangan & kontur alami wajah dengan interpolasi pencahayaan
+        const relY = Math.min(1.0, Math.max(0.0, y / 255));
+        const targetR = Math.round(15 + relY * 30); // ~15-45
+        const targetG = Math.round(10 + relY * 20); // ~10-30
+        const targetB = Math.round(7 + relY * 15);  // ~7-22
+
+        data[i] = Math.round(r * (1 - skinWeight) + targetR * skinWeight);
+        data[i + 1] = Math.round(g * (1 - skinWeight) + targetG * skinWeight);
+        data[i + 2] = Math.round(b * (1 - skinWeight) + targetB * skinWeight);
       }
     }
 
-    let finalSharp = sharp(data, {
+    const finalSharp = sharp(data, {
       raw: {
         width: info.width,
         height: info.height,
         channels: info.channels,
       },
     });
-
-    // Fallback: Jika sedikit/tidak ada pixel kulit terdeteksi (misal anime, ilustrasi, lighting khusus),
-    // aplikasikan dark tone filter agar gambar tetap terhitamkan secara dramatis
-    if (skinCount < totalPixels * 0.03) {
-      finalSharp = finalSharp.modulate({
-        brightness: 0.38,
-        saturation: 0.75,
-      });
-    }
 
     const outputBuffer = await finalSharp.png().toBuffer();
     const sizeKB = (outputBuffer.length / 1024).toFixed(1) + ' KB';
