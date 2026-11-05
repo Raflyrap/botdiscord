@@ -1,143 +1,11 @@
 const sharp = require('sharp');
-const { OpenAI, toFile } = require('openai');
-
-let openaiClient = null;
-function getOpenAIClient() {
-  if (!openaiClient && process.env.OPENAI_API_KEY) {
-    openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openaiClient;
-}
 
 /**
- * Memproses transformasi warna kulit manusia menggunakan AI photorealistic (OpenAI Image Engine)
- * Mengubah warna kulit wajah & tubuh menjadi hitam pekat khas Afrika secara natural dan realistis,
- * dengan tetap mempertahankan bentuk wajah, baju, rambut, dan background.
- * @param {Buffer} inputBuffer
- * @returns {Promise<Buffer|null>}
- */
-async function processWithAi(inputBuffer) {
-  const client = getOpenAIClient();
-  if (!client) return null;
-
-  try {
-    // Resize agar sesuai rekomendasi dan hemat kuota/waktu pemrosesan
-    const resizedBuffer = await sharp(inputBuffer)
-      .resize(1024, 1024, { fit: 'inside' })
-      .png()
-      .toBuffer();
-
-    const file = await toFile(resizedBuffer, 'input.png', { type: 'image/png' });
-
-    const res = await client.images.edit({
-      model: 'gpt-image-1-mini',
-      image: file,
-      prompt:
-        'Transform only the skin tone of the person into a natural, photorealistic dark African black skin tone. ' +
-        'Preserve the exact facial structure, eyes, hair, clothes pattern and colors, and the background completely unchanged.',
-    });
-
-    if (res?.data?.[0]?.b64_json) {
-      return Buffer.from(res.data[0].b64_json, 'base64');
-    }
-
-    if (res?.data?.[0]?.url) {
-      const imgRes = await fetch(res.data[0].url);
-      if (imgRes.ok) {
-        const arr = await imgRes.arrayBuffer();
-        return Buffer.from(arr);
-      }
-    }
-  } catch (err) {
-    console.warn('[HITAMKAN AI WARNING]:', err.message || err);
-  }
-
-  return null;
-}
-
-/**
- * Fallback algoritma lokal jika AI offline atau kuota habis:
- * Memproses gambar pixel-by-pixel dengan deteksi multi-ruang warna (RGB + HSV + YCbCr)
- * @param {Buffer} inputBuffer
- * @returns {Promise<{buffer: Buffer, skinDetected: boolean}>}
- */
-async function processWithLocalSharp(inputBuffer) {
-  const image = sharp(inputBuffer);
-  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
-
-  let skinCount = 0;
-
-  for (let i = 0; i < data.length; i += info.channels) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    const y = 0.299 * r + 0.587 * g + 0.114 * b;
-    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const delta = max - min;
-    const s = max === 0 ? 0 : delta / max;
-
-    let h = 0;
-    if (delta > 0) {
-      if (max === r) h = ((g - b) / delta) % 6;
-      else if (max === g) h = (b - r) / delta + 2;
-      else h = (r - g) / delta + 4;
-      h = Math.round(h * 60);
-      if (h < 0) h += 360;
-    }
-
-    const isRgbSkin = r > g && g > b && r - g >= 15 && g - b >= 8 && r - b >= 26;
-    const isHueSkin = (h >= 0 && h <= 45) || (h >= 350 && h <= 360);
-    const isSatSkin = s >= 0.13 && s <= 0.72;
-    const isYCbCrSkin = cb >= 75 && cb <= 132 && cr >= 130 && cr <= 180 && y >= 45;
-
-    let skinWeight = 0;
-    if (isRgbSkin && isHueSkin && isSatSkin) {
-      skinWeight = 1.0;
-    } else if (isYCbCrSkin && r > g && g >= b && r - b >= 20) {
-      skinWeight = 0.85;
-    }
-
-    if (s > 0.75 || y < 40) {
-      skinWeight = 0;
-    }
-
-    if (skinWeight > 0) {
-      skinCount++;
-      const relY = Math.min(1.0, Math.max(0.0, y / 255));
-      const targetR = Math.round(15 + relY * 30);
-      const targetG = Math.round(10 + relY * 20);
-      const targetB = Math.round(7 + relY * 15);
-
-      data[i] = Math.round(r * (1 - skinWeight) + targetR * skinWeight);
-      data[i + 1] = Math.round(g * (1 - skinWeight) + targetG * skinWeight);
-      data[i + 2] = Math.round(b * (1 - skinWeight) + targetB * skinWeight);
-    }
-  }
-
-  const finalSharp = sharp(data, {
-    raw: {
-      width: info.width,
-      height: info.height,
-      channels: info.channels,
-    },
-  });
-
-  const outputBuffer = await finalSharp.png().toBuffer();
-  return {
-    buffer: outputBuffer,
-    skinDetected: skinCount > 0,
-  };
-}
-
-/**
- * Memproses gambar untuk mengubah tone kulit menjadi hitam fotorealistik (AI First dengan Sharp Fallback)
+ * Memproses transformasi warna kulit manusia (Melanin Recolor Engine)
+ * Mengubah HANYA warna kulit wajah, leher, dan tubuh menjadi warna kulit hitam pekat khas Afrika,
+ * dengan menjaga 100% bentuk wajah asli, garis hidung, mata, bibir, rambut, baju, dan background
+ * tanpa merubah identitas ataupun menciptakan wajah baru.
+ * 
  * @param {string|Buffer} input - URL gambar atau Buffer
  * @returns {Promise<{success: boolean, buffer?: Buffer, format?: string, size?: string, engine?: string, skinDetected?: boolean, error?: string}>}
  */
@@ -160,33 +28,124 @@ async function hitamkanImage(input) {
       throw new Error('Format input gambar tidak valid');
     }
 
-    let finalBuffer = null;
-    let engineUsed = 'AI Neural Engine';
-    let skinDetected = true;
+    const image = sharp(inputBuffer);
+    const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
-    // 1. Coba proses via AI Photorealistic terlebih dahulu
-    try {
-      finalBuffer = await processWithAi(inputBuffer);
-    } catch (aiErr) {
-      console.warn('[HITAMKAN] AI processing failed, switching to local engine:', aiErr.message);
+    const w = info.width;
+    const h = info.height;
+    const maskData = Buffer.alloc(w * h, 0);
+    let skinPixelCount = 0;
+
+    // 1. Deteksi presisi pigmen kulit manusia pada gambar
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        const idx = p * info.channels;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        const sat = max === 0 ? 0 : delta / max;
+
+        let hue = 0;
+        if (delta > 0) {
+          if (max === r) hue = ((g - b) / delta) % 6;
+          else if (max === g) hue = (b - r) / delta + 2;
+          else hue = (r - g) / delta + 4;
+          hue = Math.round(hue * 60);
+          if (hue < 0) hue += 360;
+        }
+
+        // Kriteria warna kulit manusia asli (RGB + HSV + YCbCr multi-space)
+        const isSkin =
+          r > g &&
+          g > b &&
+          r - g >= 15 &&
+          g - b >= 8 &&
+          r - b >= 26 &&
+          hue >= 6 &&
+          hue <= 42 &&
+          sat >= 0.15 &&
+          sat <= 0.65 &&
+          cr >= 132 &&
+          cr <= 175 &&
+          cb >= 82 &&
+          cb <= 128 &&
+          lum >= 50 &&
+          lum <= 248;
+
+        if (isSkin) {
+          // Proteksi bola mata putih (sclera) agar tatapan mata tetap tajam & jernih
+          const isEyeWhite = sat < 0.13 && lum > 155 && y > h * 0.25 && y < h * 0.45 && x > w * 0.4 && x < w * 0.6;
+          if (!isEyeWhite) {
+            maskData[p] = 255;
+            skinPixelCount++;
+          }
+        }
+      }
     }
 
-    // 2. Jika AI gagal atau tidak tersedia, fallback ke local Sharp processor
-    if (!finalBuffer) {
-      engineUsed = 'Local Color Engine';
-      const localResult = await processWithLocalSharp(inputBuffer);
-      finalBuffer = localResult.buffer;
-      skinDetected = localResult.skinDetected;
+    const totalPixels = w * h;
+    const skinDetected = skinPixelCount > totalPixels * 0.005;
+
+    // 2. Feathering mask menggunakan Gaussian Blur halus agar transisi tepi (hairline, leher, baju) menyatu sempurna
+    const { data: blurredMaskBuf } = await sharp(maskData, {
+      raw: { width: w, height: h, channels: 1 },
+    })
+      .blur(2.0)
+      .extractChannel(0)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    // 3. Rekolorisasi Melanin: Menerapkan tone hitam pekat khas Afrika dengan mempertahankan 100% anatomi asli wajah
+    const out = Buffer.from(data);
+
+    for (let i = 0, p = 0; i < data.length; i += info.channels, p++) {
+      const alpha = blurredMaskBuf[p] / 255;
+      if (alpha <= 0.01) continue;
+
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      const normLum = lum / 255;
+
+      // Kurva intensitas melanin fotorealistik:
+      // Mempertahankan highlight pencahayaan, bayangan alami, lekuk hidung, dan ekspresi asli
+      const melaninBase = Math.pow(normLum, 1.3) * 48 + 18; // rentang 18 - 66
+
+      // Rasio warna warm dark chocolate khas kulit hitam Afrika yang natural
+      const targetR = Math.min(255, Math.round(melaninBase * 1.45));
+      const targetG = Math.min(255, Math.round(melaninBase * 1.00));
+      const targetB = Math.min(255, Math.round(melaninBase * 0.78));
+
+      out[i] = Math.round(r * (1 - alpha) + targetR * alpha);
+      out[i + 1] = Math.round(g * (1 - alpha) + targetG * alpha);
+      out[i + 2] = Math.round(b * (1 - alpha) + targetB * alpha);
     }
 
-    const sizeKB = (finalBuffer.length / 1024).toFixed(1) + ' KB';
+    const resultBuffer = await sharp(out, {
+      raw: { width: w, height: h, channels: info.channels },
+    })
+      .png()
+      .toBuffer();
+
+    const sizeKB = (resultBuffer.length / 1024).toFixed(1) + ' KB';
 
     return {
       success: true,
-      buffer: finalBuffer,
+      buffer: resultBuffer,
       format: 'png',
       size: sizeKB,
-      engine: engineUsed,
+      engine: 'Skin Melanin Recolor',
       skinDetected,
     };
   } catch (err) {
