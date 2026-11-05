@@ -743,6 +743,13 @@ async function setupCinematography(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  const hitamkan = await getOrCreateChannel(guild, {
+    name: '⚫︱hitamkan',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
   // Sambungkan ke hdChannelConfig
   setHdConfig(guild.id, {
     categoryId: category.id,
@@ -810,7 +817,27 @@ async function setupCinematography(guild, roles) {
     await pinterest.send({ embeds: [guideEmbed] }).catch(() => {});
   }
 
-  return { category, fotografi, videografi, hdFoto, removeBg, pinterest };
+  // Kirim panduan Hitamkan jika channel masih baru / kosong
+  const hitMsgs = await hitamkan.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!hitMsgs || hitMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setAuthor({ name: `${guild.name} • Studio Hitamkan Foto`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Studio Auto-Hitamkan Foto')
+      .setDescription(
+        `Selamat datang di channel khusus Auto-Hitamkan Foto!\n\n` +
+        `**Cara Pakai (Otomatis & Cepat):**\n` +
+        `• Cukup **kirim atau upload foto apa saja** ke channel ini, bot akan otomatis mengubah wajah/kulit menjadi hitam secara instan tanpa perlu mengetik perintah apa pun.\n` +
+        `• Kamu juga bisa menggunakan perintah \`/hitamkan\` di channel lain.\n\n` +
+        `> 💡 **Tips Kualitas:**\n` +
+        `> Gambar output berformat PNG murni beresolusi penuh!`
+      )
+      .setFooter({ text: 'FlyBot Instant Melanin & Darken Studio' })
+      .setTimestamp();
+    await hitamkan.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  return { category, fotografi, videografi, hdFoto, removeBg, pinterest, hitamkan };
 }
 
 /**
@@ -1606,6 +1633,7 @@ async function setupFullTemplate(guild) {
       hdFotoId: cinematography.hdFoto.id,
       removeBgId: cinematography.removeBg?.id || null,
       pinterestId: cinematography.pinterest?.id || null,
+      hitamkanId: cinematography.hitamkan?.id || null,
       playMusicId: music.playMusic.id,
       sharelinkMusicId: music.sharelinkMusic.id,
       aiFanartId: entertainment.aiFanart.id,

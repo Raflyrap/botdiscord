@@ -45,14 +45,14 @@ const CATEGORIES = {
     label: 'Utilitas & Gambar HD',
     name: 'Utilitas, Gambar HD & Desain',
     description: 'Peningkat resolusi gambar (AI Upscale 2x/4x), remove background, pencarian Pinterest, status AFK, alarm reminder, dan info akun.',
-    commands: ['hd', 'removebg', 'pinterest', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
+    commands: ['hd', 'removebg', 'pinterest', 'hitamkan', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
     name: 'Server Setup & Moderasi',
     description: 'Setup template server all-in-one atau per-fitur mandiri, verifikasi member, tiket bantuan, statistik channel, audit log, dan perapian channel.',
     commands: [
-      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'setleave', 'welcometest',
+      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethitamkan', 'sethd', 'setwelcome', 'setleave', 'welcometest',
       'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setsambungkata', 'setslot', 'setmusic',
       'setstalk', 'setsosmed', 'setvoicehub', 'setgiveaway', 'giveaway', 'setverif',
       'verif', 'autorole', 'ticket', 'setticket', 'stats', 'log', 'antitoxic',
@@ -117,13 +117,13 @@ function createOverviewEmbed(guild, user, client) {
         inline: false,
       },
       {
-        name: 'Utilitas & Desain Gambar (11 Perintah)',
-        value: '`/hd`, `/removebg`, `/pinterest`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`, `/request-fitur`',
+        name: 'Utilitas & Desain Gambar (12 Perintah)',
+        value: '`/hd`, `/removebg`, `/pinterest`, `/hitamkan`, `/afk`, `/remind`, `/stalk`, `/userinfo`, `/serverinfo`, `/ping`, `/invite`, `/request-fitur`',
         inline: false,
       },
       {
-        name: 'Server Setup & Moderasi (36 Perintah)',
-        value: '`/menu`, `/setup`, `/delete`, `/setpinterest`, `/setremovebg`, `/sethd`, `/setwelcome`, `/setleave`, `/setstalk`, `/setsosmed`, `/setvoicehub`, `/setgames`, `/setmusic`, dll.',
+        name: 'Server Setup & Moderasi (37 Perintah)',
+        value: '`/menu`, `/setup`, `/delete`, `/setpinterest`, `/setremovebg`, `/sethitamkan`, `/sethd`, `/setwelcome`, `/setleave`, `/setstalk`, `/setsosmed`, `/setvoicehub`, `/setgames`, `/setmusic`, dll.',
         inline: false,
       },
       {

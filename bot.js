@@ -2413,6 +2413,109 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
+  // === FITUR AUTO HITAMKAN DI CHANNEL KHUSUS HITAMKAN ===
+  const isHitamkanChannel = message.guild && (
+    message.channel?.id === templateCfg?.channels?.hitamkanId ||
+    (message.channel?.name && message.channel.name.toLowerCase().includes('hitamkan'))
+  );
+  if (isHitamkanChannel) {
+    const targetImageUrl = extractImageUrlFromMessage(message);
+    if (targetImageUrl) {
+      try {
+        const processingMsg = await message.reply('Sedang mengubah wajah/foto menjadi hitam, tunggu sebentar...');
+        const { hitamkanImage } = require('./hitamkanHelper');
+        const result = await hitamkanImage(targetImageUrl);
+
+        if (result.success) {
+          const file = new AttachmentBuilder(result.buffer, { name: 'hitamkan.png' });
+          const embed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setTitle('Foto Berhasil Dihitamkan')
+            .setDescription(
+              `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
+              `• Format: **PNG**\n` +
+              `• Ukuran File: **${result.size}**\n` +
+              `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**\n\n` +
+              `> **Tips:** Klik foto lalu pilih "Buka yang asli" untuk melihat gambar kualitas penuh!`
+            )
+            .setImage('attachment://hitamkan.png')
+            .setFooter({ text: `FlyBot Auto-Hitamkan • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            files: [file],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal memproses hitamkan gambar: ${result.error}`,
+          });
+        }
+        return;
+      } catch (err) {
+        console.error('Error saat Auto-Hitamkan di channel khusus:', err);
+      }
+    }
+  }
+
+  // === FITUR HITAMKAN VIA CAPTION /hitamkan ATAU REPLY FOTO /hitamkan ===
+  const isHitamkanCommand =
+    cleanContent === '/hitamkan' ||
+    cleanContent.startsWith('/hitamkan ') ||
+    cleanContent === '!hitamkan' ||
+    cleanContent.startsWith('!hitamkan ');
+
+  if (isHitamkanCommand) {
+    try {
+      let targetImageUrl = extractImageUrlFromMessage(message);
+      if (!targetImageUrl && message.reference && message.reference.messageId) {
+        const repliedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+        if (repliedMessage) {
+          targetImageUrl = extractImageUrlFromMessage(repliedMessage);
+        }
+      }
+
+      if (targetImageUrl) {
+        const processingMsg = await message.reply('Sedang memproses efek hitamkan pada gambar kamu, tunggu sebentar...');
+        const { hitamkanImage } = require('./hitamkanHelper');
+        const result = await hitamkanImage(targetImageUrl);
+
+        if (result.success) {
+          const file = new AttachmentBuilder(result.buffer, { name: 'hitamkan.png' });
+          const embed = new EmbedBuilder()
+            .setColor(0x2B2D31)
+            .setTitle('Foto Berhasil Dihitamkan')
+            .setDescription(
+              `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
+              `• Format: **PNG**\n` +
+              `• Ukuran File: **${result.size}**\n` +
+              `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**`
+            )
+            .setImage('attachment://hitamkan.png')
+            .setFooter({ text: `FlyBot Hitamkan • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          await processingMsg.edit({
+            content: null,
+            embeds: [embed],
+            files: [file],
+          });
+        } else {
+          await processingMsg.edit({
+            content: `Gagal memproses gambar: ${result.error}`,
+          });
+        }
+        return;
+      } else {
+        await message.reply('Tidak ditemukan gambar bray. Kirim gambar langsung dengan caption `/hitamkan`, atau reply foto orang lain lalu ketik `/hitamkan`.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error saat /hitamkan di chat:', err);
+    }
+  }
+
   // === FITUR AFK: 1. HAPUS STATUS AFK SAAT USER MENGIRIM PESAN ===
   const userAfk = removeAfk(message.guild.id, message.author.id);
   if (userAfk) {

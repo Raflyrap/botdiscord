@@ -86,7 +86,15 @@ BAGIAN 2: PANDUAN LENGKAP UNTUK USER BIASA
 - Dilengkapi tombol interaktif "Sebelumnya" dan "Berikutnya" untuk menjelajahi seluruh koleksi foto hasil pencarian.
 - Channel khusus #📌︱pinterest: Tinggal ketik kata kunci pencarian apa saja di channel ini (contoh: anime aesthetic, cyberpunk car), bot langsung mencarikan gambarnya.
 
-9. GENERATOR GAMBAR & FANART AI (#ai-fanart):
+9. TRANSFORMASI HITAMKAN GAMBAR (AUTO-HITAMKAN & /hitamkan):
+- /hitamkan [gambar / url]: Mengubah wajah atau kulit foto menjadi hitam/gelap secara instan dan natural.
+- Cara alternatif:
+  * Upload foto langsung dengan caption "/hitamkan".
+  * Reply foto seseorang di chat lalu ketik "/hitamkan".
+  * Upload foto di channel khusus #⚫︱hitamkan (semua gambar yang diunggah di channel ini otomatis langsung dihitamkan wajahnya).
+  * Setup mandiri menggunakan /sethitamkan atau otomatis tersedia di bawah channel pinterest pada server yang memakai /setup all in one.
+
+10. GENERATOR GAMBAR & FANART AI (#ai-fanart):
 - Masuk ke channel #ai-fanart, kirim prompt teks deskripsi gambar yang lo mau (contoh: "cyberpunk cat with neon sunglasses in tokyo"). Bot bakal langsung buatkan gambar ilustrasinya.
 
 10. DOWNLOADER SOSIAL MEDIA OTOMATIS (Tanpa Watermark):
@@ -146,6 +154,7 @@ BAGIAN 3: PANDUAN LENGKAP UNTUK ADMIN & PEMILIK SERVER
   * /setsosmed [aksi]: Mengatur kategori & 4 channel auto-downloader sosmed tanpa watermark (TikTok, Instagram, Facebook, YouTube) dengan auto-clean 24 jam.
   * /setvoicehub [aksi]: Mengatur sistem Voice Hub otomatis Join-to-Create room pribadi dengan panel kontrol interaktif.
   * /setpinterest [channel]: Mengatur channel khusus pencarian foto Pinterest otomatis.
+  * /sethitamkan [channel]: Mengatur studio otomatis untuk mengubah foto wajah menjadi hitam.
   * /setremovebg [channel]: Mengatur channel khusus studio hapus background instan.
   * /sethd [aksi]: Mengatur studio HD foto AI.
   * /setwelcome [channel]: Mengatur channel pesan sambutan banner member baru.

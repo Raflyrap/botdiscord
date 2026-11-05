@@ -96,6 +96,30 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
       await channel.send({ embeds: [guideEmbed] }).catch(() => {});
     }
     channelsCfg.removeBgId = channel.id;
+  } else if (featureKey === 'hitamkan') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
+      channel = await getOrCreateChannel(guild, {
+        name: '⚫︱hitamkan',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+
+      const guideEmbed = new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setAuthor({ name: `${guild.name} • Studio Hitamkan`, iconURL: guild.client.user.displayAvatarURL() })
+        .setTitle('Studio Auto-Hitamkan Foto')
+        .setDescription(
+          'Kirim atau upload file foto langsung ke channel ini untuk mengubah tone wajah/kulit menjadi hitam secara instan!\n\n' +
+          '• Format didukung: JPG, PNG, WEBP\n' +
+          '• Otomatis: Cukup upload atau kirim gambar wajah/orang di sini tanpa perlu mengetik perintah apa pun.\n' +
+          '• Perintah manual: Anda juga dapat menggunakan `/hitamkan` di channel lain.'
+        )
+        .setFooter({ text: 'FlyBot Instant Melanin & Darken Studio' });
+
+      await channel.send({ embeds: [guideEmbed] }).catch(() => {});
+    }
+    channelsCfg.hitamkanId = channel.id;
   } else if (featureKey === 'aigenerating') {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
@@ -335,6 +359,7 @@ function removeModularFeature(guildId, featureKey) {
   const keyMap = {
     pinterest: 'pinterestId',
     removebg: 'removeBgId',
+    hitamkan: 'hitamkanId',
     aigenerating: 'aiGeneratingId',
     aiprompt: 'aiPromptId',
     fanart: 'aiFanartId',
@@ -366,6 +391,7 @@ function isFeatureConfigured(guild, featureKey) {
   const nameKeywords = {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
+    hitamkan: ['hitamkan'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
@@ -381,6 +407,7 @@ function isFeatureConfigured(guild, featureKey) {
   const idMap = {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
+    hitamkan: chCfg.hitamkanId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -416,6 +443,7 @@ function getActiveFeatureChannel(guild, featureKey) {
   const idMap = {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
+    hitamkan: chCfg.hitamkanId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -437,6 +465,7 @@ function getActiveFeatureChannel(guild, featureKey) {
   const nameKeywords = {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
+    hitamkan: ['hitamkan'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
