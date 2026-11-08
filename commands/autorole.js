@@ -11,6 +11,7 @@ module.exports = {
     .setName('autorole')
     .setDescription('Mengatur pemberian role otomatis kepada setiap member yang baru bergabung')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setDMPermission(false)
     .addSubcommand((sub) =>
       sub
         .setName('set')
@@ -34,8 +35,22 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply({
+        content: '❌ Perintah `/autorole` hanya dapat digunakan di dalam server Discord, bukan melalui Direct Message (DM)!',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
     const sub = interaction.options.getSubcommand();
-    const botMember = interaction.guild.members.me;
+    const botMember = interaction.guild.members.me || await interaction.guild.members.fetchMe().catch(() => null);
+
+    if (!botMember) {
+      return interaction.reply({
+        content: '❌ Gagal memuat data bot di server ini. Pastikan bot memiliki izin yang cukup.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
 
     if (sub === 'set') {
       const targetRole = interaction.options.getRole('role');
