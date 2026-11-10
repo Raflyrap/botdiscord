@@ -381,7 +381,7 @@ module.exports = {
       await interaction.editReply({
         content: `**Sedang memproses setup [${chosen.toUpperCase()}]...** Mohon tunggu beberapa detik, bot sedang menyusun kategori, channel teks & suara, permission, dan panel otomatis...`,
         components: [],
-      });
+      }).catch(() => {});
 
       try {
         const result = await executeSetupAction(chosen, interaction.guild);
@@ -390,13 +390,13 @@ module.exports = {
           content: null,
           embeds: [embed],
           components: [],
-        });
+        }).catch(() => {});
       } catch (err) {
         console.error(`Error saat collector setup ${chosen}:`, err);
         await interaction.editReply({
           content: `Gagal melakukan setup: ${err.message}`,
           components: [],
-        });
+        }).catch(() => {});
       }
     });
   },

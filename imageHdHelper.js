@@ -246,8 +246,29 @@ async function enhanceImage(input, options = {}) {
       // Lanjut proses jika metadata gagal di-fetch
     }
 
-    // 2. Proses menggunakan mesin AI Super-Resolution HD
-    const rawAiBuffer = await enhanceWithAiSuperResolution(input);
+    // 2. Proses menggunakan mesin AI Super-Resolution HD dengan fallback Sharp Ultra-HD
+    let rawAiBuffer = null;
+    let engineUsed = 'AI Super-Resolution HD';
+
+    try {
+      rawAiBuffer = await enhanceWithAiSuperResolution(input);
+    } catch (aiErr) {
+      console.warn('[AI HD] Mesin AI eksternal offline/gangguan, beralih ke Sharp Ultra-HD Engine:', aiErr.message);
+      engineUsed = 'Sharp Ultra-HD Engine';
+
+      const origRes = await fetch(input);
+      if (!origRes.ok) {
+        throw new Error(`Gagal mengunduh gambar asli: HTTP ${origRes.status}`);
+      }
+      const origBuf = Buffer.from(await origRes.arrayBuffer());
+      const targetW = originalWidth > 0 ? originalWidth * 2 : 1920;
+
+      rawAiBuffer = await sharp(origBuf)
+        .resize({ width: targetW, kernel: sharp.kernel.lanczos3 })
+        .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
 
     // 3. Metadata dan pengecekan ukuran gambar
     let finalBuffer = rawAiBuffer;
@@ -284,7 +305,7 @@ async function enhanceImage(input, options = {}) {
       newWidth: newWidth,
       newHeight: newHeight,
       scale: calculatedScale || 2,
-      engine: 'AI Super-Resolution HD',
+      engine: engineUsed,
       processTimeMs: elapsed,
     };
   } catch (err) {

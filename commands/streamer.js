@@ -140,8 +140,17 @@ module.exports = {
     // 2. SUBCOMMAND: ADD (Wajib di Channel Notif)
     // ==========================================
     if (subcommand === 'add') {
+      if (!notifChannel) {
+        return interaction.reply({
+          content:
+            '❌ Bot belum memiliki channel notifikasi stream di server ini dan tidak memiliki izin `Manage Channels` untuk membuatnya otomatis.\n' +
+            'Silakan berikan izin `Manage Channels` ke role FlyBot atau buat channel teks dengan nama `🔴︱notif-stream`.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       // Validasi: Wajib dijalankan di channel notif stream
-      const currentChannelIsOfficial = notifChannel && channel.id === notifChannel.id;
+      const currentChannelIsOfficial = channel.id === notifChannel.id;
 
       if (!currentChannelIsOfficial) {
         return interaction.reply({
@@ -226,12 +235,13 @@ module.exports = {
     if (subcommand === 'list') {
       const cfg = getGuildStreamerConfig(guild.id);
       const list = cfg.streamers || [];
+      const notifMention = notifChannel ? `<#${notifChannel.id}>` : 'channel notifikasi stream';
 
       if (list.length === 0) {
         return interaction.reply({
           content:
             `Belum ada streamer yang didaftarkan di server ini.\n` +
-            `Gunakan perintah \`/streamer add\` di channel <#${notifChannel.id}> untuk mulai memantau streamer favoritmu!`,
+            `Gunakan perintah \`/streamer add\` di ${notifMention} untuk mulai memantau streamer favoritmu!`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -244,7 +254,7 @@ module.exports = {
         })
         .setTitle(`Daftar Streamer Aktif (${list.length})`)
         .setDescription(
-          `Semua notifikasi siaran langsung di bawah ini otomatis dikirim ke channel <#${notifChannel.id}>:`
+          `Semua notifikasi siaran langsung di bawah ini otomatis dikirim ke ${notifMention}:`
         );
 
       list.forEach((s, idx) => {

@@ -357,7 +357,7 @@ async function handleVoiceStateUpdate(oldState, newState) {
         },
       ];
 
-      // A. Buat voice channel baru untuk member tersebut dengan fallback
+      // A. Buat voice channel baru untuk member tersebut dengan fallback aman
       let tempChannel = null;
       try {
         tempChannel = await guild.channels.create({
@@ -368,11 +368,18 @@ async function handleVoiceStateUpdate(oldState, newState) {
         });
       } catch (err) {
         console.warn('[TEMP VOICE] Gagal buat voice channel dengan parent/overwrites, mencoba fallback:', err.message);
-        tempChannel = await guild.channels.create({
-          name: channelName,
-          type: ChannelType.GuildVoice,
-        });
+        try {
+          tempChannel = await guild.channels.create({
+            name: channelName,
+            type: ChannelType.GuildVoice,
+          });
+        } catch (fallbackErr) {
+          console.warn(`[TEMP VOICE] Gagal membuat voice channel di server ${guild.name} (${guild.id}):`, fallbackErr.message);
+          return;
+        }
       }
+
+      if (!tempChannel) return;
 
       // B. Simpan data room baru (Panel kontrol langsung di dalam chat voice channel)
       const roomData = {
