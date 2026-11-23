@@ -730,6 +730,13 @@ async function setupCinematography(guild, roles) {
     permissionOverwrites: memberOverwrites,
   });
 
+  const meme = await getOrCreateChannel(guild, {
+    name: '🎭︱meme',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
   const removeBg = await getOrCreateChannel(guild, {
     name: '✂️︱remove-bg',
     type: ChannelType.GuildText,
@@ -835,10 +842,34 @@ async function setupCinematography(guild, roles) {
       )
       .setFooter({ text: 'FlyBot Instant Melanin & Darken Studio' })
       .setTimestamp();
-    await hitamkan.send({ embeds: [guideEmbed] }).catch(() => {});
+    const hitMsg = await hitamkan.send({ embeds: [guideEmbed] }).catch(() => null);
+    if (hitMsg) await hitMsg.pin().catch(() => {});
   }
 
-  return { category, fotografi, videografi, hdFoto, removeBg, pinterest, hitamkan };
+  // Kirim panduan Meme jika channel masih baru / kosong
+  const memeMsgs = await meme.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!memeMsgs || memeMsgs.size === 0) {
+    const memeEmbed = new EmbedBuilder()
+      .setColor(0x8ACE00)
+      .setAuthor({ name: `${guild.name} • Studio Meme & Canvas`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('🎭 Studio Auto Meme & Canvas')
+      .setDescription(
+        `Selamat datang di channel khusus **Meme & Canvas Generator**!\n\n` +
+        `**Cara Pakai Otomatis:**\n` +
+        `• Ketik teks biasa langsung di sini → otomatis jadi gambar **Brat**!\n` +
+        `• Ketik \`gif <teks>\` → otomatis jadi **GIF Animasi Brat**!\n\n` +
+        `**Perintah Lengkap (\`/meme\`):**\n` +
+        `• \`/meme brat\` • \`/meme tweet\` • \`/meme ship\` • \`/meme sertifikat\`\n` +
+        `• \`/meme batslap\` • \`/meme kiss\` • \`/meme gay\` • \`/meme spotify\` • \`/meme efek\`\n\n` +
+        `> 🧹 *Chat di channel ini dibersihkan otomatis setiap jam **00:00 WIB**.*`
+      )
+      .setFooter({ text: 'FlyBot Meme & Canvas Studio' })
+      .setTimestamp();
+    const sentMeme = await meme.send({ embeds: [memeEmbed] }).catch(() => null);
+    if (sentMeme) await sentMeme.pin().catch(() => {});
+  }
+
+  return { category, fotografi, videografi, hdFoto, meme, removeBg, pinterest, hitamkan };
 }
 
 /**
@@ -1632,6 +1663,7 @@ async function setupFullTemplate(guild) {
       giveawayId: official.giveaway?.id || null,
       stalkId: community.stalk.id,
       hdFotoId: cinematography.hdFoto.id,
+      memeId: cinematography.meme?.id || null,
       removeBgId: cinematography.removeBg?.id || null,
       pinterestId: cinematography.pinterest?.id || null,
       hitamkanId: cinematography.hitamkan?.id || null,

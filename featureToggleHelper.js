@@ -57,6 +57,13 @@ const FEATURE_CATALOG = [
     type: 'hd',
   },
   {
+    key: 'meme',
+    label: 'Meme & Canvas Studio',
+    configIds: ['memeId'],
+    keywords: ['meme'],
+    type: 'modular',
+  },
+  {
     key: 'removebg',
     label: 'Remove Background',
     configIds: ['removeBgId'],

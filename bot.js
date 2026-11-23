@@ -2556,6 +2556,46 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
+  // === FITUR AUTO-MEME DI CHANNEL KHUSUS #🎭︱meme ===
+  const isMemeChannel = message.guild && (
+    message.channel?.id === templateCfg?.channels?.memeId ||
+    (message.channel?.name && message.channel.name.toLowerCase().includes('meme'))
+  );
+  if (isMemeChannel && !cleanContent.startsWith('/') && !cleanContent.startsWith('!')) {
+    const rawText = message.content.trim();
+    if (rawText.length > 0 && rawText.length <= 150) {
+      try {
+        const isAnimated = /^gif\s+/i.test(rawText);
+        const bratText = isAnimated ? rawText.replace(/^gif\s+/i, '').trim() : rawText;
+        if (bratText.length > 0) {
+          const processingMsg = await message.reply(
+            isAnimated ? '🎭 Sedang membuat **GIF Animasi Brat** kamu, tunggu sebentar...' : '🎭 Sedang membuat gambar **Brat** kamu...'
+          );
+          const { fetchSiputzxImage } = require('./memeCanvasHelper');
+          const result = await fetchSiputzxImage(
+            '/api/m/brat',
+            { text: bratText, isAnimated: isAnimated ? 'true' : 'false' },
+            isAnimated ? 'gif' : 'png'
+          );
+
+          const file = new AttachmentBuilder(result.buffer, { name: result.fileName });
+          const embed = new EmbedBuilder()
+            .setColor(0x8ACE00)
+            .setTitle(isAnimated ? '🎭 Brat Animated Generator' : '🎭 Brat Image Generator')
+            .setDescription(`> *"${bratText}"*`)
+            .setImage(`attachment://${result.fileName}`)
+            .setFooter({ text: `FlyBot Auto-Meme • ${result.size} • Diminta oleh ${message.author.username}` })
+            .setTimestamp();
+
+          await processingMsg.edit({ content: null, embeds: [embed], files: [file] });
+          return;
+        }
+      } catch (err) {
+        console.error('[AUTO-MEME ERROR]:', err.message);
+      }
+    }
+  }
+
   // === FITUR AFK: 1. HAPUS STATUS AFK SAAT USER MENGIRIM PESAN ===
   const userAfk = removeAfk(message.guild.id, message.author.id);
   if (userAfk) {

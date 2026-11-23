@@ -120,6 +120,30 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
       await channel.send({ embeds: [guideEmbed] }).catch(() => {});
     }
     channelsCfg.hitamkanId = channel.id;
+  } else if (featureKey === 'meme') {
+    if (!channel) {
+      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
+      channel = await getOrCreateChannel(guild, {
+        name: '🎭︱meme',
+        type: ChannelType.GuildText,
+        parentId: category.id,
+      });
+
+      const guideEmbed = new EmbedBuilder()
+        .setColor(0x8ACE00)
+        .setAuthor({ name: `${guild.name} • Studio Meme & Canvas`, iconURL: guild.client.user.displayAvatarURL() })
+        .setTitle('🎭 Studio Auto Meme & Canvas')
+        .setDescription(
+          'Ketik teks biasa langsung di channel ini untuk membuat gambar **Brat** otomatis, atau ketik `gif <teks>` untuk **GIF Animasi Brat**!\n\n' +
+          '• Perintah lengkap: `/meme brat`, `/meme tweet`, `/meme ship`, `/meme sertifikat`, `/meme batslap`, `/meme kiss`, `/meme gay`, `/meme spotify`, `/meme efek`.\n' +
+          '• Chat dibersihkan otomatis setiap jam **00:00 WIB**.'
+        )
+        .setFooter({ text: 'FlyBot Meme & Canvas Studio' });
+
+      const sent = await channel.send({ embeds: [guideEmbed] }).catch(() => null);
+      if (sent) await sent.pin().catch(() => {});
+    }
+    channelsCfg.memeId = channel.id;
   } else if (featureKey === 'aigenerating') {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
@@ -360,6 +384,7 @@ function removeModularFeature(guildId, featureKey) {
     pinterest: 'pinterestId',
     removebg: 'removeBgId',
     hitamkan: 'hitamkanId',
+    meme: 'memeId',
     aigenerating: 'aiGeneratingId',
     aiprompt: 'aiPromptId',
     fanart: 'aiFanartId',
@@ -392,6 +417,7 @@ function isFeatureConfigured(guild, featureKey) {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
     hitamkan: ['hitamkan'],
+    meme: ['meme'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
@@ -408,6 +434,7 @@ function isFeatureConfigured(guild, featureKey) {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
     hitamkan: chCfg.hitamkanId,
+    meme: chCfg.memeId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -444,6 +471,7 @@ function getActiveFeatureChannel(guild, featureKey) {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
     hitamkan: chCfg.hitamkanId,
+    meme: chCfg.memeId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -466,6 +494,7 @@ function getActiveFeatureChannel(guild, featureKey) {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
     hitamkan: ['hitamkan'],
+    meme: ['meme'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
