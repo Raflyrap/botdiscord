@@ -69,13 +69,13 @@ async function searchTrackWithFallback(player, query, requester) {
     return (await executeSearch({ query })) || { loadType: 'empty', tracks: [] };
   }
 
-  // 2. Prioritas 1: Cari via Spotify ('spsearch') - Terbukti 100% lancar, jernih & bersuara di server!
-  const spRes = await executeSearch({ query, source: 'spsearch' });
-  if (spRes) return spRes;
-
-  // 3. Prioritas 2: Fallback ke SoundCloud ('scsearch')
+  // 2. Prioritas 1: Cari via SoundCloud ('scsearch') - Anti blokir YouTube login/bot, 100% langsung bunyi!
   const scRes = await executeSearch({ query, source: 'scsearch' });
   if (scRes) return scRes;
+
+  // 3. Prioritas 2: Fallback ke Spotify ('spsearch')
+  const spRes = await executeSearch({ query, source: 'spsearch' });
+  if (spRes) return spRes;
 
   // 4. Prioritas 3: Fallback ke YouTube ('ytsearch')
   const ytRes = await executeSearch({ query, source: 'ytsearch' });
@@ -192,6 +192,7 @@ function initLavalink(client) {
   manager
     // Saat lagu mulai dimainkan (Tampilan Mewah, Bersih, Tanpa Emoji)
     .on('trackStart', async (player, track) => {
+      player.deleteData('fallback_attempted');
       if (!player.textChannelId) return;
       const channel = client.channels.cache.get(player.textChannelId);
       if (!channel || typeof channel.send !== 'function') return;
@@ -262,19 +263,23 @@ function initLavalink(client) {
       const isStreamUnavailable =
         errMsg.includes('not available') ||
         errMsg.includes('requires login') ||
+        errMsg.includes('not a bot') ||
         errMsg.includes('All clients failed') ||
         errMsg.includes('No supported audio streams') ||
         errMsg.includes('unavailable');
 
-      // Auto-fallback cerdas: jika stream bermasalah, alihkan lagu ke Spotify
+      // Auto-fallback cerdas: jika stream YouTube/Spotify diblokir login, alihkan otomatis ke SoundCloud (anti-blokir YouTube)
       if (isStreamUnavailable && track?.info?.title && !player.getData('fallback_attempted')) {
         player.setData('fallback_attempted', true);
         if (channel && typeof channel.send === 'function') {
-          channel.send(`Sumber audio pertama tidak dapat diakses. Mengalihkan otomatis ke versi Spotify...`).catch(() => {});
+          channel.send(`Sumber YouTube/Spotify sedang dibatasi. Mengalihkan otomatis ke **SoundCloud** agar lagu tetap diputar...`).catch(() => {});
         }
 
         try {
-          const fallbackRes = await player.search({ query: track.info.title, source: 'spsearch' }, track.requester);
+          const searchTitle = track.info.author && !track.info.title.toLowerCase().includes(track.info.author.toLowerCase())
+            ? `${track.info.author} - ${track.info.title}`
+            : track.info.title;
+          const fallbackRes = await player.search({ query: searchTitle, source: 'scsearch' }, track.requester);
           if (fallbackRes && fallbackRes.tracks && fallbackRes.tracks.length > 0) {
             const fallbackTrack = fallbackRes.tracks[0];
             player.queue.tracks.unshift(fallbackTrack);
