@@ -1615,7 +1615,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Proteksi Global DM: Cegah command khusus server crash (Cannot read properties of null) saat dipakai di DM
   const DM_SAFE_COMMANDS = new Set([
     'ping', 'help', 'invite', 'ai', 'remind', 'request-fitur',
-    'hitamkan', 'hd', 'removebg', 'pinterest', 'stalk', 'owner',
+    'hitamkan', 'hd', 'removebg', 'pinterest', 'stalk', 'meme', 'owner',
   ]);
   if (!interaction.guild && !DM_SAFE_COMMANDS.has(interaction.commandName)) {
     return interaction.reply({
