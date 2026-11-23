@@ -86,6 +86,7 @@ async function getOrCreateRole(guild, { name, color, hoist = true, mentionable =
 async function getOrCreateChannel(guild, { name, type, parentId, permissionOverwrites, position }) {
   const channels = await guild.channels.fetch().catch(() => guild.channels.cache);
   let channel = channels.find((c) => {
+    if (!c || !c.name) return false;
     if (type === ChannelType.GuildCategory) {
       return c.type === ChannelType.GuildCategory && (c.name === name || c.name.toLowerCase().includes(name.toLowerCase().replace(/─/g, '').trim()));
     }
