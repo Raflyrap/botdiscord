@@ -446,7 +446,7 @@ module.exports = {
     // 8. Subcommand: Discord
     if (subcommand === 'discord') {
       const userId = interaction.options.getString('user_id');
-      const result = await stalkDiscord(userId);
+      const result = await stalkDiscord(userId, interaction.client);
 
       if (!result.success) {
         return interaction.editReply({

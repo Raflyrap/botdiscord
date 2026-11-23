@@ -58,6 +58,13 @@ module.exports = {
         });
       }
 
+      const files = [];
+      let imageSource = res.resultUrl;
+      if (res.buffer) {
+        files.push(new AttachmentBuilder(res.buffer, { name: 'removebg.png' }));
+        imageSource = 'attachment://removebg.png';
+      }
+
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setAuthor({
@@ -70,20 +77,25 @@ module.exports = {
           `• Format: **${(res.format || 'png').toUpperCase()}**\n` +
           `• Ukuran File: **${res.size || 'N/A'}**\n` +
           (res.responseTime ? `• Kecepatan Respon: **${res.responseTime}**\n\n` : '\n') +
-          `> **Tips:** Klik tombol **"Buka Gambar Transparan"** di bawah atau klik gambar untuk menyimpannya dalam kualitas penuh tanpa kompresi Discord!`
+          `> **Tips:** Klik gambar lalu pilih **"Buka yang asli"** untuk menyimpannya dalam kualitas penuh transparan!`
         )
-        .setImage(res.resultUrl)
+        .setImage(imageSource)
         .setFooter({ text: `Diminta oleh ${interaction.user.username}` })
         .setTimestamp();
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('Buka Gambar Transparan')
-          .setStyle(ButtonStyle.Link)
-          .setURL(res.resultUrl)
-      );
+      const components = [];
+      if (res.resultUrl && res.resultUrl.length <= 512) {
+        components.push(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Buka Gambar Transparan')
+              .setStyle(ButtonStyle.Link)
+              .setURL(res.resultUrl)
+          )
+        );
+      }
 
-      return interaction.editReply({ embeds: [embed], components: [row] });
+      return interaction.editReply({ embeds: [embed], files, components });
     } catch (err) {
       console.error('Error saat eksekusi /removebg:', err);
       return interaction.editReply({

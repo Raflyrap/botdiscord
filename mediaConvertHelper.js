@@ -116,9 +116,66 @@ async function fetchMediaBuffer(url, timeoutMs = 45000) {
 
 /**
  * Konversi & Download TikTok (Khusus Video)
+ * Menggunakan Siputzx API (v1 & v2) sebagai mesin utama, dengan fallback btch-downloader & TikWM
  */
 async function convertTikTok(url) {
-  // 1. Coba ttdl dari btch-downloader
+  // 1. Mesin Utama: Siputzx API (/api/d/tiktok)
+  try {
+    const res = await fetch(`https://api.siputzx.my.id/api/d/tiktok?url=${encodeURIComponent(url)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const d = json?.data;
+      if (json?.status && d) {
+        if (d.type === 'photo' || d.type === 'image' || (Array.isArray(d.images) && d.images.length > 0 && !d.video)) {
+          return { success: false, isPhotoOnly: true };
+        }
+        const videoUrl = d.video?.hd?.url || d.video?.sd?.url || (typeof d.video === 'string' ? d.video : null) || d.urls?.[0];
+        if (videoUrl) {
+          return {
+            success: true,
+            type: 'video',
+            title: d.description || d.title || 'TikTok Video',
+            author: d.author || d.username || 'TikTok',
+            videoUrl,
+            thumbnail: d.cover || '',
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[CONVERT TIKTOK] Siputzx v1 gagal, mencoba Siputzx v2:', e.message);
+  }
+
+  // 2. Fallback: Siputzx API v2 (/api/d/tiktok/v2)
+  try {
+    const res = await fetch(`https://api.siputzx.my.id/api/d/tiktok/v2?url=${encodeURIComponent(url)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const d = json?.data;
+      if (json?.status && d) {
+        const videoUrl = d.download?.video?.[0] || d.video?.[0] || d.play;
+        if (videoUrl) {
+          return {
+            success: true,
+            type: 'video',
+            title: d.title || 'TikTok Video',
+            videoUrl,
+            thumbnail: d.thumbnail || '',
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[CONVERT TIKTOK] Siputzx v2 gagal, mencoba ttdl:', e.message);
+  }
+
+  // 3. Fallback: ttdl dari btch-downloader
   try {
     const res = await ttdl(url);
     if (res && res.status) {
@@ -137,18 +194,18 @@ async function convertTikTok(url) {
     console.warn('[CONVERT TIKTOK] ttdl gagal, mencoba TikWM:', e.message);
   }
 
-  // 2. Fallback ke TikWM API publik
+  // 4. Fallback ke TikWM API publik
   try {
     const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
       },
+      signal: AbortSignal.timeout(12000),
     });
     const json = await tikRes.json();
     if (json && json.data) {
       const data = json.data;
 
-      // Jika hanya foto slideshow / gambar
       if (Array.isArray(data.images) && data.images.length > 0 && !data.play) {
         return {
           success: false,
@@ -206,7 +263,37 @@ async function convertInstagram(url) {
     console.warn('[CONVERT INSTAGRAM] igdl gagal, mencoba fallback AIO:', e.message);
   }
 
-  // 2. Fallback AIO
+  // 2. Fallback Siputzx API (/api/d/igram & /api/d/sssinstagram)
+  for (const ep of ['igram', 'sssinstagram']) {
+    try {
+      const res = await fetch(`https://api.siputzx.my.id/api/d/${ep}?url=${encodeURIComponent(url)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const items = Array.isArray(json?.data) ? json.data : json?.data?.urls || [];
+        if (json?.status && items.length > 0) {
+          const vid = items.find((it) => {
+            const u = typeof it === 'string' ? it : it?.url || '';
+            return u.toLowerCase().includes('.mp4') || u.toLowerCase().includes('video') || it?.type === 'video';
+          });
+          const mediaUrl = typeof vid === 'string' ? vid : vid?.url;
+          if (mediaUrl) {
+            return {
+              success: true,
+              videoUrl: mediaUrl,
+              thumbnail: vid?.thumbnail || '',
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[CONVERT INSTAGRAM] Siputzx ${ep} gagal:`, e.message);
+    }
+  }
+
+  // 3. Fallback AIO
   try {
     const aioRes = await aio(url);
     if (aioRes && aioRes.status) {
@@ -236,9 +323,36 @@ async function convertInstagram(url) {
 
 /**
  * Konversi & Download Facebook (Khusus Video / Reels)
+ * Menggunakan Siputzx API sebagai mesin utama dengan fallback btch-downloader
  */
 async function convertFacebook(url) {
-  // 1. Coba fbdown dari btch-downloader
+  // 1. Mesin Utama: Siputzx API (/api/d/facebook)
+  try {
+    const res = await fetch(`https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(url)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const d = json?.data;
+      if (json?.status && d && Array.isArray(d.downloads) && d.downloads.length > 0) {
+        const best = d.downloads.find((x) => x.url && (x.quality || '').toLowerCase().includes('hd')) || d.downloads[0];
+        if (best && best.url) {
+          return {
+            success: true,
+            title: d.title || 'Facebook Video',
+            videoUrl: best.url,
+            thumbnail: d.thumbnail || '',
+            quality: best.quality || 'HD Quality',
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[CONVERT FACEBOOK] Siputzx gagal, mencoba fbdown:', e.message);
+  }
+
+  // 2. Fallback: fbdown dari btch-downloader
   try {
     const res = await fbdown(url);
     if (res && res.status) {
@@ -255,7 +369,7 @@ async function convertFacebook(url) {
     console.warn('[CONVERT FACEBOOK] fbdown gagal, mencoba fallback AIO:', e.message);
   }
 
-  // 2. Fallback AIO
+  // 3. Fallback AIO
   try {
     const aioRes = await aio(url);
     if (aioRes && aioRes.status) {

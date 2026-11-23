@@ -293,75 +293,114 @@ async function stalkRoblox(username) {
 }
 
 /**
- * Stalk profil TikTok
+ * Stalk profil TikTok (Siputzx API + Fallback Direct TikTok Web Rehydration)
  * @param {string} username
  */
 async function stalkTikTok(username) {
   const cleanUsn = String(username || '').replace(/^@/, '').trim();
   if (!cleanUsn) return { success: false, error: 'Username TikTok tidak boleh kosong.' };
 
+  // 1. Primary: Siputzx API
   try {
-    const res = await fetch(`https://api.snowping.cfd/api/stalker/tiktok?usn=${encodeURIComponent(cleanUsn)}`, {
+    const res = await fetch(`https://api.siputzx.my.id/api/stalk/tiktok?username=${encodeURIComponent(cleanUsn)}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return { success: false, error: `Gagal mengakses API TikTok (status: ${res.status})` };
-    const data = await res.json();
-    if (data && data.status === 200 && data.result) {
-      const r = data.result;
-      return {
-        success: true,
-        data: {
-          username: r.username || cleanUsn,
-          name: r.name || cleanUsn,
-          bio: r.bio || 'Tidak ada bio.',
-          followers: r.followers ? Number(r.followers).toLocaleString() : '0',
-          following: r.following ? Number(r.following).toLocaleString() : '0',
-          likes: r.likes ? Number(r.likes).toLocaleString() : '0',
-          videoCount: r.videoCount ? Number(r.videoCount).toLocaleString() : '0',
-          avatarUrl: r.avatar || null,
-          profileUrl: `https://www.tiktok.com/@${cleanUsn}`,
-        },
-      };
+    if (res.ok) {
+      const json = await res.json();
+      const u = json?.data?.user || json?.data;
+      const stats = json?.data?.stats || u;
+      if (json?.status && u && (u.uniqueId || u.username)) {
+        return {
+          success: true,
+          data: {
+            username: u.uniqueId || u.username || cleanUsn,
+            name: u.nickname || u.name || cleanUsn,
+            bio: u.signature || u.bio || 'Tidak ada bio.',
+            followers: Number(stats?.followerCount ?? stats?.followers ?? 0).toLocaleString(),
+            following: Number(stats?.followingCount ?? stats?.following ?? 0).toLocaleString(),
+            likes: Number(stats?.heartCount ?? stats?.heart ?? stats?.likes ?? 0).toLocaleString(),
+            videoCount: Number(stats?.videoCount ?? stats?.videos ?? 0).toLocaleString(),
+            avatarUrl: u.avatarLarger || u.avatarMedium || u.avatar || null,
+            profileUrl: `https://www.tiktok.com/@${u.uniqueId || cleanUsn}`,
+          },
+        };
+      }
     }
-    return { success: false, error: data?.error || data?.message || 'Akun TikTok tidak ditemukan.' };
+  } catch (e) {}
+
+  // 2. Fallback: Direct TikTok Web Rehydration Scraper
+  try {
+    const res = await fetch(`https://www.tiktok.com/@${encodeURIComponent(cleanUsn)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const match = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+      if (match) {
+        const parsed = JSON.parse(match[1]);
+        const userInfo = parsed?.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo;
+        if (userInfo && userInfo.user) {
+          const u = userInfo.user;
+          const s = userInfo.stats || {};
+          return {
+            success: true,
+            data: {
+              username: u.uniqueId || cleanUsn,
+              name: u.nickname || cleanUsn,
+              bio: u.signature || 'Tidak ada bio.',
+              followers: Number(s.followerCount || 0).toLocaleString(),
+              following: Number(s.followingCount || 0).toLocaleString(),
+              likes: Number(s.heartCount || s.heart || 0).toLocaleString(),
+              videoCount: Number(s.videoCount || 0).toLocaleString(),
+              avatarUrl: u.avatarLarger || u.avatarMedium || u.avatarThumb || null,
+              profileUrl: `https://www.tiktok.com/@${u.uniqueId || cleanUsn}`,
+            },
+          };
+        }
+      }
+    }
+    return { success: false, error: `Akun TikTok "@${cleanUsn}" tidak ditemukan atau sedang diprivat.` };
   } catch (err) {
     return { success: false, error: `Error saat stalk TikTok: ${err.message}` };
   }
 }
 
 /**
- * Stalk profil Discord berdasarkan User ID
+ * Stalk profil Discord berdasarkan User ID menggunakan Native Discord.js Official API
  * @param {string} userId
+ * @param {import('discord.js').Client} [client]
  */
-async function stalkDiscord(userId) {
+async function stalkDiscord(userId, client = null) {
   const cleanId = String(userId || '').trim();
   if (!cleanId || !/^\d{17,20}$/.test(cleanId)) {
     return { success: false, error: 'User ID Discord harus berupa 17-20 digit angka valid.' };
   }
 
   try {
-    const res = await fetch(`https://api.snowping.cfd/api/stalker/discord?id=${encodeURIComponent(cleanId)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    if (!res.ok) return { success: false, error: `Gagal mengakses API Discord (status: ${res.status})` };
-    const data = await res.json();
-    if (data && data.status === 200 && data.result?.profile) {
-      const p = data.result.profile;
-      return {
-        success: true,
-        data: {
-          id: p.id,
-          username: p.username || 'Unknown',
-          discriminator: p.discriminator || '0',
-          globalName: p.global_name || p.username || 'Unknown',
-          avatarUrl: p.avatar || null,
-          bannerUrl: p.banner || null,
-        },
-      };
+    if (client && client.users) {
+      const user = await client.users.fetch(cleanId, { force: true });
+      if (user) {
+        return {
+          success: true,
+          data: {
+            id: user.id,
+            username: user.username || 'Unknown',
+            discriminator: user.discriminator || '0',
+            globalName: user.globalName || user.username || 'Unknown',
+            avatarUrl: user.displayAvatarURL({ size: 512, extension: 'png' }) || null,
+            bannerUrl: user.bannerURL({ size: 1024, extension: 'png' }) || null,
+          },
+        };
+      }
     }
-    return { success: false, error: data?.error || data?.message || 'User ID Discord tidak ditemukan.' };
+    return { success: false, error: 'User ID Discord tidak ditemukan.' };
   } catch (err) {
-    return { success: false, error: `Error saat stalk Discord: ${err.message}` };
+    return { success: false, error: `User ID Discord tidak ditemukan atau tidak valid (${err.message}).` };
   }
 }
 

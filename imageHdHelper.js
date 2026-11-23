@@ -246,29 +246,31 @@ async function enhanceImage(input, options = {}) {
       // Lanjut proses jika metadata gagal di-fetch
     }
 
-    // 2. Proses menggunakan mesin AI Super-Resolution HD dengan fallback Sharp Ultra-HD
-    let rawAiBuffer = null;
-    let engineUsed = 'AI Super-Resolution HD';
-
-    try {
-      rawAiBuffer = await enhanceWithAiSuperResolution(input);
-    } catch (aiErr) {
-      console.warn('[AI HD] Mesin AI eksternal offline/gangguan, beralih ke Sharp Ultra-HD Engine:', aiErr.message);
-      engineUsed = 'Sharp Ultra-HD Engine';
-
-      const origRes = await fetch(input);
-      if (!origRes.ok) {
-        throw new Error(`Gagal mengunduh gambar asli: HTTP ${origRes.status}`);
-      }
-      const origBuf = Buffer.from(await origRes.arrayBuffer());
-      const targetW = originalWidth > 0 ? originalWidth * 2 : 1920;
-
-      rawAiBuffer = await sharp(origBuf)
-        .resize({ width: targetW, kernel: sharp.kernel.lanczos3 })
-        .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
-        .jpeg({ quality: 95 })
-        .toBuffer();
+    // 2. Proses langsung menggunakan Sharp Ultra-HD Engine (Lanczos3 + Unsharp Mask)
+    // (Cepat < 2 detik, stabil 24/7 tanpa timeout dari server eksternal)
+    const origRes = await fetch(input, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0' },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!origRes.ok) {
+      throw new Error(`Gagal mengunduh gambar asli: HTTP ${origRes.status}`);
     }
+    const origBuf = Buffer.from(await origRes.arrayBuffer());
+    const origMeta = await sharp(origBuf).metadata().catch(() => ({}));
+    if (!originalWidth && origMeta.width) originalWidth = origMeta.width;
+    if (!originalHeight && origMeta.height) originalHeight = origMeta.height;
+
+    const reqScale = Math.min(Math.max(parseInt(options.scale, 10) || 2, 2), 4);
+    const maxDim = 3840; // Batasi maksimal 4K agar tidak OOM / melebihi batas 8MB Discord
+    const targetW = originalWidth > 0 ? Math.min(originalWidth * reqScale, maxDim) : 1920;
+
+    const engineUsed = 'Sharp Ultra-HD Engine';
+    const rawAiBuffer = await sharp(origBuf)
+      .resize({ width: targetW, kernel: sharp.kernel.lanczos3, withoutEnlargement: false })
+      .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
+      .modulate({ saturation: 1.05 })
+      .jpeg({ quality: 94, chromaSubsampling: '4:4:4' })
+      .toBuffer();
 
     // 3. Metadata dan pengecekan ukuran gambar
     let finalBuffer = rawAiBuffer;

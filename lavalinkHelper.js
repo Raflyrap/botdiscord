@@ -103,16 +103,6 @@ function initLavalink(client) {
       retryAmount: 50,
     },
     {
-      id: 'nazha-v4',
-      host: 'lavalink.nazha.online',
-      port: 443,
-      authorization: 'nazhafreelava',
-      secure: true,
-      requestTimeout: 10000,
-      retryDelay: 10000,
-      retryAmount: 50,
-    },
-    {
       id: 'kasawa-v4',
       host: 'lava2.kasawa.pro',
       port: 2334,

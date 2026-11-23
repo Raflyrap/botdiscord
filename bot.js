@@ -1612,6 +1612,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
+  // Proteksi Global DM: Cegah command khusus server crash (Cannot read properties of null) saat dipakai di DM
+  const DM_SAFE_COMMANDS = new Set([
+    'ping', 'help', 'invite', 'ai', 'remind', 'request-fitur',
+    'hitamkan', 'hd', 'removebg', 'pinterest', 'stalk', 'owner',
+  ]);
+  if (!interaction.guild && !DM_SAFE_COMMANDS.has(interaction.commandName)) {
+    return interaction.reply({
+      content: `❌ Perintah \`/${interaction.commandName}\` hanya dapat digunakan di dalam server Discord, bukan melalui Direct Message (DM)!`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
   // Validasi Channel Khusus Musik untuk Server Template All-in-One (1 Paket: play, pause, resume, stop, skip, queue, repeat, shuffle, volume)
   const MUSIC_COMMAND_NAMES = ['play', 'pause', 'resume', 'stop', 'skip', 'queue', 'repeat', 'shuffle', 'volume'];
   if (interaction.guild && MUSIC_COMMAND_NAMES.includes(interaction.commandName)) {
@@ -2260,6 +2272,13 @@ client.on(Events.MessageCreate, async (message) => {
         const result = await removeBgImage(targetImageUrl);
 
         if (result.success) {
+          const files = [];
+          let imageSource = result.resultUrl;
+          if (result.buffer) {
+            files.push(new AttachmentBuilder(result.buffer, { name: 'removebg.png' }));
+            imageSource = 'attachment://removebg.png';
+          }
+
           const embed = new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle('Background Gambar Berhasil Dihapus')
@@ -2267,23 +2286,29 @@ client.on(Events.MessageCreate, async (message) => {
               `Background foto berhasil dipisahkan dan diubah menjadi transparan (PNG murni).\n\n` +
               `• Format: **${(result.format || 'png').toUpperCase()}**\n` +
               `• Ukuran File: **${result.size || 'N/A'}**\n\n` +
-              `> **Tips:** Klik tombol **"Buka Gambar Transparan"** di bawah untuk menyimpan gambar kualitas penuh tanpa kompresi Discord!`
+              `> **Tips:** Klik gambar lalu pilih **"Buka yang asli"** untuk menyimpan gambar kualitas penuh transparan!`
             )
-            .setImage(result.resultUrl)
+            .setImage(imageSource)
             .setFooter({ text: `FlyBot Auto-RemoveBG • Diminta oleh ${message.author.username}` })
             .setTimestamp();
 
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('Buka Gambar Transparan')
-              .setStyle(ButtonStyle.Link)
-              .setURL(result.resultUrl)
-          );
+          const components = [];
+          if (result.resultUrl && result.resultUrl.length <= 512) {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setLabel('Buka Gambar Transparan')
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(result.resultUrl)
+              )
+            );
+          }
 
           await processingMsg.edit({
             content: null,
             embeds: [embed],
-            components: [row],
+            files,
+            components,
           });
         } else {
           await processingMsg.edit({
@@ -2320,6 +2345,13 @@ client.on(Events.MessageCreate, async (message) => {
         const result = await removeBgImage(targetImageUrl);
 
         if (result.success) {
+          const files = [];
+          let imageSource = result.resultUrl;
+          if (result.buffer) {
+            files.push(new AttachmentBuilder(result.buffer, { name: 'removebg.png' }));
+            imageSource = 'attachment://removebg.png';
+          }
+
           const embed = new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle('Background Gambar Berhasil Dihapus')
@@ -2327,23 +2359,29 @@ client.on(Events.MessageCreate, async (message) => {
               `Background foto berhasil dipisahkan dan diubah menjadi transparan (PNG murni).\n\n` +
               `• Format: **${(result.format || 'png').toUpperCase()}**\n` +
               `• Ukuran File: **${result.size || 'N/A'}**\n\n` +
-              `> **Tips:** Klik tombol **"Buka Gambar Transparan"** di bawah untuk menyimpan gambar kualitas penuh tanpa kompresi Discord!`
+              `> **Tips:** Klik gambar lalu pilih **"Buka yang asli"** untuk menyimpan gambar kualitas penuh transparan!`
             )
-            .setImage(result.resultUrl)
+            .setImage(imageSource)
             .setFooter({ text: `FlyBot RemoveBG • Diminta oleh ${message.author.username}` })
             .setTimestamp();
 
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('Buka Gambar Transparan')
-              .setStyle(ButtonStyle.Link)
-              .setURL(result.resultUrl)
-          );
+          const components = [];
+          if (result.resultUrl && result.resultUrl.length <= 512) {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setLabel('Buka Gambar Transparan')
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(result.resultUrl)
+              )
+            );
+          }
 
           await processingMsg.edit({
             content: null,
             embeds: [embed],
-            components: [row],
+            files,
+            components,
           });
         } else {
           await processingMsg.edit({
