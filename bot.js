@@ -263,7 +263,7 @@ client.once(Events.ClientReady, async (readyClient) => {
               c.name.toLowerCase().includes('converter')
             )
           );
-          if (cfg?.allInOneConfigured || hasTemplateCat) {
+          if ((cfg?.allInOneConfigured || hasTemplateCat) && !(cfg?.disabledFeatures && cfg.disabledFeatures.length > 0)) {
             console.log(`[AUTO-UPDATE SETUP] Menyinkronkan update template untuk server: ${guild.name}...`);
             await syncServerTemplate(guild);
             console.log(`[AUTO-UPDATE SETUP] Sukses menyinkronkan template server: ${guild.name}`);

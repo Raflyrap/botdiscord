@@ -44,6 +44,14 @@ function setGuildConfig(guildId, newSettings) {
 
 // Mencari channel pengiriman pesan secara cerdas
 async function resolveChannel(guild, type = 'welcome') {
+  // Cek apakah fitur welcome/leave sedang dimatikan (OFF) oleh admin server
+  try {
+    const { isFeatureDisabled } = require('./featureToggleHelper');
+    if (isFeatureDisabled(guild.id, type)) {
+      return null;
+    }
+  } catch (_) {}
+
   const guildConfig = getGuildConfig(guild.id);
   const targetChannelId = type === 'welcome' ? guildConfig.welcomeChannel : guildConfig.leaveChannel;
 
