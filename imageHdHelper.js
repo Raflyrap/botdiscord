@@ -160,62 +160,61 @@ async function removeHdChannel(guild) {
 }
 
 /**
- * Peningkatan Kualitas Gambar via Mesin AI Super-Resolution HD (Snowping Engine)
- * @param {string} imageUrl
+ * Peningkatan Kualitas Gambar via Mesin AI Super-Resolution HD (Real-ESRGAN via Hugging Face Gradio)
+ * @param {Buffer} inputBuffer
+ * @param {number} scale - 2 atau 4
  * @returns {Promise<Buffer>}
  */
-async function enhanceWithAiSuperResolution(imageUrl) {
-  if (!imageUrl || typeof imageUrl !== 'string' || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'))) {
-    throw new Error('URL gambar tidak valid untuk diproses oleh AI Super-Resolution.');
-  }
+async function enhanceWithAiSuperResolution(inputBuffer, scale = 4) {
+  const { Client } = await import('@gradio/client');
+  const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
+  const inputBlob = new Blob([inputBuffer], { type: 'image/png' });
 
-  const apiUrl = 'https://api.snowping.cfd/api/imagehd/hd?url=' + encodeURIComponent(imageUrl);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 35000);
-
-  let res;
+  // 1. Primary AI: Real-ESRGAN (bookbot/Image-Upscaling-Playground) — cepat (~3-5 detik) & sangat tajam
   try {
-    res = await fetch(apiUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0',
-      },
+    const client = await Client.connect('bookbot/Image-Upscaling-Playground', clientOptions);
+    const modelChoice = scale >= 4 ? 'modelx4' : 'modelx2';
+    const prediction = await client.predict('/upscale', {
+      image: inputBlob,
+      model: modelChoice,
     });
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw new Error('Koneksi ke mesin AI Super-Resolution timeout.');
+    const fileInfo = Array.isArray(prediction?.data) ? prediction.data[0] : null;
+    const resultUrl = typeof fileInfo === 'string' ? fileInfo : fileInfo?.url;
+    if (resultUrl) {
+      const imgRes = await fetch(resultUrl, { signal: AbortSignal.timeout(25000) });
+      if (imgRes.ok) {
+        const resultBuf = Buffer.from(await imgRes.arrayBuffer());
+        if (resultBuf.length > 0) return resultBuf;
+      }
     }
-    throw new Error(`Koneksi AI gagal: ${err.message}`);
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (err) {
+    console.warn('[AI HD] bookbot Real-ESRGAN gagal, mencoba fallback Nick088 Real-ESRGAN:', err.message);
   }
 
-  if (!res.ok) {
-    throw new Error(`Mesin AI merespon dengan status HTTP ${res.status}`);
+  // 2. Fallback AI: Nick088/Real-ESRGAN_Pytorch
+  const client2 = await Client.connect('Nick088/Real-ESRGAN_Pytorch', clientOptions);
+  const prediction2 = await client2.predict('/predict', {
+    img: inputBlob,
+    size_modifier: scale >= 4 ? 4 : 2,
+  });
+  const fileInfo2 = Array.isArray(prediction2?.data) ? prediction2.data[0] : null;
+  const resultUrl2 = typeof fileInfo2 === 'string' ? fileInfo2 : fileInfo2?.url;
+  if (!resultUrl2) {
+    throw new Error('Mesin AI Real-ESRGAN tidak mengembalikan URL hasil.');
   }
-
-  const data = await res.json().catch(() => null);
-  if (!data || data.status !== 200 || !data.result?.url) {
-    const errMsg = data?.error || 'Respon AI tidak menyertakan URL hasil.';
-    throw new Error(errMsg);
+  const imgRes2 = await fetch(resultUrl2, { signal: AbortSignal.timeout(25000) });
+  if (!imgRes2.ok) {
+    throw new Error(`Gagal mengunduh gambar hasil AI (HTTP ${imgRes2.status})`);
   }
-
-  const imgRes = await fetch(data.result.url);
-  if (!imgRes.ok) {
-    throw new Error(`Gagal mengunduh gambar hasil AI (Status HTTP ${imgRes.status})`);
-  }
-
-  const arrayBuf = await imgRes.arrayBuffer();
-  const resultBuf = Buffer.from(arrayBuf);
-  if (!resultBuf || resultBuf.length === 0) {
+  const resultBuf2 = Buffer.from(await imgRes2.arrayBuffer());
+  if (!resultBuf2 || resultBuf2.length === 0) {
     throw new Error('Buffer gambar hasil AI kosong.');
   }
-
-  return resultBuf;
+  return resultBuf2;
 }
 
 /**
- * Tingkatkan resolusi dan ketajaman gambar HANYA menggunakan mesin AI Super-Resolution HD
+ * Tingkatkan resolusi dan ketajaman gambar menggunakan mesin AI Super-Resolution Real-ESRGAN
  * @param {string} input - URL gambar publik/Discord CDN
  * @param {object} options
  * @returns {Promise<{success: boolean, buffer?: Buffer, fileName?: string, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, scale?: number, engine?: string, processTimeMs?: number, error?: string}>}
@@ -231,23 +230,7 @@ async function enhanceImage(input, options = {}) {
       };
     }
 
-    // 1. Ambil info dimensi asli gambar via Sharp
-    let originalWidth = 0;
-    let originalHeight = 0;
-    try {
-      const origRes = await fetch(input);
-      if (origRes.ok) {
-        const origBuf = Buffer.from(await origRes.arrayBuffer());
-        const origMeta = await sharp(origBuf).metadata();
-        originalWidth = origMeta.width || 0;
-        originalHeight = origMeta.height || 0;
-      }
-    } catch (e) {
-      // Lanjut proses jika metadata gagal di-fetch
-    }
-
-    // 2. Proses langsung menggunakan Sharp Ultra-HD Engine (Lanczos3 + Unsharp Mask)
-    // (Cepat < 2 detik, stabil 24/7 tanpa timeout dari server eksternal)
+    // 1. Unduh gambar asli sekali saja & baca dimensi via Sharp
     const origRes = await fetch(input, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0' },
       signal: AbortSignal.timeout(20000),
@@ -257,39 +240,52 @@ async function enhanceImage(input, options = {}) {
     }
     const origBuf = Buffer.from(await origRes.arrayBuffer());
     const origMeta = await sharp(origBuf).metadata().catch(() => ({}));
-    if (!originalWidth && origMeta.width) originalWidth = origMeta.width;
-    if (!originalHeight && origMeta.height) originalHeight = origMeta.height;
+    const originalWidth = origMeta.width || 0;
+    const originalHeight = origMeta.height || 0;
 
-    const reqScale = Math.min(Math.max(parseInt(options.scale, 10) || 2, 2), 4);
-    const maxDim = 3840; // Batasi maksimal 4K agar tidak OOM / melebihi batas 8MB Discord
-    const targetW = originalWidth > 0 ? Math.min(originalWidth * reqScale, maxDim) : 1920;
+    // Pilih skala optimal: 4x untuk gambar buram/kecil (< 900px), 2x untuk gambar sudah cukup besar agar tetap cepat & tidak OOM
+    const requestedScale = parseInt(options.scale, 10) || (originalWidth > 0 && originalWidth < 900 ? 4 : 2);
+    const aiScale = requestedScale >= 4 && originalWidth < 1200 ? 4 : 2;
 
-    const engineUsed = 'Sharp Ultra-HD Engine';
-    const rawAiBuffer = await sharp(origBuf)
-      .resize({ width: targetW, kernel: sharp.kernel.lanczos3, withoutEnlargement: false })
-      .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
-      .modulate({ saturation: 1.05 })
-      .jpeg({ quality: 94, chromaSubsampling: '4:4:4' })
-      .toBuffer();
+    // Pastikan input PNG bersih untuk AI (batasi max 1280px sebelum upscale agar GPU tidak OOM)
+    const preparedBuf = originalWidth > 1280 || originalHeight > 1280
+      ? await sharp(origBuf).resize(1280, 1280, { fit: 'inside' }).png().toBuffer()
+      : await sharp(origBuf).png().toBuffer();
 
-    // 3. Metadata dan pengecekan ukuran gambar
-    let finalBuffer = rawAiBuffer;
-    let ext = 'jpg';
-    let newWidth = originalWidth * 2 || 1920;
-    let newHeight = originalHeight * 2 || 1080;
+    // 2. Proses menggunakan AI Real-ESRGAN (dengan fallback Sharp Ultra-HD jika AI sedang offline)
+    let rawAiBuffer = null;
+    let engineUsed = 'AI Real-ESRGAN Super-Resolution';
 
     try {
-      const resultMeta = await sharp(rawAiBuffer).metadata();
-      ext = resultMeta.format === 'png' ? 'png' : 'jpg';
+      rawAiBuffer = await enhanceWithAiSuperResolution(preparedBuf, aiScale);
+    } catch (aiErr) {
+      console.warn('[AI HD] Semua mesin AI sedang sibuk/offline, beralih ke Sharp Ultra-HD:', aiErr.message);
+      engineUsed = 'Sharp Ultra-HD Engine (Fallback)';
+      const targetW = originalWidth > 0 ? Math.min(originalWidth * aiScale, 3840) : 1920;
+      rawAiBuffer = await sharp(origBuf)
+        .resize({ width: targetW, kernel: sharp.kernel.lanczos3 })
+        .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
+        .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
+        .toBuffer();
+    }
+
+    // 3. Konversi hasil ke JPG/PNG kualitas penuh (maks 8MB untuk Discord)
+    let finalBuffer = await sharp(rawAiBuffer)
+      .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
+      .toBuffer();
+    let ext = 'jpg';
+    let newWidth = originalWidth * aiScale || 1920;
+    let newHeight = originalHeight * aiScale || 1080;
+
+    try {
+      const resultMeta = await sharp(finalBuffer).metadata();
       newWidth = resultMeta.width || newWidth;
       newHeight = resultMeta.height || newHeight;
 
-      // Batasi 8MB untuk Discord
       if (finalBuffer.length > 8 * 1024 * 1024) {
         finalBuffer = await sharp(rawAiBuffer)
-          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+          .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
           .toBuffer();
-        ext = 'jpg';
       }
     } catch (metaErr) {
       console.warn('[AI HD SHARP META WARN]:', metaErr.message);
