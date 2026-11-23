@@ -50,6 +50,7 @@ function loadMonitorData() {
         totalCommandsExecuted: 0,
         commandUsage: {},
         dailyGrowth: { date: todayStr, joined: 0, left: 0 },
+        recentServerEvents: [],
         lastUpdated: null,
       };
       fs.writeFileSync(DATA_PATH, JSON.stringify(defaultData, null, 2));
@@ -65,6 +66,9 @@ function loadMonitorData() {
     }
     if (!('dailyGrowth' in parsed) || typeof parsed.dailyGrowth !== 'object' || parsed.dailyGrowth === null) {
       parsed.dailyGrowth = { date: todayStr, joined: 0, left: 0 };
+    }
+    if (!Array.isArray(parsed.recentServerEvents)) {
+      parsed.recentServerEvents = [];
     }
     return parsed;
   } catch (err) {
@@ -83,6 +87,7 @@ function loadMonitorData() {
       totalCommandsExecuted: 0,
       commandUsage: {},
       dailyGrowth: { date: todayStr, joined: 0, left: 0 },
+      recentServerEvents: [],
       lastUpdated: null,
     };
   }
@@ -496,29 +501,65 @@ async function handleGuildCreate(guild, client) {
 
     console.log(`[GUILD JOIN] FlyBot dimasukkan ke: ${guild.name} (${guild.id}) - Owner: ${owner?.user?.tag || guild.ownerId}`);
 
+    // Catat pertumbuhan harian & riwayat server masuk terbaru lebih awal agar angka akurat di embed
+    let todayJoined = 1;
+    let todayLeft = 0;
+    try {
+      const monitorData = loadMonitorData();
+      const today = new Date().toISOString().slice(0, 10);
+      if (!monitorData.dailyGrowth || monitorData.dailyGrowth.date !== today) {
+        monitorData.dailyGrowth = { date: today, joined: 0, left: 0 };
+      }
+      monitorData.dailyGrowth.joined = (monitorData.dailyGrowth.joined || 0) + 1;
+      todayJoined = monitorData.dailyGrowth.joined;
+      todayLeft = monitorData.dailyGrowth.left || 0;
+
+      if (!Array.isArray(monitorData.recentServerEvents)) monitorData.recentServerEvents = [];
+      monitorData.recentServerEvents.unshift({
+        type: 'join',
+        name: guild.name || 'Unknown Server',
+        id: guild.id,
+        memberCount: guild.memberCount || 0,
+        ownerId: owner?.id || guild.ownerId || null,
+        timestamp: Math.floor(Date.now() / 1000),
+      });
+      monitorData.recentServerEvents = monitorData.recentServerEvents.slice(0, 12);
+      saveMonitorData(monitorData);
+    } catch {}
+
     // 1. Kirim log ke channel server-masuk di server official
     if (channels?.serverJoinChannel) {
+      const createdUnix = guild.createdTimestamp ? Math.floor(guild.createdTimestamp / 1000) : null;
+      const channelCount = guild.channels?.cache?.size || 0;
+      const boostTier = guild.premiumTier || 0;
+      const boostCount = guild.premiumSubscriptionCount || 0;
+
       const embed = new EmbedBuilder()
-        .setColor(0x57F287) // Hijau Vibrant
+        .setColor(0x00D26A) // Emerald Green
         .setAuthor({
-          name: 'FlyBot Network • Server Baru Bergabung',
+          name: 'FlyBot Network • Server Baru Bergabung (+1)',
           iconURL: client.user.displayAvatarURL({ dynamic: true }),
         })
-        .setTitle(`BotFly Ditambahkan ke Server: ${guild.name}`)
-        .setThumbnail(guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL())
+        .setTitle(`📥 ${guild.name}`)
+        .setThumbnail(guild.iconURL({ dynamic: true, size: 256 }) || client.user.displayAvatarURL())
         .setDescription(
-          `FlyBot telah berhasil diundang dan resmi bergabung ke dalam server Discord baru.\n\n` +
-          `**Detail Server Baru**\n` +
-          `> • Nama Server: **${guild.name}**\n` +
-          `> • Server ID: \`${guild.id}\`\n` +
-          `> • Pemilik Server: ${owner ? `<@${owner.id}> (\`${owner.user.tag}\`)` : `<@${guild.ownerId}>`}\n` +
-          `> • Anggota Server: **${(guild.memberCount || 0).toLocaleString('id-ID')} Member**\n\n` +
-          `**Akumulasi Jaringan**\n` +
-          `> • Total Server Sekarang: **${totalServers} Server** (+1)\n` +
-          `> • Total Pengguna Global: **${totalMembers.toLocaleString('id-ID')} Pengguna**\n`
+          `> FlyBot resmi diundang dan bergabung ke server baru!\n` +
+          `> Waktu Masuk: <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`
         )
-        .setFooter({ text: 'FlyBot Official Tracking System' })
+        .addFields(
+          { name: '🆔 Server ID', value: `\`${guild.id}\``, inline: true },
+          { name: '👑 Pemilik Server', value: owner ? `<@${owner.id}>\n(\`${owner.user.tag}\`)` : `<@${guild.ownerId}>`, inline: true },
+          { name: '👥 Total Anggota', value: `**${(guild.memberCount || 0).toLocaleString('id-ID')}** Member`, inline: true },
+          { name: '💬 Channel & Boost', value: `\`${channelCount}\` Channel • Level \`${boostTier}\` (${boostCount} Boost)`, inline: true },
+          { name: '📅 Server Dibuat', value: createdUnix ? `<t:${createdUnix}:D>` : '`Tidak Diketahui`', inline: true },
+          { name: '🌐 Total Jaringan', value: `**${totalServers} Server** (+1)\n\`${totalMembers.toLocaleString('id-ID')}\` Pengguna`, inline: true },
+          { name: '📈 Statistik Hari Ini', value: `🟢 Masuk: **+${todayJoined}**  |  🔴 Keluar: **-${todayLeft}**  |  Net: **${todayJoined - todayLeft >= 0 ? '+' : ''}${todayJoined - todayLeft}**`, inline: false }
+        )
+        .setFooter({ text: 'FlyBot Live Network Monitor • Server Join' })
         .setTimestamp();
+
+      const bannerUrl = guild.bannerURL?.({ size: 1024 });
+      if (bannerUrl) embed.setImage(bannerUrl);
 
       await channels.serverJoinChannel.send({ embeds: [embed] }).catch((err) => {
         console.warn('[BOT MONITOR] Gagal mengirim pesan ke server-masuk:', err.message);
@@ -609,16 +650,6 @@ async function handleGuildCreate(guild, client) {
       console.warn('[GUILD JOIN AD] Gagal mengirim pesan sambutan iklan:', welcomeErr.message);
     }
 
-    try {
-      const monitorData = loadMonitorData();
-      const today = new Date().toISOString().slice(0, 10);
-      if (!monitorData.dailyGrowth || monitorData.dailyGrowth.date !== today) {
-        monitorData.dailyGrowth = { date: today, joined: 0, left: 0 };
-      }
-      monitorData.dailyGrowth.joined = (monitorData.dailyGrowth.joined || 0) + 1;
-      saveMonitorData(monitorData);
-    } catch {}
-
     // Refresh status live dashboard & daftar server secara realtime
     await updateLiveDashboard(client).catch(() => {});
     await updateServerListDashboard(client).catch(() => {});
@@ -638,32 +669,8 @@ async function handleGuildDelete(guild, client) {
 
     console.log(`[GUILD LEAVE] FlyBot dikeluarkan dari: ${guild.name || 'Unknown'} (${guild.id})`);
 
-    if (channels?.serverLeaveChannel) {
-      const embed = new EmbedBuilder()
-        .setColor(0xED4245) // Merah Vibrant
-        .setAuthor({
-          name: 'FlyBot Network • Server Ditinggalkan',
-          iconURL: client.user.displayAvatarURL({ dynamic: true }),
-        })
-        .setTitle(`BotFly Dikeluarkan dari: ${guild.name || 'Server'}`)
-        .setThumbnail(guild.iconURL?.({ dynamic: true }) || client.user.displayAvatarURL())
-        .setDescription(
-          `FlyBot telah dikeluarkan dari server atau server tersebut telah dihapus.\n\n` +
-          `**Detail Server**\n` +
-          `> • Nama Server: **${guild.name || 'Tidak Diketahui'}**\n` +
-          `> • Server ID: \`${guild.id}\`\n\n` +
-          `**Akumulasi Jaringan**\n` +
-          `> • Sisa Server Aktif: **${totalServers} Server** (-1)\n` +
-          `> • Total Pengguna Global: **${totalMembers.toLocaleString('id-ID')} Pengguna**\n`
-        )
-        .setFooter({ text: 'FlyBot Official Tracking System' })
-        .setTimestamp();
-
-      await channels.serverLeaveChannel.send({ embeds: [embed] }).catch((err) => {
-        console.warn('[BOT MONITOR] Gagal mengirim pesan ke server-keluar:', err.message);
-      });
-    }
-
+    let todayJoined = 0;
+    let todayLeft = 1;
     try {
       const monitorData = loadMonitorData();
       const today = new Date().toISOString().slice(0, 10);
@@ -671,8 +678,52 @@ async function handleGuildDelete(guild, client) {
         monitorData.dailyGrowth = { date: today, joined: 0, left: 0 };
       }
       monitorData.dailyGrowth.left = (monitorData.dailyGrowth.left || 0) + 1;
+      todayJoined = monitorData.dailyGrowth.joined || 0;
+      todayLeft = monitorData.dailyGrowth.left;
+
+      if (!Array.isArray(monitorData.recentServerEvents)) monitorData.recentServerEvents = [];
+      monitorData.recentServerEvents.unshift({
+        type: 'leave',
+        name: guild.name || 'Server Tidak Diketahui',
+        id: guild.id,
+        memberCount: guild.memberCount || 0,
+        ownerId: guild.ownerId || null,
+        timestamp: Math.floor(Date.now() / 1000),
+      });
+      monitorData.recentServerEvents = monitorData.recentServerEvents.slice(0, 12);
       saveMonitorData(monitorData);
     } catch {}
+
+    if (channels?.serverLeaveChannel) {
+      const joinedUnix = guild.joinedTimestamp ? Math.floor(guild.joinedTimestamp / 1000) : null;
+
+      const embed = new EmbedBuilder()
+        .setColor(0xED4245) // Merah Vibrant
+        .setAuthor({
+          name: 'FlyBot Network • Server Ditinggalkan (-1)',
+          iconURL: client.user.displayAvatarURL({ dynamic: true }),
+        })
+        .setTitle(`📤 ${guild.name || 'Server Tidak Diketahui'}`)
+        .setThumbnail(guild.iconURL?.({ dynamic: true, size: 256 }) || client.user.displayAvatarURL())
+        .setDescription(
+          `> FlyBot dikeluarkan dari server ini atau server telah dihapus.\n` +
+          `> Waktu Keluar: <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`
+        )
+        .addFields(
+          { name: '🆔 Server ID', value: `\`${guild.id}\``, inline: true },
+          { name: '👑 Pemilik Server', value: guild.ownerId ? `<@${guild.ownerId}>` : '`Tidak Diketahui`', inline: true },
+          { name: '👥 Anggota Server', value: `**${(guild.memberCount || 0).toLocaleString('id-ID')}** Member`, inline: true },
+          { name: '⏱️ Bergabung Sejak', value: joinedUnix ? `<t:${joinedUnix}:R>` : '`Tidak Tercatat`', inline: true },
+          { name: '🌐 Sisa Jaringan', value: `**${totalServers} Server** (-1)\n\`${totalMembers.toLocaleString('id-ID')}\` Pengguna`, inline: true },
+          { name: '📉 Statistik Hari Ini', value: `🟢 Masuk: **+${todayJoined}**  |  🔴 Keluar: **-${todayLeft}**  |  Net: **${todayJoined - todayLeft >= 0 ? '+' : ''}${todayJoined - todayLeft}**`, inline: false }
+        )
+        .setFooter({ text: 'FlyBot Live Network Monitor • Server Leave' })
+        .setTimestamp();
+
+      await channels.serverLeaveChannel.send({ embeds: [embed] }).catch((err) => {
+        console.warn('[BOT MONITOR] Gagal mengirim pesan ke server-keluar:', err.message);
+      });
+    }
 
     // Refresh status live dashboard & daftar server secara realtime
     await updateLiveDashboard(client).catch(() => {});
@@ -798,10 +849,11 @@ async function updateLiveDashboard(client) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
-  let topCmdsText = '> • *Belum ada data perintah tercatat.*';
+  let topCmdsText = '> *Belum ada data perintah tercatat.*';
   if (sortedCmds.length > 0) {
+    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
     topCmdsText = sortedCmds
-      .map(([cmd, count], idx) => `> • **${idx + 1}.** \`/${cmd}\`: **${count.toLocaleString('id-ID')}x dipanggil**`)
+      .map(([cmd, count], idx) => `${medals[idx] || '•'} \`/${cmd}\` — **${count.toLocaleString('id-ID')}x**`)
       .join('\n');
   }
 
@@ -811,39 +863,103 @@ async function updateLiveDashboard(client) {
   const netGrowth = (growth.joined || 0) - (growth.left || 0);
   const netSign = netGrowth >= 0 ? `+${netGrowth}` : `${netGrowth}`;
 
+  // Status Maintenance realtime
+  let isMaintenance = false;
+  try {
+    const { isMaintenanceMode } = require('./ownerHelper');
+    isMaintenance = Boolean(isMaintenanceMode?.());
+  } catch {}
+
+  // Indikator Ping & Progress Bar RAM (asumsi host 4096 MB)
+  const pingBadge = wsPing <= 80 ? '🟢' : wsPing <= 180 ? '🟡' : '🔴';
+  const pingLabel = wsPing <= 80 ? 'Optimal' : wsPing <= 180 ? 'Normal' : 'Tinggi';
+  const ramPct = Math.min(100, Math.round((parseFloat(ramUsageMb) / 4096) * 100));
+  const filledBlocks = Math.max(1, Math.round(ramPct / 10));
+  const ramBar = `${'█'.repeat(filledBlocks)}${'░'.repeat(10 - filledBlocks)}`;
+
+  // Live Feed 5 Aktivitas Server Masuk / Keluar Terbaru
+  const recentEvents = Array.isArray(data.recentServerEvents) ? data.recentServerEvents.slice(0, 5) : [];
+  let recentEventsText = '> *Belum ada aktivitas server masuk/keluar terbaru.*';
+  if (recentEvents.length > 0) {
+    recentEventsText = recentEvents
+      .map((ev) => {
+        const icon = ev.type === 'join' ? '🟢 **MASUK**' : '🔴 **KELUAR**';
+        const mem = ev.memberCount ? ` (${Number(ev.memberCount).toLocaleString('id-ID')} mbr)` : '';
+        const ts = ev.timestamp ? ` • <t:${ev.timestamp}:R>` : '';
+        return `${icon} \`${String(ev.name || 'Server').slice(0, 28)}\`${mem}${ts}`;
+      })
+      .join('\n');
+  }
+
+  const djsVersion = require('discord.js').version || '14.x';
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const statusBanner = isMaintenance ? '🟠 MODE MAINTENANCE AKTIF' : '🟢 SEMUA SISTEM ONLINE & OPTIMAL';
+
   const dashboardEmbed = new EmbedBuilder()
-    .setColor(0x5865F2) // Discord Blurple
+    .setColor(isMaintenance ? 0xFAA61A : 0x5865F2)
     .setAuthor({
-      name: 'FlyBot Network • Real-Time Master Dashboard',
+      name: 'FlyBot Network • Live Master Control Center',
       iconURL: client.user.displayAvatarURL({ dynamic: true }),
     })
-    .setTitle('Pusat Kendali & Status Jaringan FlyBot')
+    .setTitle('📊 Pusat Kendali & Live Monitoring FlyBot')
+    .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
     .setDescription(
-      `Selamat datang di panel pemantauan privat resmi **FlyBot**.\n` +
-      `Dashboard ini otomatis di-*refresh* secara **real-time** tanpa perlu mengetik perintah apa pun.\n\n` +
-      `**Statistik Jaringan Global**\n` +
-      `> • Total Server Terlayani: **${totalServers} Server**\n` +
-      `> • Total Jangkauan Pengguna: **${totalMembers.toLocaleString('id-ID')} Anggota**\n` +
-      `> • Total Perintah Diproses: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')} Kali**\n` +
-      `> • Pertumbuhan Hari Ini: **${netSign} Server** (+${growth.joined || 0} Masuk / -${growth.left || 0} Keluar)\n\n` +
-      `**🏆 Top 5 Perintah Terpopuler**\n` +
-      `${topCmdsText}\n\n` +
-      `**🎵 Aktivitas Audio & Voice**\n` +
-      `> • Pemutar Musik Aktif: **${activePlayers} Server Sedang Memutar Musik**\n` +
-      `> • Patroli 24/7 Aktif: **${activePatroli} Voice Channel**\n` +
-      `> • Engine Lavalink: **${lavalinkStatus}**\n\n` +
-      `**Kesehatan Server Host (VPS/Pterodactyl)**\n` +
-      `> • Status Layanan: **Online (Optimal)**\n` +
-      `> • Uptime Host: **${uptimeStr}**\n` +
-      `> • Latensi Gateway Ping: **${wsPing} ms**\n` +
-      `> • Penggunaan RAM (RSS): **${ramUsageMb} MB**\n` +
-      `> • Penggunaan RAM (Heap): **${heapUsedMb} MB**\n\n` +
-      `**Spesifikasi Lingkungan**\n` +
-      `> • Node.js Runtime: **${process.version}**\n` +
-      `> • Library: **Discord.js v14.18.0**\n` +
-      `> • Arsitektur Host: **${process.platform} (${process.arch})**\n`
+      `\`\`\`ansi\n\u001b[1;32m${statusBanner}\u001b[0m\n\`\`\`\n` +
+      `> Pembaruan otomatis **real-time** • Terakhir diperbarui: <t:${nowUnix}:R>`
     )
-    .setFooter({ text: 'Pembaruan Real-Time Otomatis • FlyBot Official' })
+    .addFields(
+      {
+        name: '🌐 Jaringan Global',
+        value:
+          `• Server: **${totalServers.toLocaleString('id-ID')}**\n` +
+          `• Pengguna: **${totalMembers.toLocaleString('id-ID')}**\n` +
+          `• Command: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')}x**`,
+        inline: true,
+      },
+      {
+        name: '📈 Pertumbuhan Hari Ini',
+        value:
+          `• Masuk: **+${growth.joined || 0} Server**\n` +
+          `• Keluar: **-${growth.left || 0} Server**\n` +
+          `• Bersih: **${netSign} Server**`,
+        inline: true,
+      },
+      {
+        name: '🎵 Audio & Voice',
+        value:
+          `• Lavalink: **${lavalinkStatus}**\n` +
+          `• Playing: **${activePlayers} Server**\n` +
+          `• Patroli 24/7: **${activePatroli} Room**`,
+        inline: true,
+      },
+      {
+        name: '⚡ Kesehatan Host (Pterodactyl)',
+        value:
+          `• Ping: ${pingBadge} **${wsPing} ms** (${pingLabel})\n` +
+          `• Uptime: **${uptimeStr}**\n` +
+          `• RAM: \`[${ramBar}]\` **${ramUsageMb} MB** *(Heap: ${heapUsedMb} MB)*`,
+        inline: false,
+      },
+      {
+        name: '📥📤 Aktivitas Server Masuk & Keluar Terbaru',
+        value: recentEventsText,
+        inline: false,
+      },
+      {
+        name: '🏆 Top 5 Perintah Terpopuler',
+        value: topCmdsText,
+        inline: true,
+      },
+      {
+        name: '💻 Lingkungan Sistem',
+        value:
+          `• Runtime: \`Node ${process.version}\`\n` +
+          `• Library: \`discord.js v${djsVersion}\`\n` +
+          `• Platform: \`${process.platform}/${process.arch}\``,
+        inline: true,
+      }
+    )
+    .setFooter({ text: 'FlyBot Real-Time Telemetry • Auto-Refresh Aktif' })
     .setTimestamp();
 
   // Tombol Aksi Cepat Dashboard
@@ -854,8 +970,12 @@ async function updateLiveDashboard(client) {
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('btn_monitor_toggle_maint')
-      .setLabel('🛠️ Mode Maintenance')
-      .setStyle(ButtonStyle.Secondary)
+      .setLabel(isMaintenance ? '🟢 Matikan Maintenance' : '🛠️ Mode Maintenance')
+      .setStyle(isMaintenance ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setLabel('🌐 Website Resmi')
+      .setStyle(ButtonStyle.Link)
+      .setURL(getOfficialWebsiteUrl())
   );
 
   if (data.dashboardMessageId) {
@@ -897,10 +1017,14 @@ async function updateServerListDashboard(client) {
   const maxDisplay = 25;
   const topGuilds = sortedGuilds.slice(0, maxDisplay);
 
+  const totalMembersAll = sortedGuilds.reduce((sum, g) => sum + (g.memberCount || 0), 0);
+  const avgMembers = totalServers > 0 ? Math.round(totalMembersAll / totalServers) : 0;
+
   const listItems = topGuilds.map((g, idx) => {
+    const rankBadge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `\`#${String(idx + 1).padStart(2, '0')}\``;
     return (
-      `**${idx + 1}. ${g.name}**\n` +
-      `> ID: \`${g.id}\` • Anggota: **${(g.memberCount || 0).toLocaleString('id-ID')}** • Owner: <@${g.ownerId}>`
+      `${rankBadge} **${g.name}**\n` +
+      `> 👥 **${(g.memberCount || 0).toLocaleString('id-ID')}** Member • 👑 <@${g.ownerId}> • 🆔 \`${g.id}\``
     );
   }).join('\n\n');
 
@@ -910,13 +1034,14 @@ async function updateServerListDashboard(client) {
       name: 'FlyBot Network • Direktori Server Aktif',
       iconURL: client.user.displayAvatarURL({ dynamic: true }),
     })
-    .setTitle(`Daftar Seluruh Server Terhubung (${totalServers} Server)`)
+    .setTitle(`📋 Daftar Server Terhubung (${totalServers} Server)`)
+    .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 128 }))
     .setDescription(
-      `Daftar server tempat FlyBot beroperasi, diurutkan berdasarkan jumlah anggota:\n\n` +
+      `> 🌐 **Total:** \`${totalServers} Server\` • 👥 **Global:** \`${totalMembersAll.toLocaleString('id-ID')} Member\` • 📊 **Rata-rata:** \`${avgMembers} Member/Server\`\n\n` +
       (listItems || 'Belum ada server yang terdaftar.') +
-      (sortedGuilds.length > maxDisplay ? `\n\n*...dan ${sortedGuilds.length - maxDisplay} server lainnya.*` : '')
+      (sortedGuilds.length > maxDisplay ? `\n\n*...dan **${sortedGuilds.length - maxDisplay}** server lainnya.*` : '')
     )
-    .setFooter({ text: 'Diperbarui otomatis secara real-time • FlyBot Network' })
+    .setFooter({ text: 'Diurutkan berdasarkan jumlah anggota • Auto-Update Real-Time' })
     .setTimestamp();
 
   if (data.serverListMessageId) {
