@@ -18,6 +18,7 @@ const DEFAULT_OFFICIAL_GUILD_ID = '1563902604394627074';
 const DEFAULT_LOG_CHANNEL_ID = '1563922512016965764';
 const DEFAULT_OFFICIAL_INVITE_URL = 'https://discord.com/invite/flybot';
 const DEFAULT_OFFICIAL_WEBSITE_URL = 'https://flyneuroai.com/';
+const DEFAULT_OFFICIAL_VOTE_URL = 'https://top.gg/bot/1559514149795401799/vote';
 
 function getOfficialGuildId() {
   return process.env.OFFICIAL_GUILD_ID || DEFAULT_OFFICIAL_GUILD_ID;
@@ -29,6 +30,10 @@ function getOfficialInviteUrl() {
 
 function getOfficialWebsiteUrl() {
   return process.env.OFFICIAL_WEBSITE_URL || DEFAULT_OFFICIAL_WEBSITE_URL;
+}
+
+function getOfficialVoteUrl() {
+  return process.env.OFFICIAL_VOTE_URL || DEFAULT_OFFICIAL_VOTE_URL;
 }
 
 // Membaca file data monitor
@@ -625,15 +630,21 @@ async function handleGuildCreate(guild, client) {
             `>   - \`/setaigenerating\` — Channel obrolan cerdas BotFly AI\n` +
             `>   - \`/setgames\` — Arena mini games tebak koin, angka & suit\n` +
             `>   - \`/setmusic\` — Channel pemutaran musik HQ Lavalink v4\n\n` +
-            `**Komunitas Resmi FlyBot:**\n` +
-            `Ingin request fitur, lapor kendala, diskusi teknis, atau berdiskusi dengan sesama pengguna? Kunjungi website resmi atau server official kami.`
+            `**Komunitas & Dukungan FlyBot Official:**\n` +
+            `Ingin request fitur, lapor kendala, atau berdiskusi dengan pengguna lain? Kunjungi website & server official kami.\n` +
+            `🌟 **Suka dengan FlyBot?** Yuk bantu **Vote FlyBot di Top.gg** lewat tombol di bawah agar FlyBot terus berkembang dan tetap gratis 24/7!`
           )
           .setFooter({ text: 'FlyBot • The All-in-One Discord Experience' })
           .setTimestamp();
 
         const inviteUrl = getOfficialInviteUrl();
         const websiteUrl = getOfficialWebsiteUrl();
+        const voteUrl = getOfficialVoteUrl();
         const actionRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('🗳️ Vote FlyBot (Top.gg)')
+            .setStyle(ButtonStyle.Link)
+            .setURL(voteUrl),
           new ButtonBuilder()
             .setLabel('Website Resmi (flyneuroai.com)')
             .setStyle(ButtonStyle.Link)

@@ -283,7 +283,12 @@ module.exports = {
 
       const inviteUrl = getOfficialInviteUrl();
       const websiteUrl = getOfficialWebsiteUrl();
+      const voteUrl = process.env.OFFICIAL_VOTE_URL || 'https://top.gg/bot/1559514149795401799/vote';
       const actionRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('🗳️ Vote FlyBot (Top.gg)')
+          .setStyle(ButtonStyle.Link)
+          .setURL(voteUrl),
         new ButtonBuilder()
           .setLabel('Website Resmi (flyneuroai.com)')
           .setStyle(ButtonStyle.Link)

@@ -47,6 +47,10 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
+        .setLabel('🗳️ Vote FlyBot (Top.gg)')
+        .setStyle(ButtonStyle.Link)
+        .setURL(process.env.OFFICIAL_VOTE_URL || 'https://top.gg/bot/1559514149795401799/vote'),
+      new ButtonBuilder()
         .setLabel('Add FlyBot (flyneuroai.com)')
         .setStyle(ButtonStyle.Link)
         .setURL(websiteUrl),

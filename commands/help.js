@@ -384,6 +384,10 @@ function createActionComponents(currentCategory = 'overview') {
   const selectRow = new ActionRowBuilder().addComponents(selectMenu);
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
+      .setLabel('🗳️ Vote FlyBot (Top.gg)')
+      .setStyle(ButtonStyle.Link)
+      .setURL(process.env.OFFICIAL_VOTE_URL || 'https://top.gg/bot/1559514149795401799/vote'),
+    new ButtonBuilder()
       .setLabel('Website Resmi (flyneuroai.com)')
       .setStyle(ButtonStyle.Link)
       .setURL(getOfficialWebsiteUrl()),
