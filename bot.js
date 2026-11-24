@@ -16,7 +16,12 @@ process.on('unhandledRejection', (reason) => {
     errMsg.includes('10062') || // Unknown interaction
     errMsg.includes('40060') || // Already acknowledged
     errMsg.includes('ECONNRESET') ||
-    errMsg.includes('ETIMEDOUT')
+    errMsg.includes('ETIMEDOUT') ||
+    errMsg.includes('TimeoutError') ||
+    errMsg.includes('The operation was aborted due to timeout') ||
+    errMsg.includes('AbortError') ||
+    reason?.name === 'TimeoutError' ||
+    reason?.name === 'AbortError'
   ) {
     return;
   }
@@ -42,7 +47,11 @@ process.on('uncaughtException', (err) => {
     errMsg.includes('WebSocket was closed before the connection was established') ||
     errMsg.includes('10062') ||
     errMsg.includes('40060') ||
-    errMsg.includes('ECONNRESET')
+    errMsg.includes('ECONNRESET') ||
+    errMsg.includes('ETIMEDOUT') ||
+    errMsg.includes('TimeoutError') ||
+    errMsg.includes('The operation was aborted due to timeout') ||
+    err?.name === 'TimeoutError'
   ) {
     return;
   }

@@ -755,7 +755,12 @@ async function sendErrorLog(client, { title = 'System Error', error, guild, user
       errMsg.includes('10062') ||
       errMsg.includes('40060') ||
       errMsg.includes('ECONNRESET') ||
-      errMsg.includes('ETIMEDOUT')
+      errMsg.includes('ETIMEDOUT') ||
+      errMsg.includes('TimeoutError') ||
+      errMsg.includes('The operation was aborted due to timeout') ||
+      errMsg.includes('AbortError') ||
+      error?.name === 'TimeoutError' ||
+      error?.name === 'AbortError'
     ) {
       return;
     }
