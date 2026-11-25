@@ -78,7 +78,9 @@ module.exports = {
           .setFooter({ text: 'FlyBot Individual Feature Manager' })
           .setTimestamp();
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] }).catch(() => {
+          interaction.user.send({ embeds: [embed] }).catch(() => {});
+        });
       }
 
       if (sub === 'on') {
@@ -101,7 +103,9 @@ module.exports = {
           .setFooter({ text: 'FlyBot Individual Feature Manager' })
           .setTimestamp();
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] }).catch(() => {
+          interaction.user.send({ embeds: [embed] }).catch(() => {});
+        });
       }
 
       // Subcommand: status

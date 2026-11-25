@@ -46,7 +46,9 @@ module.exports = {
             `• Ketik \`/welcome on\` kapan saja untuk memunculkannya kembali.`
           )
           .setTimestamp();
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] }).catch(() => {
+          interaction.user.send({ embeds: [embed] }).catch(() => {});
+        });
       }
 
       if (sub === 'on') {
@@ -61,7 +63,9 @@ module.exports = {
             `• Ketik \`/welcome off\` jika ingin mematikannya lagi.`
           )
           .setTimestamp();
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] }).catch(() => {
+          interaction.user.send({ embeds: [embed] }).catch(() => {});
+        });
       }
 
       const disabled = isFeatureDisabled(interaction.guild.id, 'welcome');

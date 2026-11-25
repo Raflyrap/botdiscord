@@ -14,6 +14,8 @@ process.on('unhandledRejection', (reason) => {
     errMsg.includes('Socket got terminated') ||
     errMsg.includes('Too many websocket connections') ||
     errMsg.includes('10062') || // Unknown interaction
+    errMsg.includes('10008') || // Unknown message (pesan sudah dihapus)
+    errMsg.includes('10003') || // Unknown channel (channel sudah dihapus)
     errMsg.includes('40060') || // Already acknowledged
     errMsg.includes('ECONNRESET') ||
     errMsg.includes('ETIMEDOUT') ||
@@ -46,6 +48,8 @@ process.on('uncaughtException', (err) => {
     errMsg.includes('Socket got terminated') ||
     errMsg.includes('WebSocket was closed before the connection was established') ||
     errMsg.includes('10062') ||
+    errMsg.includes('10008') ||
+    errMsg.includes('10003') ||
     errMsg.includes('40060') ||
     errMsg.includes('ECONNRESET') ||
     errMsg.includes('ETIMEDOUT') ||
@@ -1652,6 +1656,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await command.execute(interaction);
   } catch (error) {
+    const ignoredCodes = new Set([10008, 10003, 10062, 40060]);
+    if (ignoredCodes.has(error?.code)) {
+      console.warn(`[INTERACTION SKIP] /${interaction.commandName}: pesan/channel/interaksi sudah tidak ada (${error.code}).`);
+      return;
+    }
+
     console.error(`Terjadi error saat menjalankan command /${interaction.commandName}:`, error);
 
     try {
@@ -1670,9 +1680,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     };
 
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMessage).catch(console.error);
+      await interaction.followUp(errorMessage).catch(() => {});
     } else {
-      await interaction.reply(errorMessage).catch(console.error);
+      await interaction.reply(errorMessage).catch(() => {});
     }
   }
 });

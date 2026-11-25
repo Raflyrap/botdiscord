@@ -764,7 +764,13 @@ async function sendErrorLog(client, { title = 'System Error', error, guild, user
       errMsg.includes('Socket got terminated') ||
       errMsg.includes('Too many websocket connections') ||
       errMsg.includes('10062') ||
+      errMsg.includes('10008') ||
+      errMsg.includes('10003') ||
       errMsg.includes('40060') ||
+      error?.code === 10008 ||
+      error?.code === 10003 ||
+      error?.code === 10062 ||
+      error?.code === 40060 ||
       errMsg.includes('ECONNRESET') ||
       errMsg.includes('ETIMEDOUT') ||
       errMsg.includes('TimeoutError') ||
