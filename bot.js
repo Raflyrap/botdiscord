@@ -208,6 +208,13 @@ client.lavalink = initLavalink(client);
 
 // Forwarding paket raw voice Discord Gateway ke LavalinkManager
 client.on('raw', (d) => {
+  // Jangan teruskan paket voice ke Lavalink jika guild sedang memakai Voice AI (@discordjs/voice)
+  if ((d?.t === 'VOICE_STATE_UPDATE' || d?.t === 'VOICE_SERVER_UPDATE') && d?.d?.guild_id) {
+    try {
+      const { isGuildUsingVoiceAi } = require('./voiceAiHelper');
+      if (isGuildUsingVoiceAi(d.d.guild_id)) return;
+    } catch (_) {}
+  }
   client.lavalink?.sendRawData(d);
 });
 

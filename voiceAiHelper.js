@@ -1,5 +1,6 @@
 const {
   joinVoiceChannel,
+  getVoiceConnection,
   VoiceConnectionStatus,
   entersState,
   createAudioPlayer,
@@ -14,6 +15,12 @@ const { FLYBOT_KNOWLEDGE } = require('./botFeaturesKnowledge');
 
 // Map sesi aktif per guild: guildId -> SessionData
 const activeSessions = new Map();
+// Set guild yang sedang dalam proses handshake join voice AI (agar tidak bentrok dengan Lavalink)
+const connectingGuilds = new Set();
+
+function isGuildUsingVoiceAi(guildId) {
+  return activeSessions.has(guildId) || connectingGuilds.has(guildId);
+}
 
 /**
  * Konversi audio 24kHz Mono 16-bit PCM (OpenAI Realtime) langsung ke 48kHz Stereo 16-bit PCM (Format Asli Discord)
@@ -338,9 +345,37 @@ function playRealtimeAudio(session, mono24kBuffer) {
  */
 async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy', options = {}) {
   const guildId = voiceChannel.guild.id;
+  const client = voiceChannel.client;
 
   if (activeSessions.has(guildId)) {
     await stopVoiceAiSession(guildId);
+  }
+
+  // Tandai guild sedang menggunakan Voice AI agar paket raw voice tidak dibajak Lavalink
+  connectingGuilds.add(guildId);
+
+  let hadOldVoice = false;
+
+  // 1. Putuskan player musik Lavalink di guild ini jika sedang aktif agar tidak bentrok voice handshake
+  try {
+    const lavaPlayer = client?.lavalink?.getPlayer?.(guildId);
+    if (lavaPlayer) {
+      hadOldVoice = true;
+      await lavaPlayer.destroy('VoiceAIStarted').catch(() => {});
+    }
+  } catch (_) {}
+
+  // 2. Hancurkan koneksi @discordjs/voice lama/zombie (misal sisa patroli atau gagal join sebelumnya)
+  try {
+    const existingConn = getVoiceConnection(guildId);
+    if (existingConn) {
+      hadOldVoice = true;
+      existingConn.destroy();
+    }
+  } catch (_) {}
+
+  if (hadOldVoice) {
+    await new Promise((r) => setTimeout(r, 500));
   }
 
   const guildContext = await buildGuildContext(voiceChannel.guild, voiceChannel);
@@ -353,7 +388,23 @@ async function startVoiceAiSession(voiceChannel, textChannel, voiceType = 'alloy
     selfMute: false,
   });
 
-  await entersState(connection, VoiceConnectionStatus.Ready, 20000);
+  connection.on('error', (err) => {
+    console.warn(`[AIVOICE CONN ERROR] Guild ${guildId}:`, err.message || err);
+  });
+
+  try {
+    await entersState(connection, VoiceConnectionStatus.Ready, 25000);
+  } catch (err) {
+    // Wajib bersihkan koneksi zombie agar percobaan /aivoice join berikutnya tidak ikut gagal!
+    connectingGuilds.delete(guildId);
+    try {
+      connection.destroy();
+    } catch (_) {}
+    console.error(`[AIVOICE READY TIMEOUT] Guild ${guildId} (state: ${connection.state?.status}):`, err.message || err);
+    throw new Error('Koneksi ke voice channel melebihi batas waktu (timeout). Pastikan bot punya izin Connect/Speak dan tidak sedang dipakai fitur musik/patroli, lalu coba lagi!');
+  }
+
+  connectingGuilds.delete(guildId);
 
   const player = createAudioPlayer();
   connection.subscribe(player);
@@ -613,6 +664,7 @@ async function stopVoiceAiSession(guildId, withFarewell = true) {
   } catch {}
 
   activeSessions.delete(guildId);
+  connectingGuilds.delete(guildId);
   return true;
 }
 
@@ -627,5 +679,6 @@ module.exports = {
   startVoiceAiSession,
   stopVoiceAiSession,
   getVoiceAiSession,
+  isGuildUsingVoiceAi,
   sendRealtimeTextMessage,
 };

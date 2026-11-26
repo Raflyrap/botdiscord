@@ -266,6 +266,7 @@ function initLavalink(client) {
         errMsg.includes('not a bot') ||
         errMsg.includes('All clients failed') ||
         errMsg.includes('No supported audio streams') ||
+        errMsg.includes('no playable stream') ||
         errMsg.includes('unavailable');
 
       // Auto-fallback cerdas: jika stream YouTube/Spotify diblokir login, alihkan otomatis ke SoundCloud (anti-blokir YouTube)
