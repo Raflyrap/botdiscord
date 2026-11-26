@@ -1647,12 +1647,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Validasi Channel Khusus Musik untuk Server Template All-in-One (1 Paket: play, pause, resume, stop, skip, queue, repeat, shuffle, volume)
   const MUSIC_COMMAND_NAMES = ['play', 'pause', 'resume', 'stop', 'skip', 'queue', 'repeat', 'shuffle', 'volume'];
   if (interaction.guild && MUSIC_COMMAND_NAMES.includes(interaction.commandName)) {
-    const { getTemplateConfig } = require('./templateSetupHelper');
+    const { getTemplateConfig, setTemplateConfig } = require('./templateSetupHelper');
     const templateCfg = getTemplateConfig(interaction.guild.id);
     if (templateCfg?.allInOneConfigured && templateCfg?.channels?.playMusicId) {
-      if (interaction.channelId !== templateCfg.channels.playMusicId) {
+      let validMusicChannel = interaction.guild.channels.cache.get(templateCfg.channels.playMusicId);
+
+      // Auto-heal: jika channel musik lama sudah dihapus (#unknown), cari channel play-music baru & sinkronkan ID-nya
+      if (!validMusicChannel) {
+        validMusicChannel =
+          interaction.guild.channels.cache.find(
+            (c) =>
+              c.isTextBased() &&
+              (c.name.toLowerCase().includes('play-music') || c.name.toLowerCase().includes('playmusic'))
+          ) || null;
+
+        if (validMusicChannel) {
+          setTemplateConfig(interaction.guild.id, {
+            channels: { ...(templateCfg.channels || {}), playMusicId: validMusicChannel.id },
+          });
+        }
+      }
+
+      // Hanya batasi jika channel musik yang valid benar-benar masih ada di server
+      if (validMusicChannel && interaction.channelId !== validMusicChannel.id) {
         return interaction.reply({
-          content: `Seluruh perintah musik hanya dapat digunakan di channel <#${templateCfg.channels.playMusicId}>.`,
+          content: `Seluruh perintah musik hanya dapat digunakan di channel <#${validMusicChannel.id}>.`,
           flags: MessageFlags.Ephemeral,
         });
       }
