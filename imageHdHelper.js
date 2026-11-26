@@ -159,6 +159,64 @@ async function removeHdChannel(guild) {
   return true;
 }
 
+const SNOWPING_API_KEY = process.env.SNOWPING_API_KEY || 'FlyBot';
+
+/**
+ * Peningkatan Kualitas Gambar via Snowping Upscale Pro (Parish.ai - Premium)
+ * @param {string} imageUrl
+ * @param {number} scale - 2 atau 4
+ * @returns {Promise<Buffer>}
+ */
+async function enhanceWithSnowpingUpscalePro(imageUrl, scale = 4) {
+  const cleanScale = [2, 4, 6, 8, 10].includes(scale) ? scale : 4;
+  const apiUrl =
+    `https://api.snowping.cfd/api/imagehd/upscalepro?url=${encodeURIComponent(imageUrl)}` +
+    `&scale=${cleanScale}&apikey=${encodeURIComponent(SNOWPING_API_KEY)}`;
+
+  const res = await fetch(apiUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FlyBot/2.0',
+      apikey: SNOWPING_API_KEY,
+      'x-apikey': SNOWPING_API_KEY,
+      'x-api-key': SNOWPING_API_KEY,
+    },
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Snowping UpscalePro HTTP ${res.status}: ${errBody.slice(0, 150)}`);
+  }
+
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('image/')) {
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 0) return buf;
+  }
+
+  const data = await res.json().catch(() => null);
+  const resultUrl =
+    data?.result?.url ||
+    data?.result?.image ||
+    data?.data?.url ||
+    data?.url ||
+    (typeof data?.result === 'string' && data.result.startsWith('http') ? data.result : null);
+
+  if (!resultUrl) {
+    throw new Error(data?.error || data?.message || 'Respon Snowping UpscalePro tidak menyertakan URL gambar.');
+  }
+
+  const imgRes = await fetch(resultUrl, { signal: AbortSignal.timeout(25000) });
+  if (!imgRes.ok) {
+    throw new Error(`Gagal mengunduh hasil Snowping UpscalePro (HTTP ${imgRes.status})`);
+  }
+  const resultBuf = Buffer.from(await imgRes.arrayBuffer());
+  if (!resultBuf || resultBuf.length === 0) {
+    throw new Error('Buffer gambar hasil Snowping UpscalePro kosong.');
+  }
+  return resultBuf;
+}
+
 /**
  * Peningkatan Kualitas Gambar via Mesin AI Super-Resolution HD (Real-ESRGAN via Hugging Face Gradio)
  * @param {Buffer} inputBuffer
@@ -252,21 +310,27 @@ async function enhanceImage(input, options = {}) {
       ? await sharp(origBuf).resize(1280, 1280, { fit: 'inside' }).png().toBuffer()
       : await sharp(origBuf).png().toBuffer();
 
-    // 2. Proses menggunakan AI Real-ESRGAN (dengan fallback Sharp Ultra-HD jika AI sedang offline)
+    // 2. Prioritas 1: Snowping Upscale Pro (Parish.ai Premium) -> Prioritas 2: AI Real-ESRGAN -> Prioritas 3: Sharp Ultra-HD
     let rawAiBuffer = null;
-    let engineUsed = 'AI Real-ESRGAN Super-Resolution';
+    let engineUsed = 'Upscale Pro (Parish.ai)';
 
     try {
-      rawAiBuffer = await enhanceWithAiSuperResolution(preparedBuf, aiScale);
-    } catch (aiErr) {
-      console.warn('[AI HD] Semua mesin AI sedang sibuk/offline, beralih ke Sharp Ultra-HD:', aiErr.message);
-      engineUsed = 'Sharp Ultra-HD Engine (Fallback)';
-      const targetW = originalWidth > 0 ? Math.min(originalWidth * aiScale, 3840) : 1920;
-      rawAiBuffer = await sharp(origBuf)
-        .resize({ width: targetW, kernel: sharp.kernel.lanczos3 })
-        .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
-        .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
-        .toBuffer();
+      rawAiBuffer = await enhanceWithSnowpingUpscalePro(input, aiScale);
+    } catch (snowErr) {
+      console.warn('[AI HD] Snowping UpscalePro gagal/limit, beralih ke AI Real-ESRGAN:', snowErr.message);
+      engineUsed = 'AI Real-ESRGAN Super-Resolution';
+      try {
+        rawAiBuffer = await enhanceWithAiSuperResolution(preparedBuf, aiScale);
+      } catch (aiErr) {
+        console.warn('[AI HD] Semua mesin AI sedang sibuk/offline, beralih ke Sharp Ultra-HD:', aiErr.message);
+        engineUsed = 'Sharp Ultra-HD Engine (Fallback)';
+        const targetW = originalWidth > 0 ? Math.min(originalWidth * aiScale, 3840) : 1920;
+        rawAiBuffer = await sharp(origBuf)
+          .resize({ width: targetW, kernel: sharp.kernel.lanczos3 })
+          .sharpen({ sigma: 1.2, m1: 1.0, m2: 2.0 })
+          .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
+          .toBuffer();
+      }
     }
 
     // 3. Konversi hasil ke JPG/PNG kualitas penuh (maks 8MB untuk Discord)
