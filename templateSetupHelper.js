@@ -1467,6 +1467,20 @@ async function setupMiniGamesTemplate(guild, roles) {
   const { getSambungKataPanelEmbed, getSambungKataActionRow } = require('./sambungKataHelper');
   await ensurePanel(sambungKataChannel, getSambungKataPanelEmbed(guild), getSambungKataActionRow());
 
+  // 6. Buat 8 Channel Mini Games Kuis Baru (Lengkapi Kalimat, Karakter FF, MTK, Siapakah Aku, Susun Kata, Tebak Gambar, Tebak Game, Tebak Logo)
+  const { QUIZ_GAME_LIST, getQuizPanelEmbed, getQuizPanelRow } = require('./quizGamesHelper');
+  const quizChannels = {};
+  for (const qGame of QUIZ_GAME_LIST) {
+    const ch = await getOrCreateChannel(guild, {
+      name: qGame.channelName,
+      type: ChannelType.GuildText,
+      parentId: category.id,
+      permissionOverwrites: memberOverwrites,
+    });
+    await ensurePanel(ch, getQuizPanelEmbed(guild, qGame), getQuizPanelRow(qGame.key));
+    quizChannels[qGame.configKey] = ch.id;
+  }
+
   setGameConfig(guild.id, {
     categoryId: category.id,
     coinChannelId: coinChannel.id,
@@ -1474,10 +1488,11 @@ async function setupMiniGamesTemplate(guild, roles) {
     rpsChannelId: rpsChannel.id,
     slotChannelId: slotChannel.id,
     sambungKataChannelId: sambungKataChannel.id,
+    ...quizChannels,
     enabled: true,
   });
 
-  return { category, coinChannel, numberChannel, rpsChannel, slotChannel, sambungKataChannel };
+  return { category, coinChannel, numberChannel, rpsChannel, slotChannel, sambungKataChannel, quizChannels };
 }
 
 /**
@@ -1681,6 +1696,7 @@ async function setupFullTemplate(guild) {
       rpsId: miniGames.rpsChannel.id,
       slotId: miniGames.slotChannel.id,
       sambungKataId: miniGames.sambungKataChannel.id,
+      ...(miniGames.quizChannels || {}),
       hubVoiceId: voiceLounges.hubChannel.id,
     },
     categories: {

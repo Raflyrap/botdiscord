@@ -1289,6 +1289,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
+    // === MINI GAMES: 8 QUIZ & TEBAK-TEBAKAN BUTTONS (Xemoz API) ===
+    if (interaction.customId.startsWith('btn_quiz_')) {
+      try {
+        const { handleQuizButton } = require('./quizGamesHelper');
+        await handleQuizButton(interaction);
+      } catch (err) {
+        console.error('[QUIZ BUTTON ERROR]:', err.message);
+      }
+      return;
+    }
+
     // === PROFILE & LEADERBOARD BUTTONS ===
     if (interaction.customId.startsWith('btn_profile_ach_')) {
       const targetId = interaction.customId.replace('btn_profile_ach_', '');
@@ -2834,6 +2845,11 @@ client.on(Events.MessageCreate, async (message) => {
       const handled = await handlePlayerWord(message);
       if (handled) return;
     }
+
+    // 5. 8 Mini Games Kuis & Tebak-Tebakan (Lengkapi Kalimat, Karakter FF, MTK, Siapakah Aku, Susun Kata, Tebak Gambar, Tebak Game, Tebak Logo)
+    const { handleQuizMessage } = require('./quizGamesHelper');
+    const quizHandled = await handleQuizMessage(message);
+    if (quizHandled) return;
   } catch (err) {
     console.error('Error saat mini game chat gameplay:', err);
   }

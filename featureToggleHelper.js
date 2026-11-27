@@ -94,8 +94,16 @@ const FEATURE_CATALOG = [
   {
     key: 'games',
     label: 'Mini Games (Semua Game)',
-    configIds: ['coinId', 'numberId', 'rpsId', 'slotId', 'sambungKataId'],
-    keywords: ['tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata'],
+    configIds: [
+      'coinId', 'numberId', 'rpsId', 'slotId', 'sambungKataId',
+      'lengkapiKalimatId', 'karakterFfId', 'mtkId', 'siapakahAkuId',
+      'susunKataId', 'tebakGambarId', 'tebakGameId', 'tebakLogoId',
+    ],
+    keywords: [
+      'tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata',
+      'lengkapi-kalimat', 'tebak-karakter-ff', 'kuis-matematika', 'siapakah-aku',
+      'susun-kata', 'tebak-gambar', 'tebak-game', 'tebak-logo',
+    ],
     type: 'games',
   },
   {

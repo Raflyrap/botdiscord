@@ -5,7 +5,11 @@ const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // UTC+7 (Waktu Indonesia Barat)
 
 const AI_CHANNEL_KEYWORDS = ['ai-generating', 'ai-prompt', 'ai-promt', 'ai-fanart'];
 const SOSMED_CHANNEL_KEYWORDS = ['tiktok-convert', 'instagram-convert', 'facebook-convert', 'youtube-convert'];
-const MINIGAME_CHANNEL_KEYWORDS = ['tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata'];
+const MINIGAME_CHANNEL_KEYWORDS = [
+  'tebak-koin', 'tebak-angka', 'suit-jepang', 'gacha-slot', 'sambung-kata',
+  'lengkapi-kalimat', 'tebak-karakter-ff', 'kuis-matematika', 'siapakah-aku',
+  'susun-kata', 'tebak-gambar', 'tebak-game', 'tebak-logo',
+];
 const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo', 'meme', 'remove-bg', 'removebg', 'pinterest', 'hitamkan'];
 const STALK_CHANNEL_KEYWORDS = ['stalk'];
 
