@@ -52,7 +52,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
       channel = await getOrCreateChannel(guild, {
-        name: '📌︱pinterest',
+        name: '🖼️︱pinterest',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -76,7 +76,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
       channel = await getOrCreateChannel(guild, {
-        name: '✂️︱remove-bg',
+        name: '🪄︱remove-bg',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -100,7 +100,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
       channel = await getOrCreateChannel(guild, {
-        name: '⚫︱hitamkan',
+        name: '🌑︱hitamkan',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -124,7 +124,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
       channel = await getOrCreateChannel(guild, {
-        name: '🎭︱meme',
+        name: '😂︱meme',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -148,7 +148,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
       channel = await getOrCreateChannel(guild, {
-        name: '💻︱ai-generating',
+        name: '🤖︱ai-generating',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -171,7 +171,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
       channel = await getOrCreateChannel(guild, {
-        name: '💻︱ai-prompt',
+        name: '💡︱ai-prompt',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -192,7 +192,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
       channel = await getOrCreateChannel(guild, {
-        name: '💻︱ai-fanart',
+        name: '🎨︱ai-fanart',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -265,7 +265,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     if (!channel) {
       const category = await getOrCreateModularCategory(guild, 'NOTIFIKASI');
       channel = await getOrCreateChannel(guild, {
-        name: '👋︱leave',
+        name: '🚪︱leave',
         type: ChannelType.GuildText,
         parentId: category.id,
       });

@@ -127,7 +127,10 @@ async function getOrCreateChannel(guild, { name, type, parentId, permissionOverw
       }
     }
   } else {
-    // Update parent dan permissions jika diperlukan
+    // Sinkronkan nama/emoji channel terbaru, parent, dan permissions jika diperlukan
+    if (type !== ChannelType.GuildCategory && channel.name !== name) {
+      await channel.setName(name).catch(() => {});
+    }
     if (parentId && channel.parentId !== parentId) {
       await channel.setParent(parentId).catch(() => {});
     }
@@ -519,7 +522,7 @@ async function setupNotify(guild, roles) {
   });
 
   const levels = await getOrCreateChannel(guild, {
-    name: '🔝︱levels',
+    name: '📈︱levels',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: readOnlyOverwrites,
@@ -724,35 +727,35 @@ async function setupCinematography(guild, roles) {
   });
 
   const hdFoto = await getOrCreateChannel(guild, {
-    name: '🖼️︱hd-foto',
+    name: '✨︱hd-foto',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const meme = await getOrCreateChannel(guild, {
-    name: '🎭︱meme',
+    name: '😂︱meme',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const removeBg = await getOrCreateChannel(guild, {
-    name: '✂️︱remove-bg',
+    name: '🪄︱remove-bg',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const pinterest = await getOrCreateChannel(guild, {
-    name: '📌︱pinterest',
+    name: '🖼️︱pinterest',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const hitamkan = await getOrCreateChannel(guild, {
-    name: '⚫︱hitamkan',
+    name: '🌑︱hitamkan',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
