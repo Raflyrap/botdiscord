@@ -1774,15 +1774,6 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
-// Event saat bot dimasukkan ke server baru
-client.on(Events.GuildCreate, async (guild) => {
-  try {
-    await handleGuildCreate(guild, client);
-  } catch (err) {
-    console.error('[GUILD CREATE] Error:', err);
-  }
-});
-
 // Event saat bot dikeluarkan dari server
 client.on(Events.GuildDelete, async (guild) => {
   try {

@@ -494,11 +494,23 @@ async function ensureMonitoringChannels(client) {
   };
 }
 
+// Anti-duplikat event guildCreate (jika gateway mengirim ulang dalam 15 detik)
+const recentGuildJoins = new Map();
+
 // Event: Ketika BotFly dimasukkan ke server baru (guildCreate)
 async function handleGuildCreate(guild, client) {
   try {
     client = client || guild?.client;
-    if (!client) return;
+    if (!client || !guild?.id) return;
+
+    const nowMs = Date.now();
+    const lastJoinMs = recentGuildJoins.get(guild.id);
+    if (lastJoinMs && nowMs - lastJoinMs < 15000) {
+      return;
+    }
+    recentGuildJoins.set(guild.id, nowMs);
+    if (recentGuildJoins.size > 200) recentGuildJoins.clear();
+
     const channels = await ensureMonitoringChannels(client);
     const totalServers = client.guilds.cache.size;
     const totalMembers = client.guilds.cache.reduce((sum, g) => sum + (g.memberCount || 0), 0);
@@ -871,11 +883,10 @@ async function updateLiveDashboard(client) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
-  let topCmdsText = '> *Belum ada data perintah tercatat.*';
+  let topCmdsText = 'Belum ada data perintah tercatat.';
   if (sortedCmds.length > 0) {
-    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
     topCmdsText = sortedCmds
-      .map(([cmd, count], idx) => `${medals[idx] || '•'} \`/${cmd}\` — **${count.toLocaleString('id-ID')}x**`)
+      .map(([cmd, count], idx) => `${idx + 1}. \`/${cmd}\` — **${count.toLocaleString('id-ID')}x**`)
       .join('\n');
   }
 
@@ -892,110 +903,106 @@ async function updateLiveDashboard(client) {
     isMaintenance = Boolean(isMaintenanceMode?.());
   } catch {}
 
-  // Indikator Ping & Progress Bar RAM (asumsi host 4096 MB)
-  const pingBadge = wsPing <= 80 ? '🟢' : wsPing <= 180 ? '🟡' : '🔴';
+  // Indikator Ping
   const pingLabel = wsPing <= 80 ? 'Optimal' : wsPing <= 180 ? 'Normal' : 'Tinggi';
-  const ramPct = Math.min(100, Math.round((parseFloat(ramUsageMb) / 4096) * 100));
-  const filledBlocks = Math.max(1, Math.round(ramPct / 10));
-  const ramBar = `${'█'.repeat(filledBlocks)}${'░'.repeat(10 - filledBlocks)}`;
 
   // Live Feed 5 Aktivitas Server Masuk / Keluar Terbaru
   const recentEvents = Array.isArray(data.recentServerEvents) ? data.recentServerEvents.slice(0, 5) : [];
-  let recentEventsText = '> *Belum ada aktivitas server masuk/keluar terbaru.*';
+  let recentEventsText = 'Belum ada aktivitas server masuk/keluar terbaru.';
   if (recentEvents.length > 0) {
     recentEventsText = recentEvents
       .map((ev) => {
-        const icon = ev.type === 'join' ? '🟢 **MASUK**' : '🔴 **KELUAR**';
-        const mem = ev.memberCount ? ` (${Number(ev.memberCount).toLocaleString('id-ID')} mbr)` : '';
-        const ts = ev.timestamp ? ` • <t:${ev.timestamp}:R>` : '';
-        return `${icon} \`${String(ev.name || 'Server').slice(0, 28)}\`${mem}${ts}`;
+        const tag = ev.type === 'join' ? '[MASUK]' : '[KELUAR]';
+        const mem = ev.memberCount ? ` (${Number(ev.memberCount).toLocaleString('id-ID')} member)` : '';
+        const ts = ev.timestamp ? ` - <t:${ev.timestamp}:R>` : '';
+        return `**${tag}** \`${String(ev.name || 'Server').slice(0, 30)}\`${mem}${ts}`;
       })
       .join('\n');
   }
 
   const djsVersion = require('discord.js').version || '14.x';
   const nowUnix = Math.floor(Date.now() / 1000);
-  const statusBanner = isMaintenance ? '🟠 MODE MAINTENANCE AKTIF' : '🟢 SEMUA SISTEM ONLINE & OPTIMAL';
+  const statusText = isMaintenance ? 'MODE MAINTENANCE AKTIF' : 'ONLINE & OPTIMAL';
 
   const dashboardEmbed = new EmbedBuilder()
     .setColor(isMaintenance ? 0xFAA61A : 0x5865F2)
     .setAuthor({
-      name: 'FlyBot Network • Live Master Control Center',
+      name: 'FlyBot Network - Live Monitoring',
       iconURL: client.user.displayAvatarURL({ dynamic: true }),
     })
-    .setTitle('📊 Pusat Kendali & Live Monitoring FlyBot')
+    .setTitle('Live Dashboard FlyBot')
     .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
     .setDescription(
-      `\`\`\`ansi\n\u001b[1;32m${statusBanner}\u001b[0m\n\`\`\`\n` +
-      `> Pembaruan otomatis **real-time** • Terakhir diperbarui: <t:${nowUnix}:R>`
+      `Status Sistem: **${statusText}**\n` +
+      `Terakhir Diperbarui: <t:${nowUnix}:R>`
     )
     .addFields(
       {
-        name: '🌐 Jaringan Global',
+        name: 'Statistik Jaringan',
         value:
-          `• Server: **${totalServers.toLocaleString('id-ID')}**\n` +
-          `• Pengguna: **${totalMembers.toLocaleString('id-ID')}**\n` +
-          `• Command: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')}x**`,
+          `Server Aktif: **${totalServers.toLocaleString('id-ID')}**\n` +
+          `Total Pengguna: **${totalMembers.toLocaleString('id-ID')}**\n` +
+          `Total Perintah: **${(data.totalCommandsExecuted || 0).toLocaleString('id-ID')}x**`,
         inline: true,
       },
       {
-        name: '📈 Pertumbuhan Hari Ini',
+        name: 'Pertumbuhan Hari Ini',
         value:
-          `• Masuk: **+${growth.joined || 0} Server**\n` +
-          `• Keluar: **-${growth.left || 0} Server**\n` +
-          `• Bersih: **${netSign} Server**`,
+          `Server Masuk: **+${growth.joined || 0}**\n` +
+          `Server Keluar: **-${growth.left || 0}**\n` +
+          `Selisih Bersih: **${netSign}**`,
         inline: true,
       },
       {
-        name: '🎵 Audio & Voice',
+        name: 'Audio & Voice',
         value:
-          `• Lavalink: **${lavalinkStatus}**\n` +
-          `• Playing: **${activePlayers} Server**\n` +
-          `• Patroli 24/7: **${activePatroli} Room**`,
+          `Lavalink: **${lavalinkStatus}**\n` +
+          `Memutar Musik: **${activePlayers} Server**\n` +
+          `Patroli 24/7: **${activePatroli} Room**`,
         inline: true,
       },
       {
-        name: '⚡ Kesehatan Host (Pterodactyl)',
+        name: 'Performa Server Host',
         value:
-          `• Ping: ${pingBadge} **${wsPing} ms** (${pingLabel})\n` +
-          `• Uptime: **${uptimeStr}**\n` +
-          `• RAM: \`[${ramBar}]\` **${ramUsageMb} MB** *(Heap: ${heapUsedMb} MB)*`,
+          `Latensi Gateway: **${wsPing} ms** (${pingLabel})\n` +
+          `Uptime Aktif: **${uptimeStr}**\n` +
+          `Penggunaan RAM: **${ramUsageMb} MB** (Heap: ${heapUsedMb} MB)`,
         inline: false,
       },
       {
-        name: '📥📤 Aktivitas Server Masuk & Keluar Terbaru',
+        name: 'Aktivitas Server Terbaru',
         value: recentEventsText,
         inline: false,
       },
       {
-        name: '🏆 Top 5 Perintah Terpopuler',
+        name: '5 Perintah Terpopuler',
         value: topCmdsText,
         inline: true,
       },
       {
-        name: '💻 Lingkungan Sistem',
+        name: 'Informasi Sistem',
         value:
-          `• Runtime: \`Node ${process.version}\`\n` +
-          `• Library: \`discord.js v${djsVersion}\`\n` +
-          `• Platform: \`${process.platform}/${process.arch}\``,
+          `Runtime: \`Node ${process.version}\`\n` +
+          `Library: \`discord.js v${djsVersion}\`\n` +
+          `Platform: \`${process.platform}/${process.arch}\``,
         inline: true,
       }
     )
-    .setFooter({ text: 'FlyBot Real-Time Telemetry • Auto-Refresh Aktif' })
+    .setFooter({ text: 'FlyBot Live Monitoring - Auto-Refresh Setiap 60 Detik' })
     .setTimestamp();
 
-  // Tombol Aksi Cepat Dashboard
+  // Tombol Aksi Cepat Dashboard (Full Teks Tanpa Emoji)
   const actionRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_monitor_refresh')
-      .setLabel('🔄 Refresh Sekarang')
+      .setLabel('Refresh Sekarang')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('btn_monitor_toggle_maint')
-      .setLabel(isMaintenance ? '🟢 Matikan Maintenance' : '🛠️ Mode Maintenance')
+      .setLabel(isMaintenance ? 'Matikan Maintenance' : 'Mode Maintenance')
       .setStyle(isMaintenance ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setLabel('🌐 Website Resmi')
+      .setLabel('Website Resmi')
       .setStyle(ButtonStyle.Link)
       .setURL(getOfficialWebsiteUrl())
   );
