@@ -124,6 +124,30 @@ function normalizeAnswer(str) {
     .trim();
 }
 
+/**
+ * Menghitung jarak Levenshtein untuk deteksi jawaban "Hampir Benar"
+ */
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 function buildMaskedHint(answer) {
   const clean = String(answer || '').trim();
   return clean
@@ -435,10 +459,22 @@ async function handleQuizMessage(message) {
     return true;
   }
 
+  // Jika user ketik petunjuk / hint / clue di chat
+  if (['hint', 'petunjuk', 'clue', 'bantuan'].includes(normalized)) {
+    const masked = buildMaskedHint(cur.answer);
+    const extra = cur.extraHint ? `\n• Info Tambahan: ${cur.extraHint}` : '';
+    const remainingSec = Math.max(1, Math.ceil((60000 - (Date.now() - cur.startedAt)) / 1000));
+    await message.reply(
+      `💡 **Petunjuk Jawaban:** \`${masked}\` (${cur.answer.length} karakter)${extra}\n⏱️ Sisa waktu: **${remainingSec} detik**`
+    ).catch(() => {});
+    return true;
+  }
+
   // Cek jawaban benar!
   if (normalized === cur.normalizedAnswer) {
     clearTimeout(cur.timeoutId);
     activeQuizzes.delete(message.channel.id);
+    message.react('✅').catch(() => {});
 
     const elapsedSec = ((Date.now() - cur.startedAt) / 1000).toFixed(1);
     const reward = addReward(message.guild.id, message.author.id, {
@@ -474,7 +510,43 @@ async function handleQuizMessage(message) {
     return true;
   }
 
-  return false;
+  // === JAWABAN SALAH: Beri pemberitahuan langsung agar bot responsif ===
+  message.react('❌').catch(() => {});
+  const remainingSec = Math.max(1, Math.ceil((60000 - (Date.now() - cur.startedAt)) / 1000));
+  const safeGuess = rawContent.length > 50 ? `${rawContent.slice(0, 47)}...` : rawContent;
+
+  let feedbackText = `❌ **Salah!** \`${safeGuess}\` belum tepat. Coba lagi atau ketik \`hint\` / klik **💡 Petunjuk**! *(⏱️ Sisa ${remainingSec} detik)*`;
+
+  if (gameKey === 'mtk') {
+    const guessNum = Number(rawContent.replace(',', '.'));
+    const targetNum = Number(cur.answer);
+    if (!Number.isNaN(guessNum) && !Number.isNaN(targetNum)) {
+      if (guessNum > targetNum) {
+        feedbackText = `📉 **Salah, terlalu besar!** Angka jawaban lebih kecil dari \`${safeGuess}\`. *(⏱️ Sisa ${remainingSec} detik)*`;
+      } else {
+        feedbackText = `📈 **Salah, terlalu kecil!** Angka jawaban lebih besar dari \`${safeGuess}\`. *(⏱️ Sisa ${remainingSec} detik)*`;
+      }
+    } else {
+      feedbackText = `❌ **Salah!** Ketik hasil angka yang benar ya. *(⏱️ Sisa ${remainingSec} detik)*`;
+    }
+  } else {
+    const dist = levenshteinDistance(normalized, cur.normalizedAnswer);
+    const maxCloseDist = cur.normalizedAnswer.length >= 7 ? 2 : 1;
+    const isPartialMatch =
+      normalized.length >= 3 &&
+      (cur.normalizedAnswer.includes(normalized) || normalized.includes(cur.normalizedAnswer));
+
+    if ((cur.normalizedAnswer.length >= 4 && dist <= maxCloseDist) || isPartialMatch) {
+      feedbackText = `🤏 **Hampir benar!** Jawaban \`${safeGuess}\` sudah dekat banget — cek ejaan & coba lagi! *(⏱️ Sisa ${remainingSec} detik)*`;
+    }
+  }
+
+  await message.reply({
+    content: feedbackText,
+    allowedMentions: { repliedUser: false },
+  }).catch(() => {});
+
+  return true;
 }
 
 module.exports = {
