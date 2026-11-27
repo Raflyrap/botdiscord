@@ -15,7 +15,7 @@ const { dispatchLevelUpAndAchievements } = require('./levelEmbeds');
 const QUIZ_GAMES = {
   lengkapikalimat: {
     key: 'lengkapikalimat',
-    channelName: '✍️︱lengkapi-kalimat',
+    channelName: '🎮︱lengkapi-kalimat',
     keyword: 'lengkapi-kalimat',
     configKey: 'lengkapiKalimatId',
     title: '✍️ Arena Lengkapi Kalimat',
@@ -27,7 +27,7 @@ const QUIZ_GAMES = {
   },
   karakterff: {
     key: 'karakterff',
-    channelName: '🔥︱tebak-karakter-ff',
+    channelName: '🎮︱tebak-karakter-ff',
     keyword: 'tebak-karakter-ff',
     configKey: 'karakterFfId',
     title: '🔥 Arena Tebak Karakter Free Fire',
@@ -39,7 +39,7 @@ const QUIZ_GAMES = {
   },
   mtk: {
     key: 'mtk',
-    channelName: '🧮︱kuis-matematika',
+    channelName: '🎮︱kuis-matematika',
     keyword: 'kuis-matematika',
     configKey: 'mtkId',
     title: '🧮 Arena Kuis Matematika',
@@ -51,7 +51,7 @@ const QUIZ_GAMES = {
   },
   siapakahaku: {
     key: 'siapakahaku',
-    channelName: '🕵️︱siapakah-aku',
+    channelName: '🎮︱siapakah-aku',
     keyword: 'siapakah-aku',
     configKey: 'siapakahAkuId',
     title: '🕵️ Arena Siapakah Aku',
@@ -63,7 +63,7 @@ const QUIZ_GAMES = {
   },
   susunkata: {
     key: 'susunkata',
-    channelName: '🧩︱susun-kata',
+    channelName: '🎮︱susun-kata',
     keyword: 'susun-kata',
     configKey: 'susunKataId',
     title: '🧩 Arena Susun Kata',
@@ -75,7 +75,7 @@ const QUIZ_GAMES = {
   },
   tebakgambar: {
     key: 'tebakgambar',
-    channelName: '🎨︱tebak-gambar',
+    channelName: '🎮︱tebak-gambar',
     keyword: 'tebak-gambar',
     configKey: 'tebakGambarId',
     title: '🎨 Arena Tebak Gambar',
@@ -87,7 +87,7 @@ const QUIZ_GAMES = {
   },
   tebakgame: {
     key: 'tebakgame',
-    channelName: '🕹️︱tebak-game',
+    channelName: '🎮︱tebak-game',
     keyword: 'tebak-game',
     configKey: 'tebakGameId',
     title: '🕹️ Arena Tebak Game',
@@ -99,7 +99,7 @@ const QUIZ_GAMES = {
   },
   tebaklogo: {
     key: 'tebaklogo',
-    channelName: '💠︱tebak-logo',
+    channelName: '🎮︱tebak-logo',
     keyword: 'tebak-logo',
     configKey: 'tebakLogoId',
     title: '💠 Arena Tebak Logo',

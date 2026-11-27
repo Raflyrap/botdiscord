@@ -10,7 +10,7 @@ const MINIGAME_CHANNEL_KEYWORDS = [
   'lengkapi-kalimat', 'tebak-karakter-ff', 'kuis-matematika', 'siapakah-aku',
   'susun-kata', 'tebak-gambar', 'tebak-game', 'tebak-logo',
 ];
-const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo', 'meme', 'remove-bg', 'removebg', 'pinterest', 'hitamkan'];
+const HD_CHANNEL_KEYWORDS = ['hd-foto', 'hdfoto', 'hd-photo', 'remove-bg', 'removebg', 'pinterest'];
 const STALK_CHANNEL_KEYWORDS = ['stalk'];
 
 function isAiChannel(channel) {
@@ -40,9 +40,7 @@ function isMiniGameChannel(channel) {
 function isHdChannel(channel) {
   if (!channel || channel.type !== ChannelType.GuildText) return false;
   const clean = channel.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
-  const isKw = HD_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
-  const isCat = channel.parent && channel.parent.name.toLowerCase().includes('cinematography');
-  return isKw || isCat;
+  return HD_CHANNEL_KEYWORDS.some((kw) => clean.includes(kw));
 }
 
 function isStalkChannel(channel) {

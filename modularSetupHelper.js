@@ -50,9 +50,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
 
   if (featureKey === 'pinterest') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🖼️︱pinterest',
+        name: '🤖︱pinterest',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -74,9 +74,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channelsCfg.pinterestId = channel.id;
   } else if (featureKey === 'removebg') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🪄︱remove-bg',
+        name: '🤖︱remove-bg',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -96,57 +96,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
       await channel.send({ embeds: [guideEmbed] }).catch(() => {});
     }
     channelsCfg.removeBgId = channel.id;
-  } else if (featureKey === 'hitamkan') {
-    if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
-      channel = await getOrCreateChannel(guild, {
-        name: '🌑︱hitamkan',
-        type: ChannelType.GuildText,
-        parentId: category.id,
-      });
-
-      const guideEmbed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setAuthor({ name: `${guild.name} • Studio Hitamkan`, iconURL: guild.client.user.displayAvatarURL() })
-        .setTitle('Studio Auto-Hitamkan Foto')
-        .setDescription(
-          'Kirim atau upload file foto langsung ke channel ini untuk mengubah tone wajah/kulit menjadi hitam secara instan!\n\n' +
-          '• Format didukung: JPG, PNG, WEBP\n' +
-          '• Otomatis: Cukup upload atau kirim gambar wajah/orang di sini tanpa perlu mengetik perintah apa pun.\n' +
-          '• Perintah manual: Anda juga dapat menggunakan `/hitamkan` di channel lain.'
-        )
-        .setFooter({ text: 'FlyBot Instant Melanin & Darken Studio' });
-
-      await channel.send({ embeds: [guideEmbed] }).catch(() => {});
-    }
-    channelsCfg.hitamkanId = channel.id;
-  } else if (featureKey === 'meme') {
-    if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'CINEMATOGRAPHY & DESAIN');
-      channel = await getOrCreateChannel(guild, {
-        name: '😂︱meme',
-        type: ChannelType.GuildText,
-        parentId: category.id,
-      });
-
-      const guideEmbed = new EmbedBuilder()
-        .setColor(0x8ACE00)
-        .setAuthor({ name: `${guild.name} • Studio Meme & Canvas`, iconURL: guild.client.user.displayAvatarURL() })
-        .setTitle('🎭 Studio Auto Meme & Canvas')
-        .setDescription(
-          'Ketik teks biasa langsung di channel ini untuk membuat gambar **Brat** otomatis, atau ketik `gif <teks>` untuk **GIF Animasi Brat**!\n\n' +
-          '• Perintah lengkap: `/meme brat`, `/meme tweet`, `/meme ship`, `/meme sertifikat`, `/meme batslap`, `/meme kiss`, `/meme gay`, `/meme spotify`, `/meme efek`.\n' +
-          '• Chat dibersihkan otomatis setiap jam **00:00 WIB**.'
-        )
-        .setFooter({ text: 'FlyBot Meme & Canvas Studio' });
-
-      const sent = await channel.send({ embeds: [guideEmbed] }).catch(() => null);
-      if (sent) await sent.pin().catch(() => {});
-    }
-    channelsCfg.memeId = channel.id;
   } else if (featureKey === 'aigenerating') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
         name: '🤖︱ai-generating',
         type: ChannelType.GuildText,
@@ -169,9 +121,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channelsCfg.aiGeneratingId = channel.id;
   } else if (featureKey === 'aiprompt') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
-        name: '💡︱ai-prompt',
+        name: '🤖︱ai-prompt',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -190,9 +142,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channelsCfg.aiPromptId = channel.id;
   } else if (featureKey === 'fanart') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'AI INTELLIGENCE');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🎨︱ai-fanart',
+        name: '🤖︱ai-fanart',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -211,7 +163,7 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channelsCfg.aiFanartId = channel.id;
   } else if (featureKey === 'music') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'MUSIC STUDIO');
+      const category = await getOrCreateModularCategory(guild, '───────Music───────');
       channel = await getOrCreateChannel(guild, {
         name: '🎵︱play-music',
         type: ChannelType.GuildText,
@@ -234,9 +186,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channelsCfg.playMusicId = channel.id;
   } else if (featureKey === 'stalk') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'COMMUNITY');
+      const category = await getOrCreateModularCategory(guild, '───────Entertainment───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🔍︱stalk',
+        name: '🤖︱stalk',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -313,9 +265,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     channel = res.tiktokConvert;
   } else if (featureKey === 'sambungkata') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'MINI GAMES');
+      const category = await getOrCreateModularCategory(guild, '───────Mini Games───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🔤︱sambung-kata',
+        name: '🎮︱sambung-kata',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -331,9 +283,9 @@ async function setupModularFeature(guild, featureKey, targetChannel = null) {
     setGameConfig(guild.id, { sambungKataChannelId: channel.id });
   } else if (featureKey === 'slot') {
     if (!channel) {
-      const category = await getOrCreateModularCategory(guild, 'MINI GAMES');
+      const category = await getOrCreateModularCategory(guild, '───────Mini Games───────');
       channel = await getOrCreateChannel(guild, {
-        name: '🎰︱gacha-slot',
+        name: '🎮︱gacha-slot',
         type: ChannelType.GuildText,
         parentId: category.id,
       });
@@ -383,8 +335,6 @@ function removeModularFeature(guildId, featureKey) {
   const keyMap = {
     pinterest: 'pinterestId',
     removebg: 'removeBgId',
-    hitamkan: 'hitamkanId',
-    meme: 'memeId',
     aigenerating: 'aiGeneratingId',
     aiprompt: 'aiPromptId',
     fanart: 'aiFanartId',
@@ -416,8 +366,6 @@ function isFeatureConfigured(guild, featureKey) {
   const nameKeywords = {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
-    hitamkan: ['hitamkan'],
-    meme: ['meme'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],
@@ -433,8 +381,6 @@ function isFeatureConfigured(guild, featureKey) {
   const idMap = {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
-    hitamkan: chCfg.hitamkanId,
-    meme: chCfg.memeId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -470,8 +416,6 @@ function getActiveFeatureChannel(guild, featureKey) {
   const idMap = {
     pinterest: chCfg.pinterestId,
     removebg: chCfg.removeBgId,
-    hitamkan: chCfg.hitamkanId,
-    meme: chCfg.memeId,
     aigenerating: chCfg.aiGeneratingId,
     aiprompt: chCfg.aiPromptId,
     fanart: chCfg.aiFanartId,
@@ -493,8 +437,6 @@ function getActiveFeatureChannel(guild, featureKey) {
   const nameKeywords = {
     pinterest: ['pinterest'],
     removebg: ['remove-bg', 'removebg'],
-    hitamkan: ['hitamkan'],
-    meme: ['meme'],
     aigenerating: ['ai-generating', 'aigenerating'],
     aiprompt: ['ai-prompt', 'aiprompt'],
     fanart: ['ai-fanart', 'fanart'],

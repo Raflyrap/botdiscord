@@ -43,25 +43,11 @@ const FEATURE_CATALOG = [
     type: 'modular',
   },
   {
-    key: 'hitamkan',
-    label: 'Hitamkan Foto',
-    configIds: ['hitamkanId'],
-    keywords: ['hitamkan'],
-    type: 'modular',
-  },
-  {
     key: 'hd',
     label: 'HD Foto (AI Upscale)',
     configIds: ['hdFotoId'],
     keywords: ['hd-foto', 'hdfoto'],
     type: 'hd',
-  },
-  {
-    key: 'meme',
-    label: 'Meme & Canvas Studio',
-    configIds: ['memeId'],
-    keywords: ['meme'],
-    type: 'modular',
   },
   {
     key: 'removebg',
@@ -119,13 +105,6 @@ const FEATURE_CATALOG = [
     configIds: ['slotId'],
     keywords: ['gacha-slot', 'slot'],
     type: 'modular',
-  },
-  {
-    key: 'giveaway',
-    label: 'Giveaway Interaktif',
-    configIds: ['giveawayId'],
-    keywords: ['giveaway'],
-    type: 'giveaway',
   },
   {
     key: 'level',
@@ -264,10 +243,6 @@ async function findFeatureChannels(guild, def) {
       const { getHdConfig } = require('./imageHdHelper');
       const hId = getHdConfig(guild.id)?.channelId;
       if (hId && allChannels.has(hId)) found.set(hId, allChannels.get(hId));
-    } else if (def.key === 'giveaway') {
-      const { getGiveaway } = require('./giveawayHelper');
-      const gId = getGiveaway(guild.id)?.channelId;
-      if (gId && allChannels.has(gId)) found.set(gId, allChannels.get(gId));
     } else if (def.key === 'level') {
       const { getLevelConfig } = require('./levelingHelper');
       const lvlCfg = getLevelConfig(guild.id);
@@ -349,9 +324,6 @@ async function disableFeature(guild, featureKey) {
     } else if (def.key === 'hd') {
       const { setHdConfig } = require('./imageHdHelper');
       setHdConfig(guild.id, { channelId: null });
-    } else if (def.key === 'giveaway') {
-      const { setGiveaway } = require('./giveawayHelper');
-      setGiveaway(guild.id, { status: 'ended', channelId: null, messageId: null });
     } else if (def.key === 'level') {
       const { setLevelConfig } = require('./levelingHelper');
       setLevelConfig(guild.id, { levelUpChannel: null });
@@ -410,14 +382,6 @@ async function enableFeature(guild, featureKey) {
     createdChannel = res?.channel || null;
     if (createdChannel) {
       chCfg.hdFotoId = createdChannel.id;
-      setTemplateConfig(guild.id, { channels: chCfg });
-    }
-  } else if (def.key === 'giveaway') {
-    const { setupGiveawayChannel } = require('./giveawayHelper');
-    const res = await setupGiveawayChannel(guild, null);
-    createdChannel = res?.channel || null;
-    if (createdChannel) {
-      chCfg.giveawayId = createdChannel.id;
       setTemplateConfig(guild.id, { channels: chCfg });
     }
   } else if (def.key === 'games') {

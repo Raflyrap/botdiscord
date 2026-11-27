@@ -356,14 +356,6 @@ client.once(Events.ClientReady, async (readyClient) => {
   } catch (err) {
     console.error('[STREAMER MONITOR INIT] Error:', err.message);
   }
-
-  // Pastikan Channel Giveaway Otomatis Muncul di Server Official
-  try {
-    const { ensureOfficialGiveawayChannel } = require('./giveawayHelper');
-    ensureOfficialGiveawayChannel(readyClient).catch(() => {});
-  } catch (err) {
-    console.error('[GIVEAWAY INIT] Error:', err.message);
-  }
 });
 
 // Event saat bot diundang atau bergabung ke server baru
@@ -561,28 +553,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.customId === 'btn_delete_cancel') {
       return interaction.reply({ content: 'Penghapusan dibatalkan.', flags: MessageFlags.Ephemeral });
-    }
-
-    // === SISTEM GIVEAWAY INTERAKTIF ===
-    if (interaction.customId === 'btn_giveaway_join') {
-      const { handleGiveawayJoin } = require('./giveawayHelper');
-      return handleGiveawayJoin(interaction);
-    }
-    if (interaction.customId === 'btn_giveaway_edit') {
-      const { handleGiveawayEditButton } = require('./giveawayHelper');
-      return handleGiveawayEditButton(interaction);
-    }
-    if (interaction.customId === 'btn_giveaway_list') {
-      const { handleGiveawayList } = require('./giveawayHelper');
-      return handleGiveawayList(interaction);
-    }
-    if (interaction.customId === 'btn_giveaway_start') {
-      const { handleGiveawayStart } = require('./giveawayHelper');
-      return handleGiveawayStart(interaction);
-    }
-    if (interaction.customId === 'btn_giveaway_reset') {
-      const { handleGiveawayReset } = require('./giveawayHelper');
-      return handleGiveawayReset(interaction);
     }
 
     // Tombol Navigasi Gambar Pinterest
@@ -1563,11 +1533,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
     }
-
-    if (interaction.customId === 'modal_giveaway_edit') {
-      const { handleGiveawayEditSubmit } = require('./giveawayHelper');
-      return handleGiveawayEditSubmit(interaction);
-    }
   }
 
   // Handler untuk Slash Command Autocomplete (misalnya pencarian kata di /antitoxic delete)
@@ -1646,7 +1611,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Proteksi Global DM: Cegah command khusus server crash (Cannot read properties of null) saat dipakai di DM
   const DM_SAFE_COMMANDS = new Set([
     'ping', 'help', 'invite', 'ai', 'remind', 'request-fitur',
-    'hitamkan', 'hd', 'removebg', 'pinterest', 'stalk', 'meme', 'owner',
+    'hd', 'removebg', 'pinterest', 'stalk', 'owner',
   ]);
   if (!interaction.guild && !DM_SAFE_COMMANDS.has(interaction.commandName)) {
     return interaction.reply({
@@ -2149,13 +2114,6 @@ client.on(Events.MessageCreate, async (message) => {
         }
       }
     }
-
-    // 2. Auto-Reactions untuk Galeri Kreatif & Hiburan
-    if (chName.includes('fotografi')) {
-      // Channel fotografi
-    } else if (chName.includes('videografi')) {
-      // Channel videografi
-    }
   }
 
   // === FITUR AUTO-DOWNLOAD / CONVERT SOSMED (TIKTOK, INSTAGRAM, FACEBOOK, YOUTUBE) ===
@@ -2504,151 +2462,6 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     } catch (err) {
       console.error('Error saat Auto-Pinterest di channel khusus:', err);
-    }
-  }
-
-  // === FITUR AUTO HITAMKAN DI CHANNEL KHUSUS HITAMKAN ===
-  const isHitamkanChannel = message.guild && (
-    message.channel?.id === templateCfg?.channels?.hitamkanId ||
-    (message.channel?.name && message.channel.name.toLowerCase().includes('hitamkan'))
-  );
-  if (isHitamkanChannel) {
-    const targetImageUrl = extractImageUrlFromMessage(message);
-    if (targetImageUrl) {
-      try {
-        const processingMsg = await message.reply('Sedang mengubah wajah/foto menjadi hitam, tunggu sebentar...');
-        const { hitamkanImage } = require('./hitamkanHelper');
-        const result = await hitamkanImage(targetImageUrl);
-
-        if (result.success) {
-          const file = new AttachmentBuilder(result.buffer, { name: 'hitamkan.png' });
-          const embed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setTitle('Foto Berhasil Dihitamkan')
-            .setDescription(
-              `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
-              `• Format: **PNG**\n` +
-              `• Ukuran File: **${result.size}**\n` +
-              `• Engine: **${result.engine || 'AI Neural Engine'}**\n` +
-              `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**\n\n` +
-              `> **Tips:** Klik foto lalu pilih "Buka yang asli" untuk melihat gambar kualitas penuh!`
-            )
-            .setImage('attachment://hitamkan.png')
-            .setFooter({ text: `FlyBot Auto-Hitamkan • Diminta oleh ${message.author.username}` })
-            .setTimestamp();
-
-          await processingMsg.edit({
-            content: null,
-            embeds: [embed],
-            files: [file],
-          });
-        } else {
-          await processingMsg.edit({
-            content: `Gagal memproses hitamkan gambar: ${result.error}`,
-          });
-        }
-        return;
-      } catch (err) {
-        console.error('Error saat Auto-Hitamkan di channel khusus:', err);
-      }
-    }
-  }
-
-  // === FITUR HITAMKAN VIA CAPTION /hitamkan ATAU REPLY FOTO /hitamkan ===
-  const isHitamkanCommand =
-    cleanContent === '/hitamkan' ||
-    cleanContent.startsWith('/hitamkan ') ||
-    cleanContent === '!hitamkan' ||
-    cleanContent.startsWith('!hitamkan ');
-
-  if (isHitamkanCommand) {
-    try {
-      let targetImageUrl = extractImageUrlFromMessage(message);
-      if (!targetImageUrl && message.reference && message.reference.messageId) {
-        const repliedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-        if (repliedMessage) {
-          targetImageUrl = extractImageUrlFromMessage(repliedMessage);
-        }
-      }
-
-      if (targetImageUrl) {
-        const processingMsg = await message.reply('Sedang memproses efek hitamkan pada gambar kamu, tunggu sebentar...');
-        const { hitamkanImage } = require('./hitamkanHelper');
-        const result = await hitamkanImage(targetImageUrl);
-
-        if (result.success) {
-          const file = new AttachmentBuilder(result.buffer, { name: 'hitamkan.png' });
-          const embed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setTitle('Foto Berhasil Dihitamkan')
-            .setDescription(
-              `Efek hitamkan berhasil diterapkan pada gambar kamu.\n\n` +
-              `• Format: **PNG**\n` +
-              `• Ukuran File: **${result.size}**\n` +
-              `• Engine: **${result.engine || 'AI Neural Engine'}**\n` +
-              `• Deteksi: **${result.skinDetected ? 'Wajah / Kulit Terdeteksi' : 'Filter Gelap Diterapkan'}**`
-            )
-            .setImage('attachment://hitamkan.png')
-            .setFooter({ text: `FlyBot Hitamkan • Diminta oleh ${message.author.username}` })
-            .setTimestamp();
-
-          await processingMsg.edit({
-            content: null,
-            embeds: [embed],
-            files: [file],
-          });
-        } else {
-          await processingMsg.edit({
-            content: `Gagal memproses gambar: ${result.error}`,
-          });
-        }
-        return;
-      } else {
-        await message.reply('Tidak ditemukan gambar bray. Kirim gambar langsung dengan caption `/hitamkan`, atau reply foto orang lain lalu ketik `/hitamkan`.');
-        return;
-      }
-    } catch (err) {
-      console.error('Error saat /hitamkan di chat:', err);
-    }
-  }
-
-  // === FITUR AUTO-MEME DI CHANNEL KHUSUS #🎭︱meme ===
-  const isMemeChannel = message.guild && (
-    message.channel?.id === templateCfg?.channels?.memeId ||
-    (message.channel?.name && message.channel.name.toLowerCase().includes('meme'))
-  );
-  if (isMemeChannel && !cleanContent.startsWith('/') && !cleanContent.startsWith('!')) {
-    const rawText = message.content.trim();
-    if (rawText.length > 0 && rawText.length <= 150) {
-      try {
-        const isAnimated = /^gif\s+/i.test(rawText);
-        const bratText = isAnimated ? rawText.replace(/^gif\s+/i, '').trim() : rawText;
-        if (bratText.length > 0) {
-          const processingMsg = await message.reply(
-            isAnimated ? '🎭 Sedang membuat **GIF Animasi Brat** kamu, tunggu sebentar...' : '🎭 Sedang membuat gambar **Brat** kamu...'
-          );
-          const { fetchSiputzxImage } = require('./memeCanvasHelper');
-          const result = await fetchSiputzxImage(
-            '/api/m/brat',
-            { text: bratText, isAnimated: isAnimated ? 'true' : 'false' },
-            isAnimated ? 'gif' : 'png'
-          );
-
-          const file = new AttachmentBuilder(result.buffer, { name: result.fileName });
-          const embed = new EmbedBuilder()
-            .setColor(0x8ACE00)
-            .setTitle(isAnimated ? '🎭 Brat Animated Generator' : '🎭 Brat Image Generator')
-            .setDescription(`> *"${bratText}"*`)
-            .setImage(`attachment://${result.fileName}`)
-            .setFooter({ text: `FlyBot Auto-Meme • ${result.size} • Diminta oleh ${message.author.username}` })
-            .setTimestamp();
-
-          await processingMsg.edit({ content: null, embeds: [embed], files: [file] });
-          return;
-        }
-      } catch (err) {
-        console.error('[AUTO-MEME ERROR]:', err.message);
-      }
     }
   }
 

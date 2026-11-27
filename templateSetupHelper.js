@@ -217,7 +217,7 @@ async function setupGetStarted(guild, roles) {
         `**5. KEAMANAN AKUN & PRIVASI**\n` +
         `> Jaga privasi diri sendiri dan orang lain (dilarang *doxxing*). Waspadai link *phishing* atau penipuan. Bot & Staff tidak akan pernah meminta password akun Anda.\n\n` +
         `**6. GUNAKAN CHANNEL SESUAI FUNGSI**\n` +
-        `> Kirim pesan dan media di channel yang sesuai (misal: meme di #meme, foto di #fotografi, obrolan santai di #ngobrol).\n\n` +
+        `> Kirim pesan dan media di channel yang sesuai (misal: obrolan santai di #ngobrol, musik di #play-music, AI & tools di kategori Entertainment).\n\n` +
         `**7. KEPUTUSAN STAFF & MODERATOR**\n` +
         `> Keputusan Staff & Moderator bersifat objektif demi ketertiban server. Jika mendapati pelanggaran, laporkan melalui channel <#report> atau tiket bantuan.\n\n` +
         `*Dengan bergabung dan berinteraksi di server ini, Anda dianggap telah membaca, memahami, dan menyetujui seluruh tata tertib yang berlaku.*`
@@ -236,7 +236,7 @@ async function setupGetStarted(guild, roles) {
 
   // 2. Channel Start Here (Verifikasi)
   const startHereChannel = await getOrCreateChannel(guild, {
-    name: '🌟︱start-here',
+    name: '🧭︱start-here',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: [
@@ -290,7 +290,7 @@ async function setupGetStarted(guild, roles) {
 
   // 3. Channel Select Roles (Gender Selection)
   const selectRolesChannel = await getOrCreateChannel(guild, {
-    name: '👑︱select-roles',
+    name: '🏷️︱select-roles',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: [
@@ -392,29 +392,14 @@ async function setupOfficial(guild, roles) {
   });
 
   const announcement = await getOrCreateChannel(guild, {
-    name: '📢︱announcement',
+    name: '📣︱announcement',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
-
-  const giveaway = await getOrCreateChannel(guild, {
-    name: '🎉︱giveaway',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-    topic: 'Channel resmi event berhadiah & giveaway server!',
-  });
-
-  // Pasang panel giveaway jika belum ada
-  const gwMsgs = await giveaway.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!gwMsgs || gwMsgs.size === 0) {
-    const { setupGiveawayChannel } = require('./giveawayHelper');
-    await setupGiveawayChannel(guild, giveaway).catch(() => {});
-  }
 
   const helpCenter = await getOrCreateChannel(guild, {
-    name: '❓︱help-center',
+    name: '🎫︱help-center',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
@@ -471,7 +456,7 @@ async function setupOfficial(guild, roles) {
     await announcement.send({ embeds: [annEmbed] }).catch(() => {});
   }
 
-  return { category, announcement, giveaway, helpCenter };
+  return { category, announcement, helpCenter };
 }
 
 /**
@@ -522,7 +507,7 @@ async function setupNotify(guild, roles) {
   });
 
   const levels = await getOrCreateChannel(guild, {
-    name: '📈︱levels',
+    name: '🏆︱levels',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: readOnlyOverwrites,
@@ -621,262 +606,20 @@ async function setupCommunity(guild, roles) {
   });
 
   const ngobrol = await getOrCreateChannel(guild, {
-    name: 'ngobrol',
+    name: '💬︱ngobrol',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: standardOverwrites,
   });
-
-  const stalk = await getOrCreateChannel(guild, {
-    name: 'stalk',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: standardOverwrites,
-  });
-
-  // Kirim atau perbarui info penggunaan /stalk jika channel stalk masih kosong atau sudah ada pesan panduan lama
-  const stalkEmbed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle('Arena Khusus Stalk Profil Akun')
-    .setDescription(
-      'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
-      '**Platform yang Didukung:**\n' +
-      '• **Mobile Legends (MLBB)**: Nickname akun, region server, status bundle & promo event top-up\n' +
-      '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
-      '• **TikTok**: Profil, bio, followers, total likes, video, & avatar HD\n' +
-      '• **Discord**: Akun, avatar animasi GIF, banner animasi GIF via User ID\n' +
-      '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
-      '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
-      '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
-      '*Hasil stalk bersifat privat (ephemeral) dan hanya bisa dilihat oleh kamu.*'
-    )
-    .setFooter({ text: 'Ketik /stalk untuk mulai mencari profil' });
-
-  const stalkMsgs = await stalk.messages.fetch({ limit: 10 }).catch(() => null);
-  const existingStalkMsg = stalkMsgs
-    ? stalkMsgs.find(
-        (m) =>
-          m.author?.id === guild.client.user?.id &&
-          m.embeds?.some((e) => e.title && e.title.includes('Arena Khusus Stalk'))
-      )
-    : null;
-
-  if (existingStalkMsg) {
-    await existingStalkMsg.edit({ embeds: [stalkEmbed] }).catch(() => {});
-  } else if (!stalkMsgs || stalkMsgs.size === 0) {
-    await stalk.send({ embeds: [stalkEmbed] }).catch(() => {});
-  }
 
   return {
     category,
     ngobrol,
-    stalk,
   };
 }
 
 /**
- * Setup 5: Cinematography
- * Fotografi, Videografi
- */
-async function setupCinematography(guild, roles) {
-  const memberOverwrites = [
-    {
-      id: guild.roles.everyone.id,
-      deny: [PermissionFlagsBits.ViewChannel],
-    },
-    {
-      id: roles.member.id,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.ReadMessageHistory,
-        PermissionFlagsBits.AttachFiles,
-        PermissionFlagsBits.EmbedLinks,
-      ],
-    },
-    {
-      id: guild.client.user.id,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.EmbedLinks,
-        PermissionFlagsBits.AttachFiles,
-      ],
-    },
-  ];
-
-  const category = await getOrCreateChannel(guild, {
-    name: '───────Cinematography───────',
-    type: ChannelType.GuildCategory,
-    position: 4,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const fotografi = await getOrCreateChannel(guild, {
-    name: '📷︱fotografi',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const videografi = await getOrCreateChannel(guild, {
-    name: '🎥︱videografi',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const hdFoto = await getOrCreateChannel(guild, {
-    name: '✨︱hd-foto',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const meme = await getOrCreateChannel(guild, {
-    name: '😂︱meme',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const removeBg = await getOrCreateChannel(guild, {
-    name: '🪄︱remove-bg',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const pinterest = await getOrCreateChannel(guild, {
-    name: '🖼️︱pinterest',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  const hitamkan = await getOrCreateChannel(guild, {
-    name: '🌑︱hitamkan',
-    type: ChannelType.GuildText,
-    parentId: category.id,
-    permissionOverwrites: memberOverwrites,
-  });
-
-  // Sambungkan ke hdChannelConfig
-  setHdConfig(guild.id, {
-    categoryId: category.id,
-    channelId: hdFoto.id,
-    enabled: true,
-  });
-
-  // Kirim panduan Auto-HD jika channel masih baru / kosong
-  const hdMsgs = await hdFoto.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!hdMsgs || hdMsgs.size === 0) {
-    const guideEmbed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setAuthor({ name: `${guild.name} • Studio HD Foto`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('Studio Auto-HD Foto')
-      .setDescription(
-        `Selamat datang di channel khusus Auto-HD!\n\n` +
-        `**Cara Pakai (Otomatis & Cepat):**\n` +
-        `• Cukup **kirim foto apa saja** ke channel ini, bot akan otomatis meningkatkan resolusi dan ketajamannya (Auto-HD 2x) tanpa perlu mengetik perintah apa pun.\n` +
-        `• Ingin hasil 4x lebih besar? Ketik \`/hd 4x\` pada caption foto untuk pembesaran 4x Ultra HD.\n` +
-        `• Kamu juga bisa me-reply foto di channel ini lalu ketik \`/hd\` atau \`!hd\`.\n\n` +
-        `> 💡 **Tips Kejernihan Maksimal:**\n` +
-        `> Discord mengecilkan tampilan gambar di chat. Klik foto hasil lalu pilih "Buka yang asli" di pojok kiri bawah untuk melihat kualitas foto penuh tanpa kompresi Discord!`
-      )
-      .setFooter({ text: 'FlyBot AI Super-Resolution Enhancer' })
-      .setTimestamp();
-    await hdFoto.send({ embeds: [guideEmbed] }).catch(() => {});
-  }
-
-  // Kirim panduan Auto-RemoveBG jika channel masih baru / kosong
-  const rbgMsgs = await removeBg.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!rbgMsgs || rbgMsgs.size === 0) {
-    const guideEmbed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setAuthor({ name: `${guild.name} • Studio Remove Background`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('Studio Auto Remove-BG')
-      .setDescription(
-        `Selamat datang di channel khusus Auto Remove Background!\n\n` +
-        `**Cara Pakai (Otomatis & Cepat):**\n` +
-        `• Cukup **kirim atau upload foto apa saja** ke channel ini, bot akan otomatis memisahkan latar belakang dan mengirimkan file PNG transparan beresolusi tinggi tanpa perlu mengetik perintah apa pun.\n` +
-        `• Kamu juga bisa menggunakan perintah \`/removebg\` di channel lain.\n\n` +
-        `> 💡 **Tips Unduh Kualitas Penuh:**\n` +
-        `> Klik tombol "Buka Gambar Transparan" pada hasil untuk menyimpan gambar PNG tanpa kompresi!`
-      )
-      .setFooter({ text: 'FlyBot AI Background Remover' })
-      .setTimestamp();
-    await removeBg.send({ embeds: [guideEmbed] }).catch(() => {});
-  }
-
-  // Kirim panduan Pinterest jika channel masih baru / kosong
-  const pinMsgs = await pinterest.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!pinMsgs || pinMsgs.size === 0) {
-    const guideEmbed = new EmbedBuilder()
-      .setColor(0xe60023)
-      .setAuthor({ name: `${guild.name} • Galeri Pinterest`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('Galeri Pencarian Pinterest')
-      .setDescription(
-        `Selamat datang di channel pencarian gambar & wallpaper Pinterest!\n\n` +
-        `**Cara Pakai (Otomatis & Praktis):**\n` +
-        `• Cukup **ketik kata kunci pencarian apa saja** di channel ini (contoh: \`anime aesthetic\`, \`cyberpunk wallpaper\`, \`minimalist car\`), bot akan langsung mencarikan koleksi foto berkualitas tinggi untuk kamu!\n` +
-        `• Gunakan tombol **Sebelumnya** dan **Berikutnya** di bawah gambar untuk melihat koleksi foto lainnya.\n` +
-        `• Kamu juga bisa menggunakan perintah \`/pinterest [query]\` di channel lain.`
-      )
-      .setFooter({ text: 'FlyBot Pinterest Search Explorer' })
-      .setTimestamp();
-    await pinterest.send({ embeds: [guideEmbed] }).catch(() => {});
-  }
-
-  // Kirim panduan Hitamkan jika channel masih baru / kosong
-  const hitMsgs = await hitamkan.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!hitMsgs || hitMsgs.size === 0) {
-    const guideEmbed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setAuthor({ name: `${guild.name} • Studio Hitamkan Foto`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('Studio Auto-Hitamkan Foto')
-      .setDescription(
-        `Selamat datang di channel khusus Auto-Hitamkan Foto!\n\n` +
-        `**Cara Pakai (Otomatis & Cepat):**\n` +
-        `• Cukup **kirim atau upload foto apa saja** ke channel ini, bot akan otomatis mengubah wajah/kulit menjadi hitam secara instan tanpa perlu mengetik perintah apa pun.\n` +
-        `• Kamu juga bisa menggunakan perintah \`/hitamkan\` di channel lain.\n\n` +
-        `> 💡 **Tips Kualitas:**\n` +
-        `> Gambar output berformat PNG murni beresolusi penuh!`
-      )
-      .setFooter({ text: 'FlyBot Instant Melanin & Darken Studio' })
-      .setTimestamp();
-    const hitMsg = await hitamkan.send({ embeds: [guideEmbed] }).catch(() => null);
-    if (hitMsg) await hitMsg.pin().catch(() => {});
-  }
-
-  // Kirim panduan Meme jika channel masih baru / kosong
-  const memeMsgs = await meme.messages.fetch({ limit: 5 }).catch(() => null);
-  if (!memeMsgs || memeMsgs.size === 0) {
-    const memeEmbed = new EmbedBuilder()
-      .setColor(0x8ACE00)
-      .setAuthor({ name: `${guild.name} • Studio Meme & Canvas`, iconURL: guild.client.user.displayAvatarURL() })
-      .setTitle('🎭 Studio Auto Meme & Canvas')
-      .setDescription(
-        `Selamat datang di channel khusus **Meme & Canvas Generator**!\n\n` +
-        `**Cara Pakai Otomatis:**\n` +
-        `• Ketik teks biasa langsung di sini → otomatis jadi gambar **Brat**!\n` +
-        `• Ketik \`gif <teks>\` → otomatis jadi **GIF Animasi Brat**!\n\n` +
-        `**Perintah Lengkap (\`/meme\`):**\n` +
-        `• \`/meme brat\` • \`/meme tweet\` • \`/meme ship\` • \`/meme sertifikat\`\n` +
-        `• \`/meme batslap\` • \`/meme kiss\` • \`/meme gay\` • \`/meme spotify\` • \`/meme efek\`\n\n` +
-        `> 🧹 *Chat di channel ini dibersihkan otomatis setiap jam **00:00 WIB**.*`
-      )
-      .setFooter({ text: 'FlyBot Meme & Canvas Studio' })
-      .setTimestamp();
-    const sentMeme = await meme.send({ embeds: [memeEmbed] }).catch(() => null);
-    if (sentMeme) await sentMeme.pin().catch(() => {});
-  }
-
-  return { category, fotografi, videografi, hdFoto, meme, removeBg, pinterest, hitamkan };
-}
-
-/**
- * Setup 6: Music
+ * Setup 5: Music
  * Kategori Music: play-music, sharelink-music
  */
 async function setupMusic(guild, roles) {
@@ -910,12 +653,12 @@ async function setupMusic(guild, roles) {
   const category = await getOrCreateChannel(guild, {
     name: '───────Music───────',
     type: ChannelType.GuildCategory,
-    position: 5,
+    position: 4,
     permissionOverwrites: memberOverwrites,
   });
 
   const playMusic = await getOrCreateChannel(guild, {
-    name: 'play-music',
+    name: '🎵︱play-music',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
@@ -934,7 +677,7 @@ async function setupMusic(guild, roles) {
   }
 
   const sharelinkMusic = await getOrCreateChannel(guild, {
-    name: 'sharelink-music',
+    name: '🎵︱sharelink-music',
     type: ChannelType.GuildForum,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
@@ -1039,29 +782,64 @@ async function setupEntertainment(guild, roles) {
   const category = await getOrCreateChannel(guild, {
     name: '───────Entertainment───────',
     type: ChannelType.GuildCategory,
-    position: 6,
+    position: 5,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiFanart = await getOrCreateChannel(guild, {
-    name: 'ai-fanart',
+    name: '🤖︱ai-fanart',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiGenerating = await getOrCreateChannel(guild, {
-    name: 'ai-generating',
+    name: '🤖︱ai-generating',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const aiPrompt = await getOrCreateChannel(guild, {
-    name: 'ai-prompt',
+    name: '🤖︱ai-prompt',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
+  });
+
+  const removeBg = await getOrCreateChannel(guild, {
+    name: '🤖︱remove-bg',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const pinterest = await getOrCreateChannel(guild, {
+    name: '🤖︱pinterest',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const hdFoto = await getOrCreateChannel(guild, {
+    name: '🤖︱hd-foto',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  const stalk = await getOrCreateChannel(guild, {
+    name: '🤖︱stalk',
+    type: ChannelType.GuildText,
+    parentId: category.id,
+    permissionOverwrites: memberOverwrites,
+  });
+
+  // Sambungkan ke hdChannelConfig
+  setHdConfig(guild.id, {
+    categoryId: category.id,
+    channelId: hdFoto.id,
+    enabled: true,
   });
 
   // Kirim guide embed di ai-fanart jika channel masih kosong
@@ -1116,7 +894,100 @@ async function setupEntertainment(guild, roles) {
     await aiPrompt.send({ embeds: [aiPromptEmbed] }).catch(() => {});
   }
 
-  return { category, aiFanart, aiGenerating, aiPrompt };
+  // Kirim panduan Auto-RemoveBG jika channel masih baru / kosong
+  const rbgMsgs = await removeBg.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!rbgMsgs || rbgMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setAuthor({ name: `${guild.name} • Studio Remove Background`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Studio Auto Remove-BG')
+      .setDescription(
+        `Selamat datang di channel khusus Auto Remove Background!\n\n` +
+        `**Cara Pakai (Otomatis & Cepat):**\n` +
+        `• Cukup **kirim atau upload foto apa saja** ke channel ini, bot akan otomatis memisahkan latar belakang dan mengirimkan file PNG transparan beresolusi tinggi tanpa perlu mengetik perintah apa pun.\n` +
+        `• Kamu juga bisa menggunakan perintah \`/removebg\` di channel lain.\n\n` +
+        `> 💡 **Tips Unduh Kualitas Penuh:**\n` +
+        `> Klik tombol "Buka Gambar Transparan" pada hasil untuk menyimpan gambar PNG tanpa kompresi!`
+      )
+      .setFooter({ text: 'FlyBot AI Background Remover' })
+      .setTimestamp();
+    await removeBg.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  // Kirim panduan Pinterest jika channel masih baru / kosong
+  const pinMsgs = await pinterest.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!pinMsgs || pinMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0xe60023)
+      .setAuthor({ name: `${guild.name} • Galeri Pinterest`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Galeri Pencarian Pinterest')
+      .setDescription(
+        `Selamat datang di channel pencarian gambar & wallpaper Pinterest!\n\n` +
+        `**Cara Pakai (Otomatis & Praktis):**\n` +
+        `• Cukup **ketik kata kunci pencarian apa saja** di channel ini (contoh: \`anime aesthetic\`, \`cyberpunk wallpaper\`, \`minimalist car\`), bot akan langsung mencarikan koleksi foto berkualitas tinggi untuk kamu!\n` +
+        `• Gunakan tombol **Sebelumnya** dan **Berikutnya** di bawah gambar untuk melihat koleksi foto lainnya.\n` +
+        `• Kamu juga bisa menggunakan perintah \`/pinterest [query]\` di channel lain.`
+      )
+      .setFooter({ text: 'FlyBot Pinterest Search Explorer' })
+      .setTimestamp();
+    await pinterest.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  // Kirim panduan Auto-HD jika channel masih baru / kosong
+  const hdMsgs = await hdFoto.messages.fetch({ limit: 5 }).catch(() => null);
+  if (!hdMsgs || hdMsgs.size === 0) {
+    const guideEmbed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setAuthor({ name: `${guild.name} • Studio HD Foto`, iconURL: guild.client.user.displayAvatarURL() })
+      .setTitle('Studio Auto-HD Foto')
+      .setDescription(
+        `Selamat datang di channel khusus Auto-HD!\n\n` +
+        `**Cara Pakai (Otomatis & Cepat):**\n` +
+        `• Cukup **kirim foto apa saja** ke channel ini, bot akan otomatis meningkatkan resolusi dan ketajamannya (Auto-HD 2x) tanpa perlu mengetik perintah apa pun.\n` +
+        `• Ingin hasil 4x lebih besar? Ketik \`/hd 4x\` pada caption foto untuk pembesaran 4x Ultra HD.\n` +
+        `• Kamu juga bisa me-reply foto di channel ini lalu ketik \`/hd\` atau \`!hd\`.\n\n` +
+        `> 💡 **Tips Kejernihan Maksimal:**\n` +
+        `> Discord mengecilkan tampilan gambar di chat. Klik foto hasil lalu pilih "Buka yang asli" di pojok kiri bawah untuk melihat kualitas foto penuh tanpa kompresi Discord!`
+      )
+      .setFooter({ text: 'FlyBot AI Super-Resolution Enhancer' })
+      .setTimestamp();
+    await hdFoto.send({ embeds: [guideEmbed] }).catch(() => {});
+  }
+
+  // Kirim atau perbarui info penggunaan /stalk
+  const stalkEmbed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('Arena Khusus Stalk Profil Akun')
+    .setDescription(
+      'Perintah `/stalk` **hanya dapat digunakan di channel ini** untuk menjaga privasi dan ketertiban obrolan server.\n\n' +
+      '**Platform yang Didukung:**\n' +
+      '• **Mobile Legends (MLBB)**: Nickname akun, region server, status bundle & promo event top-up\n' +
+      '• **Roblox**: Followers, teman, avatar headshot 3D, ID & status akun\n' +
+      '• **TikTok**: Profil, bio, followers, total likes, video, & avatar HD\n' +
+      '• **Discord**: Akun, avatar animasi GIF, banner animasi GIF via User ID\n' +
+      '• **GitHub**: Followers, total repo, bio, organisasi & link profil\n' +
+      '• **Twitter / X**: Bio, followers, total postingan, media & banner\n' +
+      '• **Minecraft**: UUID resmi, avatar skin 3D, & profil NameMC\n\n' +
+      '*Hasil stalk bersifat privat (ephemeral) dan hanya bisa dilihat oleh kamu.*'
+    )
+    .setFooter({ text: 'Ketik /stalk untuk mulai mencari profil' });
+
+  const stalkMsgs = await stalk.messages.fetch({ limit: 10 }).catch(() => null);
+  const existingStalkMsg = stalkMsgs
+    ? stalkMsgs.find(
+        (m) =>
+          m.author?.id === guild.client.user?.id &&
+          m.embeds?.some((e) => e.title && e.title.includes('Arena Khusus Stalk'))
+      )
+    : null;
+
+  if (existingStalkMsg) {
+    await existingStalkMsg.edit({ embeds: [stalkEmbed] }).catch(() => {});
+  } else if (!stalkMsgs || stalkMsgs.size === 0) {
+    await stalk.send({ embeds: [stalkEmbed] }).catch(() => {});
+  }
+
+  return { category, aiFanart, aiGenerating, aiPrompt, removeBg, pinterest, hdFoto, stalk };
 }
 
 /**
@@ -1160,34 +1031,34 @@ async function setupSosmedConverter(guild, roles) {
 
   // 1. TikTok Convert
   const tiktokConvert = await getOrCreateChannel(guild, {
-    name: 'tiktok-convert',
+    name: '📥︱tiktok-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link TikTok dari PC/Mobile, bot otomatis konversi jadi video tanpa watermark atau foto! Chat otomatis dihapus setelah 1 hari (24 jam).',
+    topic: 'Kirim link TikTok dari PC/Mobile, bot otomatis konversi jadi video tanpa watermark atau foto! Chat otomatis dihapus setiap jam 00:00 WIB.',
   });
 
   // 2. Instagram Convert
   const instagramConvert = await getOrCreateChannel(guild, {
-    name: 'instagram-convert',
+    name: '📥︱instagram-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link Reels, Postingan, atau Carousel Instagram untuk diunduh otomatis! Chat otomatis dihapus setelah 1 hari (24 jam).',
+    topic: 'Kirim link Reels, Postingan, atau Carousel Instagram untuk diunduh otomatis! Chat otomatis dihapus setiap jam 00:00 WIB.',
   });
 
   // 3. Facebook Convert
   const facebookConvert = await getOrCreateChannel(guild, {
-    name: 'facebook-convert',
+    name: '📥︱facebook-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link video / reels Facebook untuk dikonversi menjadi video langsung! Chat otomatis dihapus setelah 1 hari (24 jam).',
+    topic: 'Kirim link video / reels Facebook untuk dikonversi menjadi video langsung! Chat otomatis dihapus setiap jam 00:00 WIB.',
   });
 
   // 4. YouTube Convert
   const youtubeConvert = await getOrCreateChannel(guild, {
-    name: 'youtube-convert',
+    name: '📥︱youtube-convert',
     type: ChannelType.GuildText,
     parentId: category.id,
-    topic: 'Kirim link YouTube Shorts atau video YouTube untuk dikonversi langsung! Chat otomatis dihapus setelah 1 hari (24 jam).',
+    topic: 'Kirim link YouTube Shorts atau video YouTube untuk dikonversi langsung! Chat otomatis dihapus setiap jam 00:00 WIB.',
   });
 
   // Guide embed TikTok
@@ -1307,40 +1178,40 @@ async function setupMiniGamesTemplate(guild, roles) {
   const category = await getOrCreateChannel(guild, {
     name: '───────Mini Games───────',
     type: ChannelType.GuildCategory,
-    position: 6,
+    position: 7,
     permissionOverwrites: memberOverwrites,
   });
 
   const coinChannel = await getOrCreateChannel(guild, {
-    name: '🪙︱tebak-koin',
+    name: '🎮︱tebak-koin',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const numberChannel = await getOrCreateChannel(guild, {
-    name: '🔢︱tebak-angka',
+    name: '🎮︱tebak-angka',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const rpsChannel = await getOrCreateChannel(guild, {
-    name: '✌️︱suit-jepang',
+    name: '🎮︱suit-jepang',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const slotChannel = await getOrCreateChannel(guild, {
-    name: '🎰︱gacha-slot',
+    name: '🎮︱gacha-slot',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
   });
 
   const sambungKataChannel = await getOrCreateChannel(guild, {
-    name: '🔤︱sambung-kata',
+    name: '🎮︱sambung-kata',
     type: ChannelType.GuildText,
     parentId: category.id,
     permissionOverwrites: memberOverwrites,
@@ -1538,7 +1409,7 @@ async function setupVoiceLounges(guild, roles) {
   const category = await getOrCreateChannel(guild, {
     name: '───────Voice Lounges───────',
     type: ChannelType.GuildCategory,
-    position: 7, // Paling bawah
+    position: 8, // Paling bawah
     permissionOverwrites: voiceOverwrites,
   });
 
@@ -1572,13 +1443,17 @@ async function setupFullTemplate(guild) {
       if (!ch || ch.type === ChannelType.GuildCategory) continue;
       const clean = ch.name.toLowerCase().replace(/[^a-z0-9]/g, '');
       // Lindungi channel penting agar tidak terhapus
-      if (clean.includes('aifanart') || clean.includes('fotografi') || clean.includes('videografi') || clean.includes('converter')) {
+      if (clean.includes('aifanart') || clean.includes('converter')) {
         continue;
       }
       const isObsolete =
         clean === 'report' || clean.endsWith('report') ||
         clean === 'media' || clean.endsWith('media') ||
         clean === 'meme' || clean.endsWith('meme') ||
+        clean === 'hitamkan' || clean.endsWith('hitamkan') ||
+        clean === 'giveaway' || clean.endsWith('giveaway') ||
+        clean === 'fotografi' || clean.endsWith('fotografi') ||
+        clean === 'videografi' || clean.endsWith('videografi') ||
         clean === 'fanart' || clean.endsWith('fanart') ||
         clean.includes('playlistmusic') ||
         clean.includes('showcasegaming') ||
@@ -1642,28 +1517,36 @@ async function setupFullTemplate(guild) {
   // 5. Setup Kategori 4: Community
   const community = await setupCommunity(guild, roles);
 
-  // 6. Setup Kategori 5: Cinematography (Termasuk hd-foto)
-  const cinematography = await setupCinematography(guild, roles);
-
-  // 7. Setup Kategori 6: Music (play-music & sharelink-music)
+  // 6. Setup Kategori 5: Music (play-music & sharelink-music)
   const music = await setupMusic(guild, roles);
 
-  // 8. Setup Kategori 7: Entertainment (AI Rooms)
+  // 7. Setup Kategori 6: Entertainment (AI Rooms, Remove-BG, Pinterest, HD-Foto, Stalk)
   const entertainment = await setupEntertainment(guild, roles);
 
-  // 9. Setup Kategori 8: Sosmed Converter (TikTok, Instagram, Facebook, YouTube)
+  // 8. Setup Kategori 7: Sosmed Converter (TikTok, Instagram, Facebook, YouTube)
   const sosmedConverter = await setupSosmedConverter(guild, roles);
 
-  // 10. Setup Kategori 9: Mini Games
+  // 9. Setup Kategori 8: Mini Games (13 Arena Game & Kuis)
   const miniGames = await setupMiniGamesTemplate(guild, roles);
 
-  // 11. Setup Kategori 10: Voice Lounges (Paling Bawah)
+  // 10. Setup Kategori 9: Voice Lounges (Paling Bawah)
   const voiceLounges = await setupVoiceLounges(guild, roles);
+
+  // 11. Hapus kategori usang Cinematography jika masih ada (setelah channel-nya dipindah ke Entertainment)
+  const refreshedChannels = await guild.channels.fetch().catch(() => guild.channels.cache);
+  if (refreshedChannels) {
+    for (const [, ch] of refreshedChannels) {
+      if (ch && ch.type === ChannelType.GuildCategory && ch.name.toLowerCase().includes('cinematography')) {
+        console.log(`[AUTO-CLEANUP] Menghapus kategori usang: ${ch.name} di ${guild.name}`);
+        await ch.delete('Auto-cleanup kategori Cinematography yang sudah dihapus dari template').catch(() => {});
+      }
+    }
+  }
 
   // 12. Simpan konfigurasi server
   setTemplateConfig(guild.id, {
     allInOneConfigured: true,
-    templateVersion: 4,
+    templateVersion: 5,
     roles: {
       memberId: memberRole.id,
       maleId: maleRole.id,
@@ -1678,18 +1561,15 @@ async function setupFullTemplate(guild) {
       leaveId: notify.leave.id,
       levelsId: notify.levels.id,
       achievementsId: notify.achievements.id,
-      giveawayId: official.giveaway?.id || null,
-      stalkId: community.stalk.id,
-      hdFotoId: cinematography.hdFoto.id,
-      memeId: cinematography.meme?.id || null,
-      removeBgId: cinematography.removeBg?.id || null,
-      pinterestId: cinematography.pinterest?.id || null,
-      hitamkanId: cinematography.hitamkan?.id || null,
       playMusicId: music.playMusic.id,
       sharelinkMusicId: music.sharelinkMusic.id,
       aiFanartId: entertainment.aiFanart.id,
       aiGeneratingId: entertainment.aiGenerating.id,
       aiPromptId: entertainment.aiPrompt.id,
+      removeBgId: entertainment.removeBg.id,
+      pinterestId: entertainment.pinterest.id,
+      hdFotoId: entertainment.hdFoto.id,
+      stalkId: entertainment.stalk.id,
       tiktokConvertId: sosmedConverter.tiktokConvert.id,
       instagramConvertId: sosmedConverter.instagramConvert.id,
       facebookConvertId: sosmedConverter.facebookConvert.id,
@@ -1707,7 +1587,6 @@ async function setupFullTemplate(guild) {
       officialId: official.category.id,
       notifyId: notify.category.id,
       communityId: community.category.id,
-      cinematographyId: cinematography.category.id,
       musicId: music.category.id,
       entertainmentId: entertainment.category.id,
       sosmedConverterId: sosmedConverter.category.id,
@@ -1723,7 +1602,6 @@ async function setupFullTemplate(guild) {
     official,
     notify,
     community,
-    cinematography,
     music,
     entertainment,
     sosmedConverter,
@@ -1864,7 +1742,6 @@ module.exports = {
   setupOfficial,
   setupNotify,
   setupCommunity,
-  setupCinematography,
   setupMusic,
   setupEntertainment,
   setupSosmedConverter,

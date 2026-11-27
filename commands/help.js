@@ -45,16 +45,16 @@ const CATEGORIES = {
     label: 'Utilitas & Gambar HD',
     name: 'Utilitas, Gambar HD & Desain',
     description: 'Peningkat resolusi gambar (AI Upscale 2x/4x), remove background, pencarian Pinterest, status AFK, alarm reminder, dan info akun.',
-    commands: ['hd', 'removebg', 'pinterest', 'hitamkan', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
+    commands: ['hd', 'removebg', 'pinterest', 'afk', 'remind', 'stalk', 'userinfo', 'serverinfo', 'ping', 'invite', 'request-fitur'],
   },
   admin: {
     label: 'Server Setup & Moderasi',
     name: 'Server Setup & Moderasi',
     description: 'Setup template server all-in-one atau per-fitur mandiri, verifikasi member, tiket bantuan, statistik channel, audit log, dan perapian channel.',
     commands: [
-      'menu', 'setup', 'delete', 'setpinterest', 'setremovebg', 'sethitamkan', 'sethd', 'setwelcome', 'setleave', 'welcometest',
+      'menu', 'setup', 'delete', 'fitur', 'setpinterest', 'setremovebg', 'sethd', 'setwelcome', 'setleave', 'welcometest',
       'setaigenerating', 'setaiprompt', 'setfanart', 'setgames', 'setsambungkata', 'setslot', 'setmusic',
-      'setstalk', 'setsosmed', 'setvoicehub', 'setgiveaway', 'giveaway', 'setverif',
+      'setstalk', 'setsosmed', 'setvoicehub', 'setverif',
       'verif', 'autorole', 'ticket', 'setticket', 'stats', 'log', 'antitoxic',
       'buatembed', 'embedpreset', 'buatchannel', 'buatkategori', 'editkategori',
       'editnama', 'hapuschannel', 'geserchannel', 'rapihkan', 'role',
@@ -92,7 +92,7 @@ function createOverviewEmbed(guild, user, client) {
       `• Gunakan dropdown menu di bawah untuk melihat rincian perintah per kategori.\n` +
       `• Ketik **\`/help perintah:<nama>\`** untuk melihat panduan detail suatu perintah.\n` +
       `• Ketik **\`/menu\`** untuk dashboard kontrol interaktif dengan tombol 1-klik.\n` +
-      `• **Setup Mandiri (Per Fitur):** Ingin mengaktifkan fitur tertentu saja tanpa membuat ulang seluruh server? Gunakan perintah modular seperti \`/setgiveaway\`, \`/setpinterest\`, \`/setremovebg\`, \`/sethd\`, \`/setwelcome\`, \`/setleave\`, \`/setstalk\`, \`/setsosmed\`, \`/setvoicehub\`, \`/setgames\`, atau \`/setmusic\`.\n` +
+      `• **Setup Mandiri (Per Fitur):** Ingin mengaktifkan fitur tertentu saja tanpa membuat ulang seluruh server? Gunakan perintah modular seperti \`/setpinterest\`, \`/setremovebg\`, \`/sethd\`, \`/setwelcome\`, \`/setleave\`, \`/setstalk\`, \`/setsosmed\`, \`/setvoicehub\`, \`/setgames\`, atau \`/setmusic\`.\n` +
       `• **Setup Lengkap (All-in-One):** Gunakan \`/setup\` untuk membuat seluruh kategori & channel server otomatis.`
     )
     .addFields(

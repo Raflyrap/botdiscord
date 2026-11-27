@@ -84,17 +84,9 @@ BAGIAN 2: PANDUAN LENGKAP UNTUK USER BIASA
 8. PENCARIAN GAMBAR PINTEREST (AUTO-PINTEREST & /pinterest):
 - /pinterest [query] [jumlah]: Cari gambar estetik, wallpaper, avatar, atau inspirasi visual dari Pinterest.
 - Dilengkapi tombol interaktif "Sebelumnya" dan "Berikutnya" untuk menjelajahi seluruh koleksi foto hasil pencarian.
-- Channel khusus #📌︱pinterest: Tinggal ketik kata kunci pencarian apa saja di channel ini (contoh: anime aesthetic, cyberpunk car), bot langsung mencarikan gambarnya.
+- Channel khusus #pinterest: Tinggal ketik kata kunci pencarian apa saja di channel ini (contoh: anime aesthetic, cyberpunk car), bot langsung mencarikan gambarnya.
 
-9. TRANSFORMASI HITAMKAN GAMBAR (AUTO-HITAMKAN & /hitamkan):
-- /hitamkan [gambar / url]: Mengubah wajah atau kulit foto menjadi hitam/gelap secara instan dan natural.
-- Cara alternatif:
-  * Upload foto langsung dengan caption "/hitamkan".
-  * Reply foto seseorang di chat lalu ketik "/hitamkan".
-  * Upload foto di channel khusus #⚫︱hitamkan (semua gambar yang diunggah di channel ini otomatis langsung dihitamkan wajahnya).
-  * Setup mandiri menggunakan /sethitamkan atau otomatis tersedia di bawah channel pinterest pada server yang memakai /setup all in one.
-
-10. GENERATOR GAMBAR & FANART AI (#ai-fanart):
+9. GENERATOR GAMBAR & FANART AI (#ai-fanart):
 - Masuk ke channel #ai-fanart, kirim prompt teks deskripsi gambar yang lo mau (contoh: "cyberpunk cat with neon sunglasses in tokyo"). Bot bakal langsung buatkan gambar ilustrasinya.
 
 10. DOWNLOADER SOSIAL MEDIA OTOMATIS (Tanpa Watermark):
@@ -138,23 +130,22 @@ BAGIAN 3: PANDUAN LENGKAP UNTUK ADMIN & PEMILIK SERVER
 - Ini fitur paling sakti buat bikin server Discord dari nol langsung rapi, estetik, dan berizin aman dalam hitungan detik.
 - Cara Pakai: Jalankan /setup lalu pilih "Setup Semua Kategori (ALL)" atau pilih per kategori:
   1) Get Started: Rules server bahasa Indonesia, start-here verifikasi, dan select-roles gender pria/wanita dengan sistem lockdown sebelum verif.
-  2) Official: Pengumuman dan update bot (hanya admin/bot yg bisa ngetik, member cuma bisa react).
+  2) Official: Pengumuman dan help-center tiket bantuan (hanya admin/bot yg bisa ngetik, member cuma bisa react).
   3) Notify: Notifikasi welcome, leave, level up, dan achievements.
-  4) Community: Obrolan umum, share media, stalk akun, dan report.
-  5) Cinematography: Galeri fotografi, videografi, hd-foto (Auto-HD AI), remove-bg (Auto Remove Background), dan pinterest (Galeri Pencarian Gambar).
-  6) Entertainment: Meme, fanart AI, auto chat AI, prompt AI, gaming setup, forum playlist musik.
-  7) Mini Games: Arena tebak koin, tebak angka, suit jepang, slot, sambung kata.
-  8) Voice Lounges: Trigger "➕︱Buat Room Voice" (Join-to-Create) di urutan paling bawah.
+  4) Community: Obrolan umum (#ngobrol).
+  5) Music: Pemutar musik (#play-music) dan forum berbagi playlist (#sharelink-music).
+  6) Entertainment: AI fanart, AI generating, AI prompt, remove-bg, pinterest, hd-foto, dan stalk profil.
+  7) Sosmed Converter: Auto-download TikTok, Instagram, Facebook, dan YouTube.
+  8) Mini Games: 13 arena game & kuis berhadiah koin dan XP.
+  9) Voice Lounges: Trigger "➕︱Buat Room Voice" (Join-to-Create) di urutan paling bawah.
 - Seluruh hak akses channel (permission @everyone, bot, dan member) langsung diatur rapi otomatis.
 
 2. SETUP MANDIRI MODULAR PER-FITUR (Tanpa Merombak Server):
 - Jika pemilik server sudah punya struktur server sendiri dan HANYA ingin memasang fitur tertentu dari FlyBot, gunakan perintah setup per-fitur berikut:
   * /setstalk [channel]: Mengatur channel khusus stalking profil akun game & sosmed (MLBB, Roblox, TikTok, Discord ID, GitHub, Twitter).
-  * /setgiveaway [channel]: Mengatur channel dan panel giveaway berhadiah interaktif (member klik tombol ikut, owner kontrol gacha, dan otomatis DM pemenang).
-  * /setsosmed [aksi]: Mengatur kategori & 4 channel auto-downloader sosmed tanpa watermark (TikTok, Instagram, Facebook, YouTube) dengan auto-clean 24 jam.
+  * /setsosmed [aksi]: Mengatur kategori & 4 channel auto-downloader sosmed tanpa watermark (TikTok, Instagram, Facebook, YouTube) dengan auto-clean setiap jam 00:00 WIB.
   * /setvoicehub [aksi]: Mengatur sistem Voice Hub otomatis Join-to-Create room pribadi dengan panel kontrol interaktif.
   * /setpinterest [channel]: Mengatur channel khusus pencarian foto Pinterest otomatis.
-  * /sethitamkan [channel]: Mengatur studio otomatis untuk mengubah foto wajah menjadi hitam.
   * /setremovebg [channel]: Mengatur channel khusus studio hapus background instan.
   * /sethd [aksi]: Mengatur studio HD foto AI.
   * /setwelcome [channel]: Mengatur channel pesan sambutan banner member baru.
